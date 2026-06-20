@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   CarFront,
@@ -9,22 +9,41 @@ import {
   User,
   Phone,
 } from 'lucide-react';
-import { useAppStore } from '@/lib/store';
 import { PageHeader } from '@/components/PageHeader';
 import { FilterBar, Select } from '@/components/FilterBar';
 import { DataTable, Badge, EmptyState } from '@/components/DataTable';
 import { formatDate, cn } from '@/lib/utils';
+import { apiGet } from '@/lib/api';
+import type { Vehicle, WorkOrder } from '@/lib/types';
 
 const PAGE_SIZE = 5;
 
 export default function VehiclesPage() {
   const router = useRouter();
-  const vehicles = useAppStore((s) => s.vehicles);
-  const workOrders = useAppStore((s) => s.workOrders);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState('');
   const [brand, setBrand] = useState('');
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [vs, ws] = await Promise.all([
+          apiGet<Vehicle[]>('/api/vehicles', { q: search, brand }),
+          apiGet<WorkOrder[]>('/api/workorders'),
+        ]);
+        setVehicles(vs);
+        setWorkOrders(ws);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [search, brand]);
 
   const brandOptions = useMemo(() => {
     const set = new Set(vehicles.map((v) => v.brand));
@@ -55,6 +74,22 @@ export default function VehiclesPage() {
 
   const getWorkOrderCount = (vehicleId: string) =>
     workOrders.filter((w) => w.vehicle_id === vehicleId).length;
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader
+          title="车辆管理"
+          description="管理门店登记的所有车辆信息，快速查询车辆档案。"
+          addHref="/vehicles/new"
+          addLabel="登记车辆"
+        />
+        <div className="card p-8 flex items-center justify-center text-slate-500">
+          加载中...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Bell,
   CheckCircle2,
@@ -13,10 +13,10 @@ import {
   AlertTriangle,
   Check,
   User,
-  ArrowRight,
   Lock,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { apiGet, apiPost } from '@/lib/api';
 import { PageHeader } from '@/components/PageHeader';
 import { FilterBar, Select } from '@/components/FilterBar';
 import { DataTable, Badge, StatCard, EmptyState } from '@/components/DataTable';
@@ -49,10 +49,10 @@ const compensationSchema = z.object({
 type CompensationFormData = z.infer<typeof compensationSchema>;
 
 export default function CallbacksPage() {
-  const callbacks = useAppStore((s) => s.callbacks);
   const currentUser = useAppStore((s) => s.currentUser);
-  const retryCallback = useAppStore((s) => s.retryCallback);
-  const addCompensation = useAppStore((s) => s.addCompensation);
+
+  const [callbacks, setCallbacks] = useState<CallbackRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const canAccess = currentUser ? roleCanAccess(currentUser.role, ['store_manager']) : false;
 
@@ -82,6 +82,28 @@ export default function CallbacksPage() {
     },
   });
 
+  const fetchCallbacks = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: Record<string, any> = {};
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (sourceFilter !== 'all') params.source = sourceFilter;
+      if (eventTypeFilter !== 'all') params.event_type = eventTypeFilter;
+      if (startDate) params.from = startDate;
+      if (endDate) params.to = endDate;
+      const data = await apiGet<CallbackRecord[]>('/api/callbacks', params);
+      setCallbacks(data);
+    } catch (e) {
+      console.error('Failed to load callbacks', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, sourceFilter, eventTypeFilter, startDate, endDate]);
+
+  useEffect(() => {
+    fetchCallbacks();
+  }, [fetchCallbacks]);
+
   const sources = useMemo(() => {
     const set = new Set(callbacks.map((c) => c.source));
     return Array.from(set);
@@ -94,19 +116,6 @@ export default function CallbacksPage() {
 
   const filteredCallbacks = useMemo(() => {
     return callbacks.filter((cb) => {
-      if (statusFilter !== 'all' && cb.status !== statusFilter) return false;
-      if (sourceFilter !== 'all' && cb.source !== sourceFilter) return false;
-      if (eventTypeFilter !== 'all' && cb.event_type !== eventTypeFilter) return false;
-      if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        if (new Date(cb.created_at) < start) return false;
-      }
-      if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        if (new Date(cb.created_at) > end) return false;
-      }
       if (searchValue) {
         const kw = searchValue.toLowerCase();
         const matchSource = cb.source.toLowerCase().includes(kw);
@@ -116,7 +125,7 @@ export default function CallbacksPage() {
       }
       return true;
     });
-  }, [callbacks, statusFilter, sourceFilter, eventTypeFilter, startDate, endDate, searchValue]);
+  }, [callbacks, searchValue]);
 
   const stats = useMemo(() => {
     return {
@@ -138,22 +147,36 @@ export default function CallbacksPage() {
     setCompModalOpen(true);
   };
 
-  const handleRetry = (cb: CallbackRecord, success: boolean) => {
-    retryCallback(cb.id, success);
+  const handleRetry = async (cb: CallbackRecord, success: boolean) => {
+    try {
+      await apiPost('/api/callbacks', { action: 'retry', id: cb.id, payload: { success } });
+      await fetchCallbacks();
+    } catch (e) {
+      console.error('Failed to retry callback', e);
+    }
   };
 
-  const handleCompensationSubmit = (data: CompensationFormData) => {
+  const handleCompensationSubmit = async (data: CompensationFormData) => {
     if (!selectedCallback) return;
     if (!currentUser) return;
-    addCompensation(selectedCallback.id, {
-      action: data.action,
-      executed_by: currentUser.id,
-      executed_by_name: currentUser.full_name,
-      result: data.result,
-      remark: data.remark || undefined,
-    });
-    setCompModalOpen(false);
-    setSelectedCallback(null);
+    try {
+      await apiPost('/api/callbacks', {
+        action: 'compensate',
+        id: selectedCallback.id,
+        payload: {
+          action: data.action,
+          executed_by: currentUser.id,
+          executed_by_name: currentUser.full_name,
+          result: data.result,
+          remark: data.remark || undefined,
+        },
+      });
+      await fetchCallbacks();
+      setCompModalOpen(false);
+      setSelectedCallback(null);
+    } catch (e) {
+      console.error('Failed to add compensation', e);
+    }
   };
 
   const columns = [
@@ -404,12 +427,16 @@ export default function CallbacksPage() {
         </div>
       </FilterBar>
 
-      <DataTable
-        data={filteredCallbacks}
-        rowKey={(r) => r.id}
-        columns={columns}
-        emptyText="暂无符合条件的回调记录"
-      />
+      {loading ? (
+        <div className="text-center py-20 text-slate-500">加载中...</div>
+      ) : (
+        <DataTable
+          data={filteredCallbacks}
+          rowKey={(r) => r.id}
+          columns={columns}
+          emptyText="暂无符合条件的回调记录"
+        />
+      )}
 
       <Modal
         open={viewModalOpen}

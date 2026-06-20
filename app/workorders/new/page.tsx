@@ -1,11 +1,13 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Save } from 'lucide-react';
-import { useAppStore } from '@/lib/store';
+import { apiGet, apiPost } from '@/lib/api';
+import type { WorkOrder, Vehicle, UserProfile } from '@/lib/types';
 import { PageHeader } from '@/components/PageHeader';
 import { cn } from '@/lib/utils';
 
@@ -21,9 +23,14 @@ type FormData = z.infer<typeof schema>;
 
 export default function NewWorkOrderPage() {
   const router = useRouter();
-  const vehicles = useAppStore((s) => s.vehicles);
-  const users = useAppStore((s) => s.users);
-  const addWorkOrder = useAppStore((s) => s.addWorkOrder);
+
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+
+  useEffect(() => {
+    apiGet<Vehicle[]>('/api/vehicles').then(setVehicles);
+    apiGet<UserProfile[]>('/api/users').then(setUsers);
+  }, []);
 
   const teamUsers = users.filter((u) => u.role === 'team_lead');
 
@@ -44,8 +51,8 @@ export default function NewWorkOrderPage() {
     },
   });
 
-  const onSubmit = (data: FormData) => {
-    const wo = addWorkOrder({
+  const onSubmit = async (data: FormData) => {
+    const wo = await apiPost<WorkOrder>('/api/workorders', {
       vehicle_id: data.vehicle_id,
       title: data.title,
       description: data.description,

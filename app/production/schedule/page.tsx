@@ -1,16 +1,17 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, CalendarDays, Users, Clock, UserCircle2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useAppStore } from '@/lib/store';
 import { PageHeader } from '@/components/PageHeader';
 import { FilterBar, Select } from '@/components/FilterBar';
 import { Badge } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { formatDate, cn } from '@/lib/utils';
+import type { TeamSchedule, UserProfile, WorkOrder } from '@/lib/types';
+import { apiGet, apiPost } from '@/lib/api';
 
 const scheduleSchema = z.object({
   team_id: z.string().min(1, '请选择班组'),
@@ -37,10 +38,10 @@ function formatTime(dateStr: string) {
 }
 
 export default function SchedulePage() {
-  const teamSchedules = useAppStore((s) => s.teamSchedules);
-  const users = useAppStore((s) => s.users);
-  const workOrders = useAppStore((s) => s.workOrders);
-  const addTeamSchedule = useAppStore((s) => s.addTeamSchedule);
+  const [schedules, setSchedules] = useState<TeamSchedule[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const today = new Date();
   const weekStart = new Date(today);
@@ -52,6 +53,30 @@ export default function SchedulePage() {
   const [endDate, setEndDate] = useState(getDateKey(weekEnd));
   const [teamFilter, setTeamFilter] = useState<string>('all');
   const [modalOpen, setModalOpen] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [schedulesData, usersData, workOrdersData] = await Promise.all([
+        apiGet<TeamSchedule[]>('/api/schedules', {
+          team_id: teamFilter !== 'all' ? teamFilter : undefined,
+          from: startDate,
+          to: endDate,
+        }),
+        apiGet<UserProfile[]>('/api/users'),
+        apiGet<WorkOrder[]>('/api/workorders'),
+      ]);
+      setSchedules(schedulesData);
+      setUsers(usersData);
+      setWorkOrders(workOrdersData);
+    } finally {
+      setLoading(false);
+    }
+  }, [teamFilter, startDate, endDate]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const teamLeads = useMemo(
     () => users.filter((u) => u.role === 'team_lead' && u.is_active),
@@ -84,13 +109,13 @@ export default function SchedulePage() {
   const filteredSchedules = useMemo(() => {
     const start = new Date(startDate + 'T00:00:00');
     const end = new Date(endDate + 'T23:59:59');
-    return teamSchedules.filter((sc) => {
+    return schedules.filter((sc) => {
       const scDate = new Date(sc.start_time);
       if (scDate < start || scDate > end) return false;
       if (teamFilter !== 'all' && sc.team_id !== teamFilter) return false;
       return true;
     });
-  }, [teamSchedules, startDate, endDate, teamFilter]);
+  }, [schedules, startDate, endDate, teamFilter]);
 
   const calendarDays = useMemo(() => {
     const days: { date: Date; dateKey: string; weekday: string }[] = [];
@@ -123,10 +148,11 @@ export default function SchedulePage() {
     return map;
   }, [calendarDays, filteredSchedules]);
 
-  function onSubmit(data: ScheduleFormData) {
-    addTeamSchedule(data);
+  async function onSubmit(data: ScheduleFormData) {
+    await apiPost<TeamSchedule>('/api/schedules', data);
     reset();
     setModalOpen(false);
+    await fetchData();
   }
 
   function toggleAssignee(userId: string) {

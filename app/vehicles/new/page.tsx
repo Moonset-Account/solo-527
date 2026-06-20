@@ -17,6 +17,8 @@ import {
 import { useAppStore } from '@/lib/store';
 import { PageHeader } from '@/components/PageHeader';
 import { cn } from '@/lib/utils';
+import { apiPost } from '@/lib/api';
+import type { Vehicle } from '@/lib/types';
 
 const schema = z.object({
   plate_number: z
@@ -44,7 +46,7 @@ type FormValues = z.infer<typeof schema>;
 
 export default function NewVehiclePage() {
   const router = useRouter();
-  const addVehicle = useAppStore((s) => s.addVehicle);
+  const currentUser = useAppStore((s) => s.currentUser);
 
   const {
     register,
@@ -64,9 +66,11 @@ export default function NewVehiclePage() {
   });
 
   const onSubmit = async (data: FormValues) => {
-    await new Promise((r) => setTimeout(r, 300));
-    const v = addVehicle(data);
-    router.push(`/vehicles/${v.id}`);
+    const created = await apiPost<Vehicle>('/api/vehicles', {
+      ...data,
+      created_by: currentUser?.id ?? '',
+    });
+    router.push(`/vehicles/${created.id}`);
   };
 
   return (

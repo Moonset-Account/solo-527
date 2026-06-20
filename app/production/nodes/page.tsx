@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   PlayCircle,
@@ -16,13 +16,14 @@ import { useAppStore } from '@/lib/store';
 import { PageHeader } from '@/components/PageHeader';
 import { FilterBar, Select } from '@/components/FilterBar';
 import { DataTable, StatCard, Badge } from '@/components/DataTable';
-import type { NodeStatus } from '@/lib/types';
+import type { NodeStatus, ProductionNode, UserProfile, WorkOrder } from '@/lib/types';
 import {
   nodeStatusLabel,
   nodeStatusColor,
   formatDate,
   cn,
 } from '@/lib/utils';
+import { apiGet, apiPatch } from '@/lib/api';
 
 const STATUS_OPTIONS: { value: NodeStatus | 'all'; label: string }[] = [
   { value: 'all', label: '全部状态' },
@@ -33,11 +34,12 @@ const STATUS_OPTIONS: { value: NodeStatus | 'all'; label: string }[] = [
 
 export default function ProductionNodesPage() {
   const router = useRouter();
-  const productionNodes = useAppStore((s) => s.productionNodes);
-  const workOrders = useAppStore((s) => s.workOrders);
-  const users = useAppStore((s) => s.users);
-  const updateProductionNode = useAppStore((s) => s.updateProductionNode);
   const currentUser = useAppStore((s) => s.currentUser);
+
+  const [nodes, setNodes] = useState<ProductionNode[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const [workOrderFilter, setWorkOrderFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<NodeStatus | 'all'>('all');
@@ -46,13 +48,36 @@ export default function ProductionNodesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedWorkOrders, setExpandedWorkOrders] = useState<Set<string>>(new Set());
 
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [nodesData, usersData, workOrdersData] = await Promise.all([
+        apiGet<ProductionNode[]>('/api/nodes', {
+          workorder_id: workOrderFilter !== 'all' ? workOrderFilter : undefined,
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+        }),
+        apiGet<UserProfile[]>('/api/users'),
+        apiGet<WorkOrder[]>('/api/workorders'),
+      ]);
+      setNodes(nodesData);
+      setUsers(usersData);
+      setWorkOrders(workOrdersData);
+    } finally {
+      setLoading(false);
+    }
+  }, [workOrderFilter, statusFilter]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   const teamLeads = useMemo(
     () => users.filter((u) => u.role === 'team_lead' && u.is_active),
     [users],
   );
 
   const filteredNodes = useMemo(() => {
-    return productionNodes.filter((node) => {
+    return nodes.filter((node) => {
       if (workOrderFilter !== 'all' && node.workorder_id !== workOrderFilter) return false;
       if (statusFilter !== 'all' && node.status !== statusFilter) return false;
       if (teamFilter !== 'all') {
@@ -61,12 +86,12 @@ export default function ProductionNodesPage() {
       }
       return true;
     });
-  }, [productionNodes, workOrderFilter, statusFilter, teamFilter, workOrders]);
+  }, [nodes, workOrderFilter, statusFilter, teamFilter, workOrders]);
 
   const stats = useMemo(() => {
-    const pending = productionNodes.filter((n) => n.status === 'pending').length;
-    const inProgress = productionNodes.filter((n) => n.status === 'in_progress').length;
-    const completed = productionNodes.filter((n) => n.status === 'completed');
+    const pending = nodes.filter((n) => n.status === 'pending').length;
+    const inProgress = nodes.filter((n) => n.status === 'in_progress').length;
+    const completed = nodes.filter((n) => n.status === 'completed');
 
     let avgDuration = 0;
     if (completed.length > 0) {
@@ -85,7 +110,7 @@ export default function ProductionNodesPage() {
     }
 
     return { pending, inProgress, completed: completed.length, avgDuration };
-  }, [productionNodes]);
+  }, [nodes]);
 
   const nodesByWorkOrder = useMemo(() => {
     const map: Record<string, typeof filteredNodes> = {};
@@ -133,37 +158,50 @@ export default function ProductionNodesPage() {
     setSelectedIds(next);
   }
 
-  function batchStart() {
+  async function batchStart() {
     const now = new Date().toISOString();
     const operatorId = currentUser?.id || '';
-    const operatorName = currentUser?.full_name || '';
-    for (const id of selectedIds) {
-      const node = productionNodes.find((n) => n.id === id);
-      if (node && node.status === 'pending') {
-        updateProductionNode(id, {
-          status: 'in_progress',
-          started_at: now,
-          operator_id: operatorId,
-          operator_name: operatorName,
-        });
-      }
+    const ids = Array.from(selectedIds).filter((id) => {
+      const node = nodes.find((n) => n.id === id);
+      return node && node.status === 'pending';
+    });
+    if (ids.length === 0) {
+      setSelectedIds(new Set());
+      return;
     }
-    setSelectedIds(new Set());
+    try {
+      await apiPatch('/api/nodes', {
+        ids,
+        status: 'in_progress',
+        started_at: now,
+        operator_id: operatorId,
+      });
+      await fetchData();
+    } finally {
+      setSelectedIds(new Set());
+    }
   }
 
-  function batchComplete() {
+  async function batchComplete() {
     const now = new Date().toISOString();
-    for (const id of selectedIds) {
-      const node = productionNodes.find((n) => n.id === id);
-      if (node && (node.status === 'pending' || node.status === 'in_progress')) {
-        updateProductionNode(id, {
-          status: 'completed',
-          completed_at: now,
-          started_at: node.started_at || now,
-        });
-      }
+    const ids = Array.from(selectedIds).filter((id) => {
+      const node = nodes.find((n) => n.id === id);
+      return node && (node.status === 'pending' || node.status === 'in_progress');
+    });
+    if (ids.length === 0) {
+      setSelectedIds(new Set());
+      return;
     }
-    setSelectedIds(new Set());
+    try {
+      await apiPatch('/api/nodes', {
+        ids,
+        status: 'completed',
+        completed_at: now,
+      });
+      await fetchData();
+    } finally {
+      setSelectedIds(new Set());
+    }
   }
 
   const flatColumns = [

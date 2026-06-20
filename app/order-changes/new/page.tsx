@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,7 +9,8 @@ import { Save, Plus, Trash2, Car, Package, Wrench } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { PageHeader } from '@/components/PageHeader';
 import { cn } from '@/lib/utils';
-import type { AffectedObject } from '@/lib/types';
+import type { AffectedObject, OrderChange, UserProfile, WorkOrder, Vehicle, Part } from '@/lib/types';
+import { apiGet, apiPost } from '@/lib/api';
 
 const CHANGE_TYPES = ['配件变更', '项目追加', '项目取消', '价格调整', '车辆更换', '责任人变更', '其他'];
 
@@ -38,11 +40,13 @@ const AFFECTED_TYPE_OPTIONS: { value: AffectedObject['type']; label: string; ico
 
 export default function NewOrderChangePage() {
   const router = useRouter();
-  const users = useAppStore((s) => s.users);
-  const workOrders = useAppStore((s) => s.workOrders);
-  const vehicles = useAppStore((s) => s.vehicles);
-  const parts = useAppStore((s) => s.parts);
-  const addOrderChange = useAppStore((s) => s.addOrderChange);
+  const currentUser = useAppStore((s) => s.currentUser);
+
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [parts, setParts] = useState<Part[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const {
     register,
@@ -67,6 +71,27 @@ export default function NewOrderChangePage() {
     name: 'affected_objects',
   });
 
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      try {
+        const [usersData, workOrdersData, vehiclesData, partsData] = await Promise.all([
+          apiGet<UserProfile[]>('/api/users'),
+          apiGet<WorkOrder[]>('/api/workorders'),
+          apiGet<Vehicle[]>('/api/vehicles'),
+          apiGet<Part[]>('/api/parts'),
+        ]);
+        setUsers(usersData);
+        setWorkOrders(workOrdersData);
+        setVehicles(vehiclesData);
+        setParts(partsData);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
   const affectedObjects = watch('affected_objects');
 
   const handleAutoFill = (index: number, type: AffectedObject['type'], id: string) => {
@@ -84,14 +109,15 @@ export default function NewOrderChangePage() {
     }
   };
 
-  const onSubmit = (data: FormData) => {
-    addOrderChange({
+  const onSubmit = async (data: FormData) => {
+    await apiPost<OrderChange>('/api/order-changes', {
       workorder_id: data.workorder_id || undefined,
       change_type: data.change_type,
       content: data.content,
       affected_objects: data.affected_objects,
       responsible_id: data.responsible_id,
       status: 'open',
+      created_by: currentUser?.id,
     });
     router.push('/order-changes');
   };

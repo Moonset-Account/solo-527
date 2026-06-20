@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   CarFront,
@@ -8,15 +8,14 @@ import {
   Calendar,
   Clock,
   CheckCircle2,
-  Circle,
   CircleDashed,
   AlertTriangle,
   Package,
   ClipboardCheck,
   ArrowRight,
 } from 'lucide-react';
-import type { WorkOrderStatus, TurnoverType } from '@/lib/types';
-import { useAppStore } from '@/lib/store';
+import { apiGet, apiPatch } from '@/lib/api';
+import type { WorkOrder, WorkOrderStatus, TurnoverType, ProductionNode, PartTurnover, QualityInspection } from '@/lib/types';
 import { PageHeader } from '@/components/PageHeader';
 import { DataTable, Badge } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
@@ -45,31 +44,55 @@ const NEXT_STATUS_MAP: Record<WorkOrderStatus, { value: WorkOrderStatus; label: 
 export default function WorkOrderDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const workOrders = useAppStore((s) => s.workOrders);
-  const productionNodes = useAppStore((s) => s.productionNodes);
-  const partTurnovers = useAppStore((s) => s.partTurnovers);
-  const qualityInspections = useAppStore((s) => s.qualityInspections);
-  const updateWorkOrderStatus = useAppStore((s) => s.updateWorkOrderStatus);
 
-  const workOrder = workOrders.find((w) => w.id === params.id);
+  const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
+  const [nodes, setNodes] = useState<ProductionNode[]>([]);
+  const [turnovers, setTurnovers] = useState<PartTurnover[]>([]);
+  const [inspections, setInspections] = useState<QualityInspection[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<WorkOrderStatus | null>(null);
 
-  const nodes = useMemo(() => {
-    return productionNodes
-      .filter((n) => n.workorder_id === params.id)
-      .sort((a, b) => a.sequence - b.sequence);
-  }, [productionNodes, params.id]);
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [wo, nodeList, turnoverList, inspectionList] = await Promise.all([
+        apiGet<WorkOrder>(`/api/workorders/${params.id}`),
+        apiGet<ProductionNode[]>('/api/nodes', { workorder_id: params.id }),
+        apiGet<PartTurnover[]>('/api/parts/turnovers'),
+        apiGet<QualityInspection[]>('/api/quality', { workorder_id: params.id }),
+      ]);
+      setWorkOrder(wo);
+      setNodes(nodeList.sort((a, b) => a.sequence - b.sequence));
+      setTurnovers(turnoverList.filter((t) => t.workorder_id === params.id));
+      setInspections(inspectionList);
+    } catch {
+      setWorkOrder(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [params.id]);
 
-  const turnovers = useMemo(() => {
-    return partTurnovers.filter((t) => t.workorder_id === params.id);
-  }, [partTurnovers, params.id]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  const inspections = useMemo(() => {
-    return qualityInspections.filter((q) => q.workorder_id === params.id);
-  }, [qualityInspections, params.id]);
+  if (loading) {
+    return (
+      <div>
+        <PageHeader
+          title="加载中..."
+          description="正在加载工单数据..."
+          backHref="/workorders"
+        />
+        <div className="card p-10 text-center text-slate-500">
+          加载中...
+        </div>
+      </div>
+    );
+  }
 
   if (!workOrder) {
     return (
@@ -89,16 +112,18 @@ export default function WorkOrderDetailPage() {
 
   const nextStatus = NEXT_STATUS_MAP[workOrder.status];
 
-  const handleConfirmStatus = () => {
+  const handleConfirmStatus = async () => {
     if (pendingStatus) {
-      updateWorkOrderStatus(workOrder.id, pendingStatus);
+      await apiPatch('/api/workorders', { id: workOrder.id, status: pendingStatus });
+      await loadData();
     }
     setStatusModalOpen(false);
     setPendingStatus(null);
   };
 
-  const handleConfirmCancel = () => {
-    updateWorkOrderStatus(workOrder.id, 'cancelled');
+  const handleConfirmCancel = async () => {
+    await apiPatch('/api/workorders', { id: workOrder.id, status: 'cancelled' });
+    await loadData();
     setCancelModalOpen(false);
   };
 

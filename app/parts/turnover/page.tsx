@@ -1,8 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Package } from 'lucide-react';
-import { useAppStore } from '@/lib/store';
 import { PageHeader } from '@/components/PageHeader';
 import { FilterBar, Select } from '@/components/FilterBar';
 import { DataTable, Badge, StatCard } from '@/components/DataTable';
@@ -11,16 +10,40 @@ import {
   turnoverTypeColor,
   formatDate,
 } from '@/lib/utils';
-import type { TurnoverType } from '@/lib/types';
+import { apiGet } from '@/lib/api';
+import type { TurnoverType, PartTurnover, Part } from '@/lib/types';
 
 export default function PartTurnoverPage() {
-  const turnovers = useAppStore((s) => s.partTurnovers);
-  const parts = useAppStore((s) => s.parts);
+  const [turnovers, setTurnovers] = useState<PartTurnover[]>([]);
+  const [parts, setParts] = useState<Part[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [type, setType] = useState<string>('');
   const [partId, setPartId] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [ts, ps] = await Promise.all([
+          apiGet<PartTurnover[]>('/api/parts/turnovers', {
+            type,
+            part_id: partId,
+            from: startDate,
+            to: endDate,
+          }),
+          apiGet<Part[]>('/api/parts'),
+        ]);
+        setTurnovers(ts);
+        setParts(ps);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [type, partId, startDate, endDate]);
 
   const filteredTurnovers = useMemo(() => {
     return turnovers.filter((t) => {
@@ -57,6 +80,21 @@ export default function PartTurnoverPage() {
   );
 
   const netChange = totalIn - totalOut;
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader
+          title="配件周转明细"
+          description="查询配件出入库及调拨记录，掌握库存变动情况。"
+          backHref="/parts"
+        />
+        <div className="card p-8 flex items-center justify-center text-slate-500">
+          加载中...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

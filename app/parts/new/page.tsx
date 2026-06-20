@@ -5,8 +5,9 @@ import { Package } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useAppStore } from '@/lib/store';
 import { PageHeader } from '@/components/PageHeader';
+import { apiPost } from '@/lib/api';
+import type { Part } from '@/lib/types';
 
 const partSchema = z.object({
   part_code: z.string().min(1, '配件编号不能为空'),
@@ -39,7 +40,6 @@ const UNIT_OPTIONS = ['个', '件', '套', '桶', '瓶', '条', '副', '支', '�
 
 export default function NewPartPage() {
   const router = useRouter();
-  const addPart = useAppStore((s) => s.addPart);
 
   const {
     register,
@@ -58,16 +58,8 @@ export default function NewPartPage() {
     },
   });
 
-  const onSubmit = (values: PartFormValues) => {
-    addPart({
-      part_code: values.part_code,
-      name: values.name,
-      category: values.category,
-      stock: values.stock,
-      unit_price: values.unit_price,
-      unit: values.unit,
-      min_stock: values.min_stock,
-    });
+  const onSubmit = async (values: PartFormValues) => {
+    await apiPost<Part>('/api/parts', values);
     router.push('/parts');
   };
 

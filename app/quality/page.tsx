@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ClipboardCheck,
   CheckCircle2,
@@ -9,11 +9,11 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
-import { useAppStore } from '@/lib/store';
+import { apiGet } from '@/lib/api';
+import type { OverallResult, QualityInspection, WorkOrder, UserProfile } from '@/lib/types';
 import { PageHeader } from '@/components/PageHeader';
 import { FilterBar, Select } from '@/components/FilterBar';
 import { StatCard, Badge } from '@/components/DataTable';
-import type { OverallResult, QualityInspection } from '@/lib/types';
 import {
   overallResultLabel,
   overallResultColor,
@@ -29,11 +29,14 @@ const RESULT_OPTIONS: { value: OverallResult | 'all'; label: string }[] = [
 ];
 
 export default function QualityPage() {
-  const inspections = useAppStore((s) => s.qualityInspections);
-  const workOrders = useAppStore((s) => s.workOrders);
-  const users = useAppStore((s) => s.users);
+  const [inspections, setInspections] = useState<QualityInspection[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
 
-  const inspectors = users.filter((u) => u.role === 'inspector');
+  const inspectors = useMemo(
+    () => users.filter((u) => u.role === 'inspector'),
+    [users],
+  );
 
   const [resultFilter, setResultFilter] = useState<OverallResult | 'all'>('all');
   const [workorderFilter, setWorkorderFilter] = useState<string>('all');
@@ -42,11 +45,21 @@ export default function QualityPage() {
   const [dateTo, setDateTo] = useState<string>('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  useEffect(() => {
+    apiGet<WorkOrder[]>('/api/workorders').then(setWorkOrders);
+    apiGet<UserProfile[]>('/api/users').then(setUsers);
+  }, []);
+
+  useEffect(() => {
+    apiGet<QualityInspection[]>('/api/quality', {
+      result: resultFilter !== 'all' ? resultFilter : undefined,
+      workorder_id: workorderFilter !== 'all' ? workorderFilter : undefined,
+      inspector_id: inspectorFilter !== 'all' ? inspectorFilter : undefined,
+    }).then(setInspections);
+  }, [resultFilter, workorderFilter, inspectorFilter]);
+
   const filteredInspections = useMemo(() => {
     return inspections.filter((qi) => {
-      if (resultFilter !== 'all' && qi.overall_result !== resultFilter) return false;
-      if (workorderFilter !== 'all' && qi.workorder_id !== workorderFilter) return false;
-      if (inspectorFilter !== 'all' && qi.inspector_id !== inspectorFilter) return false;
       if (dateFrom) {
         const from = new Date(dateFrom);
         from.setHours(0, 0, 0, 0);
@@ -59,7 +72,7 @@ export default function QualityPage() {
       }
       return true;
     });
-  }, [inspections, resultFilter, workorderFilter, inspectorFilter, dateFrom, dateTo]);
+  }, [inspections, dateFrom, dateTo]);
 
   const stats = useMemo(() => {
     const total = inspections.length;

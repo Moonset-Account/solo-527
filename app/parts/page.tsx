@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Package, ArrowDownToLine, ArrowUpFromLine, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
@@ -9,7 +9,8 @@ import { FilterBar, Select } from '@/components/FilterBar';
 import { DataTable, Badge, StatCard } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { formatCurrency, cn } from '@/lib/utils';
-import type { Part } from '@/lib/types';
+import { apiGet, apiPost } from '@/lib/api';
+import type { Part, WorkOrder, PartTurnover } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -25,15 +26,34 @@ type TurnoverFormValues = z.infer<typeof turnoverSchema>;
 type TurnoverType = 'in' | 'out';
 
 export default function PartsPage() {
-  const parts = useAppStore((s) => s.parts);
-  const workOrders = useAppStore((s) => s.workOrders);
-  const addPartTurnover = useAppStore((s) => s.addPartTurnover);
+  const currentUser = useAppStore((s) => s.currentUser);
+  const [parts, setParts] = useState<Part[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<TurnoverType>('in');
   const [selectedPart, setSelectedPart] = useState<Part | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [ps, ws] = await Promise.all([
+          apiGet<Part[]>('/api/parts', { q: search, category }),
+          apiGet<WorkOrder[]>('/api/workorders'),
+        ]);
+        setParts(ps);
+        setWorkOrders(ws);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [search, category]);
 
   const categories = useMemo(() => {
     const set = new Set(parts.map((p) => p.category));
@@ -76,17 +96,51 @@ export default function PartsPage() {
     setModalOpen(true);
   };
 
-  const onSubmit = (values: TurnoverFormValues) => {
-    if (!selectedPart) return;
-    addPartTurnover({
-      part_id: selectedPart.id,
-      type: modalType,
-      quantity: values.quantity,
-      workorder_id: values.workorder_id || undefined,
-      remark: values.remark,
-    });
-    setModalOpen(false);
+  const refreshParts = async () => {
+    const ps = await apiGet<Part[]>('/api/parts', { q: search, category });
+    setParts(ps);
   };
+
+  const onSubmit = async (values: TurnoverFormValues) => {
+    if (!selectedPart) return;
+    setSubmitting(true);
+    try {
+      await apiPost<PartTurnover>('/api/parts/turnovers', {
+        part_id: selectedPart.id,
+        type: modalType,
+        quantity: values.quantity,
+        workorder_id: values.workorder_id || undefined,
+        remark: values.remark,
+        operator_id: currentUser?.id ?? '',
+      });
+      setModalOpen(false);
+      await refreshParts();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader
+          title="配件管理"
+          description="管理库存配件，查看库存预警，登记出入库操作。"
+          addHref="/parts/new"
+          addLabel="新增配件"
+          actions={
+            <Link href="/parts/turnover" className="btn-secondary">
+              <Package className="w-4 h-4" />
+              周转明细
+            </Link>
+          }
+        />
+        <div className="card p-8 flex items-center justify-center text-slate-500">
+          加载中...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -229,7 +283,7 @@ export default function PartsPage() {
             <button
               onClick={() => setModalOpen(false)}
               className="btn-secondary"
-              disabled={isSubmitting}
+              disabled={isSubmitting || submitting}
             >
               取消
             </button>
@@ -239,7 +293,7 @@ export default function PartsPage() {
                 'btn-primary',
                 modalType === 'in' ? 'bg-emerald-600 hover:bg-emerald-700' : '',
               )}
-              disabled={isSubmitting}
+              disabled={isSubmitting || submitting}
             >
               {modalType === 'in' ? '确认入库' : '确认出库'}
             </button>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import {
   CarFront,
   Package,
@@ -23,9 +24,10 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { useAppStore } from '@/lib/store';
+import { apiGet } from '@/lib/api';
 import { PageHeader } from '@/components/PageHeader';
 import { StatCard, Badge, DataTable } from '@/components/DataTable';
-import type { WorkOrderStatus } from '@/lib/types';
+import type { Vehicle, Part, WorkOrder, PartTurnover, QualityInspection, OrderChange, CallbackRecord, TeamSchedule, WorkOrderStatus } from '@/lib/types';
 import {
   workOrderStatusLabel,
   workOrderStatusColor,
@@ -57,14 +59,47 @@ const REVENUE_TREND = [
 ];
 
 export default function DashboardPage() {
-  const vehicles = useAppStore((s) => s.vehicles);
-  const parts = useAppStore((s) => s.parts);
-  const workOrders = useAppStore((s) => s.workOrders);
-  const inspections = useAppStore((s) => s.qualityInspections);
-  const turnovers = useAppStore((s) => s.partTurnovers);
-  const orderChanges = useAppStore((s) => s.orderChanges);
-  const callbacks = useAppStore((s) => s.callbacks);
-  const schedules = useAppStore((s) => s.teamSchedules);
+  const currentUser = useAppStore((s) => s.currentUser);
+
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [parts, setParts] = useState<Part[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [inspections, setInspections] = useState<QualityInspection[]>([]);
+  const [turnovers, setTurnovers] = useState<PartTurnover[]>([]);
+  const [orderChanges, setOrderChanges] = useState<OrderChange[]>([]);
+  const [callbacks, setCallbacks] = useState<CallbackRecord[]>([]);
+  const [schedules, setSchedules] = useState<TeamSchedule[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      try {
+        const [v, p, w, qi, t, oc, cb, sc] = await Promise.all([
+          apiGet<Vehicle[]>('/api/vehicles'),
+          apiGet<Part[]>('/api/parts'),
+          apiGet<WorkOrder[]>('/api/workorders'),
+          apiGet<QualityInspection[]>('/api/quality'),
+          apiGet<PartTurnover[]>('/api/parts/turnovers'),
+          apiGet<OrderChange[]>('/api/order-changes'),
+          apiGet<CallbackRecord[]>('/api/callbacks'),
+          apiGet<TeamSchedule[]>('/api/schedules'),
+        ]);
+        setVehicles(v);
+        setParts(p);
+        setWorkOrders(w);
+        setInspections(qi);
+        setTurnovers(t);
+        setOrderChanges(oc);
+        setCallbacks(cb);
+        setSchedules(sc);
+      } catch (e) {
+        console.error('Failed to load dashboard data', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAll();
+  }, []);
 
   const todayVehicles = vehicles.length;
   const inProgress = workOrders.filter(
@@ -92,6 +127,18 @@ export default function DashboardPage() {
   const totalRevenue = workOrders
     .filter((w) => w.status === 'completed')
     .reduce((s) => s + 1280, 0) + 28600;
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader
+          title="工作台"
+          description="今日门店运营总览，关键数据一目了然。"
+        />
+        <div className="text-center py-20 text-slate-500">加载中...</div>
+      </div>
+    );
+  }
 
   return (
     <div>

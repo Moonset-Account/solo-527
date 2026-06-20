@@ -1,15 +1,17 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Save, Plus, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { apiGet, apiPost } from '@/lib/api';
+import type { OverallResult, QualityInspection, WorkOrder } from '@/lib/types';
 import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/DataTable';
 import { cn, overallResultLabel, overallResultColor } from '@/lib/utils';
-import type { OverallResult } from '@/lib/types';
 
 const qualityItemSchema = z.object({
   name: z.string().min(1, '请输入质检项名称'),
@@ -35,9 +37,13 @@ const DEFAULT_ITEMS = [
 
 export default function NewQualityInspectionPage() {
   const router = useRouter();
-  const workOrders = useAppStore((s) => s.workOrders);
   const currentUser = useAppStore((s) => s.currentUser);
-  const addQualityInspection = useAppStore((s) => s.addQualityInspection);
+
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+
+  useEffect(() => {
+    apiGet<WorkOrder[]>('/api/workorders').then(setWorkOrders);
+  }, []);
 
   const availableWorkOrders = workOrders.filter(
     (wo) => wo.status === 'quality_check' || wo.status === 'in_progress',
@@ -67,8 +73,8 @@ export default function NewQualityInspectionPage() {
 
   const watchedItems = watch('items');
 
-  const onSubmit = (data: FormData) => {
-    addQualityInspection({
+  const onSubmit = async (data: FormData) => {
+    await apiPost<QualityInspection>('/api/quality', {
       workorder_id: data.workorder_id,
       inspector_id: currentUser?.id ?? '',
       overall_result: data.overall_result,

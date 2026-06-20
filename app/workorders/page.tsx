@@ -1,13 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Wrench, ClipboardCheck, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
-import { useAppStore } from '@/lib/store';
+import { Wrench, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { apiGet } from '@/lib/api';
+import type { WorkOrder, WorkOrderStatus, Vehicle } from '@/lib/types';
 import { PageHeader } from '@/components/PageHeader';
 import { FilterBar, Select } from '@/components/FilterBar';
 import { DataTable, Badge, StatCard } from '@/components/DataTable';
-import type { WorkOrderStatus } from '@/lib/types';
 import {
   workOrderStatusLabel,
   workOrderStatusColor,
@@ -26,29 +26,24 @@ const STATUS_OPTIONS: { value: WorkOrderStatus | 'all'; label: string }[] = [
 
 export default function WorkOrdersPage() {
   const router = useRouter();
-  const workOrders = useAppStore((s) => s.workOrders);
-  const vehicles = useAppStore((s) => s.vehicles);
 
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [statusFilter, setStatusFilter] = useState<WorkOrderStatus | 'all'>('all');
   const [vehicleFilter, setVehicleFilter] = useState<string>('all');
   const [searchValue, setSearchValue] = useState('');
 
-  const filteredWorkOrders = useMemo(() => {
-    return workOrders.filter((wo) => {
-      if (statusFilter !== 'all' && wo.status !== statusFilter) return false;
-      if (vehicleFilter !== 'all' && wo.vehicle_id !== vehicleFilter) return false;
-      if (searchValue) {
-        const kw = searchValue.toLowerCase();
-        const matchTitle = wo.title.toLowerCase().includes(kw);
-        const matchPlate = (wo.vehicle_plate ?? '').toLowerCase().includes(kw);
-        const matchBrand = (wo.vehicle_brand ?? '').toLowerCase().includes(kw);
-        const matchModel = (wo.vehicle_model ?? '').toLowerCase().includes(kw);
-        const matchAssignee = (wo.assignee_name ?? '').toLowerCase().includes(kw);
-        if (!matchTitle && !matchPlate && !matchBrand && !matchModel && !matchAssignee) return false;
-      }
-      return true;
-    });
-  }, [workOrders, statusFilter, vehicleFilter, searchValue]);
+  useEffect(() => {
+    apiGet<WorkOrder[]>('/api/workorders', {
+      q: searchValue,
+      status: statusFilter !== 'all' ? statusFilter : undefined,
+      vehicle_id: vehicleFilter !== 'all' ? vehicleFilter : undefined,
+    }).then(setWorkOrders);
+  }, [searchValue, statusFilter, vehicleFilter]);
+
+  useEffect(() => {
+    apiGet<Vehicle[]>('/api/vehicles').then(setVehicles);
+  }, []);
 
   const stats = useMemo(() => {
     return {
@@ -188,7 +183,7 @@ export default function WorkOrdersPage() {
       </FilterBar>
 
       <DataTable
-        data={filteredWorkOrders}
+        data={workOrders}
         rowKey={(r) => r.id}
         onRowClick={(r) => router.push(`/workorders/${r.id}`)}
         columns={columns}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   FileEdit,
@@ -17,7 +17,6 @@ import {
   Package,
   Wrench,
 } from 'lucide-react';
-import { useAppStore } from '@/lib/store';
 import { PageHeader } from '@/components/PageHeader';
 import { FilterBar, Select } from '@/components/FilterBar';
 import { DataTable, Badge, StatCard } from '@/components/DataTable';
@@ -28,7 +27,8 @@ import {
   formatDate,
   cn,
 } from '@/lib/utils';
-import type { ChangeStatus, OrderChange, AffectedObject } from '@/lib/types';
+import type { ChangeStatus, OrderChange, AffectedObject, UserProfile, WorkOrder } from '@/lib/types';
+import { apiGet, apiPatch } from '@/lib/api';
 
 const STATUS_OPTIONS: { value: ChangeStatus | 'all'; label: string }[] = [
   { value: 'all', label: '全部状态' },
@@ -56,10 +56,10 @@ const AFFECTED_TYPE_LINK: Record<AffectedObject['type'], string> = {
 };
 
 export default function OrderChangesPage() {
-  const orderChanges = useAppStore((s) => s.orderChanges);
-  const users = useAppStore((s) => s.users);
-  const workOrders = useAppStore((s) => s.workOrders);
-  const closeOrderChange = useAppStore((s) => s.closeOrderChange);
+  const [changes, setChanges] = useState<OrderChange[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState<ChangeStatus | 'all'>('all');
   const [responsibleFilter, setResponsibleFilter] = useState<string>('all');
@@ -73,8 +73,32 @@ export default function OrderChangesPage() {
   const [closeNote, setCloseNote] = useState('');
   const [closeNoteError, setCloseNoteError] = useState('');
 
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [changesData, usersData, workOrdersData] = await Promise.all([
+        apiGet<OrderChange[]>('/api/order-changes', {
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+          responsible_id: responsibleFilter !== 'all' ? responsibleFilter : undefined,
+          workorder_id: workorderFilter !== 'all' ? workorderFilter : undefined,
+        }),
+        apiGet<UserProfile[]>('/api/users'),
+        apiGet<WorkOrder[]>('/api/workorders'),
+      ]);
+      setChanges(changesData);
+      setUsers(usersData);
+      setWorkOrders(workOrdersData);
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, responsibleFilter, workorderFilter]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   const filteredChanges = useMemo(() => {
-    return orderChanges.filter((oc) => {
+    return changes.filter((oc) => {
       if (statusFilter !== 'all' && oc.status !== statusFilter) return false;
       if (responsibleFilter !== 'all' && oc.responsible_id !== responsibleFilter) return false;
       if (workorderFilter !== 'all' && oc.workorder_id !== workorderFilter) return false;
@@ -98,18 +122,18 @@ export default function OrderChangesPage() {
       }
       return true;
     });
-  }, [orderChanges, statusFilter, responsibleFilter, workorderFilter, startDate, endDate, searchValue]);
+  }, [changes, statusFilter, responsibleFilter, workorderFilter, startDate, endDate, searchValue]);
 
   const stats = useMemo(() => {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     return {
-      open: orderChanges.filter((oc) => oc.status === 'open').length,
-      processing: orderChanges.filter((oc) => oc.status === 'processing').length,
-      closed: orderChanges.filter((oc) => oc.status === 'closed').length,
-      thisMonth: orderChanges.filter((oc) => new Date(oc.created_at) >= monthStart).length,
+      open: changes.filter((oc) => oc.status === 'open').length,
+      processing: changes.filter((oc) => oc.status === 'processing').length,
+      closed: changes.filter((oc) => oc.status === 'closed').length,
+      thisMonth: changes.filter((oc) => new Date(oc.created_at) >= monthStart).length,
     };
-  }, [orderChanges]);
+  }, [changes]);
 
   const columns = [
     {
@@ -184,23 +208,27 @@ export default function OrderChangesPage() {
     },
   ];
 
-  const handleStatusChange = (newStatus: ChangeStatus) => {
+  const handleStatusChange = async (newStatus: ChangeStatus) => {
     if (!selectedChange) return;
     if (newStatus === 'closed') {
       if (!closeNote.trim()) {
         setCloseNoteError('关闭说明为必填项');
         return;
       }
-      closeOrderChange(selectedChange.id, closeNote.trim());
+      await apiPatch('/api/order-changes', {
+        id: selectedChange.id,
+        status: 'closed',
+        close_note: closeNote.trim(),
+      });
     } else {
-      useAppStore.setState((s) => ({
-        orderChanges: s.orderChanges.map((oc) =>
-          oc.id === selectedChange.id ? { ...oc, status: newStatus } : oc,
-        ),
-      }));
+      await apiPatch('/api/order-changes', {
+        id: selectedChange.id,
+        status: newStatus,
+      });
     }
     setViewModalOpen(false);
     setSelectedChange(null);
+    await fetchData();
   };
 
   return (

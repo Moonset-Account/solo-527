@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   CarFront,
@@ -33,7 +33,8 @@ import {
   turnoverTypeLabel,
   turnoverTypeColor,
 } from '@/lib/utils';
-import type { WorkOrder, TurnoverType } from '@/lib/types';
+import { apiGet } from '@/lib/api';
+import type { Vehicle, WorkOrder, PartTurnover, TurnoverType } from '@/lib/types';
 
 function WorkOrderTimeline({ orders }: { orders: WorkOrder[] }) {
   if (orders.length === 0) {
@@ -131,26 +132,51 @@ function WorkOrderTimeline({ orders }: { orders: WorkOrder[] }) {
 export default function VehicleDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const vehicles = useAppStore((s) => s.vehicles);
-  const workOrders = useAppStore((s) => s.workOrders);
-  const partTurnovers = useAppStore((s) => s.partTurnovers);
+  const currentUser = useAppStore((s) => s.currentUser);
 
-  const vehicle = useMemo(
-    () => vehicles.find((v) => v.id === params.id),
-    [vehicles, params.id],
-  );
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [vehicleWorkOrders, setVehicleWorkOrders] = useState<WorkOrder[]>([]);
+  const [vehicleTurnovers, setVehicleTurnovers] = useState<PartTurnover[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const vehicleWorkOrders = useMemo(
-    () => workOrders.filter((w) => w.vehicle_id === params.id),
-    [workOrders, params.id],
-  );
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [v, wos, allTurnovers] = await Promise.all([
+          apiGet<Vehicle>(`/api/vehicles/${params.id}`),
+          apiGet<WorkOrder[]>('/api/workorders', { vehicle_id: params.id }),
+          apiGet<PartTurnover[]>('/api/parts/turnovers'),
+        ]);
+        setVehicle(v);
+        setVehicleWorkOrders(wos);
+        const woIds = new Set(wos.map((w) => w.id));
+        setVehicleTurnovers(
+          allTurnovers.filter((t) => t.workorder_id && woIds.has(t.workorder_id)),
+        );
+      } catch {
+        setVehicle(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [params.id]);
 
-  const vehicleTurnovers = useMemo(() => {
-    const woIds = new Set(vehicleWorkOrders.map((w) => w.id));
-    return partTurnovers.filter(
-      (t) => t.workorder_id && woIds.has(t.workorder_id),
+  if (loading) {
+    return (
+      <div>
+        <PageHeader
+          title="加载中..."
+          description="正在加载车辆档案..."
+          backHref="/vehicles"
+        />
+        <div className="card p-8 flex items-center justify-center text-slate-500">
+          加载中...
+        </div>
+      </div>
     );
-  }, [partTurnovers, vehicleWorkOrders]);
+  }
 
   if (!vehicle) {
     return (
