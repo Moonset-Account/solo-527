@@ -121,12 +121,52 @@ export const PATCH: RequestHandler = async ({ request, url }) => {
 
 			if (action === 'approve') {
 				mockRequisitions[idx].status = 'approved';
+				const compIdx = mockCompliance.findIndex(
+					(c) => c.type === 'requisition' && c.referenceId === id
+				);
+				if (compIdx >= 0) {
+					mockCompliance[compIdx].status = 'approved';
+					mockCompliance[compIdx].processedAt = new Date();
+					mockCompliance[compIdx].details += ' → 已批准';
+				} else {
+					mockCompliance.push({
+						id: `comp-${Date.now()}`,
+						type: 'requisition',
+						referenceId: id,
+						status: 'approved',
+						operator: body.userName || '管理员',
+						operatorId: body.userId,
+						details: `批准试剂领用申请 - ${mockRequisitions[idx].reagent?.name || '未知试剂'} 数量: ${mockRequisitions[idx].quantity}`,
+						createdAt: new Date(),
+						processedAt: new Date()
+					});
+				}
 				return json(mockRequisitions[idx]);
 			}
 
 			if (action === 'reject') {
 				mockRequisitions[idx].status = 'rejected';
 				(mockRequisitions[idx] as any).rejectionReason = body.rejectionReason;
+				const compIdx = mockCompliance.findIndex(
+					(c) => c.type === 'requisition' && c.referenceId === id
+				);
+				if (compIdx >= 0) {
+					mockCompliance[compIdx].status = 'rejected';
+					mockCompliance[compIdx].processedAt = new Date();
+					mockCompliance[compIdx].details += ` → 已拒绝${body.rejectionReason ? '，原因: ' + body.rejectionReason : ''}`;
+				} else {
+					mockCompliance.push({
+						id: `comp-${Date.now()}`,
+						type: 'requisition',
+						referenceId: id,
+						status: 'rejected',
+						operator: body.userName || '管理员',
+						operatorId: body.userId,
+						details: `拒绝试剂领用申请 - ${mockRequisitions[idx].reagent?.name || '未知试剂'}${body.rejectionReason ? '，原因: ' + body.rejectionReason : ''}`,
+						createdAt: new Date(),
+						processedAt: new Date()
+					});
+				}
 				return json(mockRequisitions[idx]);
 			}
 

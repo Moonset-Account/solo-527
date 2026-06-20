@@ -158,8 +158,8 @@
 				columns={columns as unknown as Column<ItemType>[]}
 				emptyMessage="暂无实验数据"
 			>
-				{#snippet actions(item: ItemType)}
-					{@const exp = item as unknown as Experiment}
+				{#snippet actions(row)}
+					{@const exp = row as unknown as Experiment}
 					<div class="flex items-center gap-2">
 						<button
 							onclick={() => viewDetail(exp)}

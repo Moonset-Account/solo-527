@@ -271,8 +271,8 @@
 				columns={columns as unknown as Column<Record<string, unknown>>[]}
 				emptyMessage="暂无风险提醒"
 			>
-				{#snippet actions(item: Record<string, unknown>)}
-					{@const risk = item as unknown as RiskAlertType}
+				{#snippet actions(row)}
+					{@const risk = row as unknown as RiskAlertType}
 					<div class="flex items-center gap-2">
 						<button
 							onclick={() => viewDetail(risk)}

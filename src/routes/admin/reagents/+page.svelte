@@ -208,8 +208,8 @@
 				columns={columns as unknown as Column<Record<string, unknown>>[]}
 				emptyMessage="暂无试剂"
 			>
-				{#snippet actions(item: Record<string, unknown>)}
-					{@const reagent = item as unknown as Reagent}
+				{#snippet actions(row)}
+					{@const reagent = row as unknown as Reagent}
 					<div class="flex items-center gap-2">
 						{#if isAdmin}
 							<button

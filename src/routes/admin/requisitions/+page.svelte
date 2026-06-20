@@ -256,8 +256,8 @@
 				columns={columns as unknown as Column<Record<string, unknown>>[]}
 				emptyMessage="暂无领用申请"
 			>
-				{#snippet actions(item: Record<string, unknown>)}
-					{@const req = item as unknown as Requisition}
+				{#snippet actions(row)}
+					{@const req = row as unknown as Requisition}
 					<div class="flex items-center gap-2">
 						<button
 							onclick={() => viewDetail(req)}

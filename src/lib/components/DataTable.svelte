@@ -18,7 +18,7 @@
     columns?: Column<ItemType>[];
     emptyMessage?: string;
     loading?: boolean;
-    actions?: Snippet<[{ item: ItemType }]>;
+    actions?: Snippet<[ItemType]>;
   }>();
 
   let isMobile = $state(false);
@@ -221,7 +221,7 @@
                       {getCellDisplayValue(item, column)}
                     </span>
                   {:else if isActionsColumn(item, column) && actions}
-                    {@render actions?.({ item })}
+                    {@render actions?.(item)}
                   {:else}
                     <span class={getCellClassName(item, column)}>
                       {getCellDisplayValue(item, column)}
@@ -307,7 +307,7 @@
 
           {#if columns.some((c: Column<Record<string, unknown>>) => c.key === 'actions') && actions}
             <div class="pt-3 mt-3 border-t border-gray-100">
-              {@render actions?.({ item })}
+              {@render actions?.(item)}
             </div>
           {/if}
         </div>
