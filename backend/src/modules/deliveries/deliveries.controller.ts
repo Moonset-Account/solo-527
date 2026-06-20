@@ -23,7 +23,14 @@ export class DeliveriesController {
     @GetCurrentUser('name') userName: string,
     @GetCurrentUser('role') userRole: string,
   ) {
-    return this.deliveriesService.create(createDeliveryDto, files, userId, userName, userRole);
+    const rawItemIds = (createDeliveryDto as any).itemIds;
+    const itemIds = Array.isArray(rawItemIds)
+      ? rawItemIds
+      : typeof rawItemIds === 'string'
+        ? rawItemIds.split(',').filter(Boolean)
+        : [];
+    const normalizedDto = { ...createDeliveryDto, itemIds };
+    return this.deliveriesService.create(normalizedDto as CreateDeliveryDto, files || [], userId, userName, userRole);
   }
 
   @Get()

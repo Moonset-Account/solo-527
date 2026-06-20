@@ -105,18 +105,28 @@ export default function Statistics() {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-500">平均评分</span>
-              <span className="font-semibold text-amber-600">{satisfaction.avgScore ? satisfaction.avgScore.toFixed(1) : '-'}</span>
+              <span className="font-semibold text-amber-600">
+                {satisfaction.averageRating ? `${Number(satisfaction.averageRating).toFixed(1)} 分` : '-'}
+              </span>
             </div>
-            {satisfaction.distribution && Object.entries(satisfaction.distribution).sort(([a], [b]) => Number(b) - Number(a)).map(([star, count]: any) => (
-              <div key={star} className="flex items-center gap-2 text-sm">
-                <span className="text-slate-500 w-12 shrink-0">{star}星</span>
-                <div className="flex-1 bg-slate-100 rounded-full h-4 overflow-hidden">
-                  <div className="h-full bg-amber-400 rounded-full transition-all"
-                    style={{ width: `${satisfaction.totalCount ? (count / satisfaction.totalCount) * 100 : 0}%` }} />
-                </div>
-                <span className="text-slate-600 w-10 text-right shrink-0">{count}</span>
-              </div>
-            ))}
+            {satisfaction.distribution && Object.entries(satisfaction.distribution)
+              .sort(([a], [b]) => Number(b) - Number(a))
+              .map(([star, count]: any) => {
+                const total = satisfaction.totalCount || 0;
+                const percent = total ? (count / total) * 100 : 0;
+                return (
+                  <div key={star} className="flex items-center gap-2 text-sm">
+                    <span className="text-slate-500 w-12 shrink-0">{star}星</span>
+                    <div className="flex-1 bg-slate-100 rounded-full h-4 overflow-hidden">
+                      <div className="h-full bg-amber-400 rounded-full transition-all"
+                        style={{ width: `${percent}%` }} />
+                    </div>
+                    <span className="text-slate-600 w-16 text-right shrink-0">
+                      {count} 条 ({percent.toFixed(0)}%)
+                    </span>
+                  </div>
+                );
+              })}
           </div>
         </div>
 

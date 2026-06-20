@@ -33,18 +33,21 @@ export class DeliveriesService {
       throw new BadRequestException('当前订单状态不允许提交交付');
     }
 
-    const { itemIds } = createDeliveryDto;
+    const { itemIds = [] } = createDeliveryDto;
+    const normalizedItemIds = Array.isArray(itemIds) ? itemIds : [];
     const validItems = order.items.filter(
-      (item: any) => itemIds.includes(item.id) && item.isSelected,
+      (item: any) => normalizedItemIds.includes(item.id) && item.isSelected,
     );
-    if (validItems.length !== itemIds.length) {
+
+    if (normalizedItemIds.length === 0) {
+      throw new BadRequestException('请选择至少一个订单项进行交付');
+    }
+    if (validItems.length !== normalizedItemIds.length) {
       throw new BadRequestException('部分订单项无效或未选中，请检查后重试');
     }
 
-    if (files && files.length > 0 && files.length !== itemIds.length) {
-      throw new BadRequestException(
-        `交付文件数量(${files.length})与订单项数量(${itemIds.length})不匹配，请为每个订单项提供对应的交付文件`,
-      );
+    if (!files || files.length === 0) {
+      throw new BadRequestException('请至少上传一个交付文件');
     }
 
     const prevDeliveries = await this.deliveriesRepository.find({
@@ -84,14 +87,27 @@ export class DeliveriesService {
     const saved = await this.deliveriesRepository.save(delivery);
 
     const savedAttachments: any[] = [];
-    if (files && files.length > 0) {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const itemId = itemIds[i];
-        const item = validItems.find((it: any) => it.id === itemId);
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      let matchedItems: any[] = [];
+
+      if (validItems.length === 1) {
+        matchedItems = [validItems[0]];
+      } else if (files.length === 1 && validItems.length > 1) {
+        matchedItems = validItems;
+      } else if (files.length >= validItems.length) {
+        const idx = Math.min(i, validItems.length - 1);
+        matchedItems = [validItems[idx]];
+      } else {
+        const idx = i % validItems.length;
+        matchedItems = [validItems[idx]];
+      }
+
+      for (const item of matchedItems) {
         const att = await this.attachmentsService.saveFile(file, AttachmentType.DELIVERY_FILE, submitterId, {
           deliveryId: saved.id,
-          orderItemId: itemId,
+          orderItemId: item.id,
           materialId: item?.materialId,
           remark: createDeliveryDto.deliveryNote,
         });
@@ -102,7 +118,7 @@ export class DeliveriesService {
           mimetype: att.mimetype,
           size: att.size,
           isKey: att.isKey,
-          orderItemId: itemId,
+          orderItemId: item.id,
           materialId: item?.materialId,
           materialTitle: item?.materialTitle,
         });
@@ -127,8 +143,9 @@ export class DeliveriesService {
           deliveryNote: createDeliveryDto.deliveryNote,
           attachments: savedAttachments,
           attachmentCount: savedAttachments.length,
-          itemIds,
-          itemCount: itemIds.length,
+          itemIds: normalizedItemIds,
+          itemCount: normalizedItemIds.length,
+          fileCount: files.length,
           remark: createDeliveryDto.deliveryNote,
         },
       },

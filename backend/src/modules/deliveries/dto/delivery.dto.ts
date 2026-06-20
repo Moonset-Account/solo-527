@@ -14,8 +14,8 @@ export class CreateDeliveryDto {
   deliveryNote: string;
 
   @IsArray()
-  @IsUUID('4', { each: true })
-  itemIds: string[];
+  @IsOptional()
+  itemIds?: string[];
 
   @IsArray()
   @IsOptional()

@@ -21,7 +21,15 @@ export class ExceptionsController {
     @GetCurrentUser('id') userId: string,
     @GetCurrentUser('name') userName: string,
   ) {
-    return this.exceptionsService.create(dto, files, userId, userName);
+    const normalizedDto: any = { ...dto };
+    if (typeof dto.refundRequestedAmount === 'string') {
+      const n = parseFloat(dto.refundRequestedAmount);
+      normalizedDto.refundRequestedAmount = isNaN(n) ? 0 : n;
+    }
+    if (typeof dto.priority === 'undefined' || dto.priority === null) {
+      normalizedDto.priority = 'medium';
+    }
+    return this.exceptionsService.create(normalizedDto, files || [], userId, userName);
   }
 
   @Get()

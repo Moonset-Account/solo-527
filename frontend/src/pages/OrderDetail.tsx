@@ -650,13 +650,8 @@ export default function OrderDetail() {
             <div>
               <label className="block text-sm font-medium mb-2">
                 上传交付文件 <span className="text-red-500">*</span>
-                <span className="text-slate-400 font-normal ml-2">（{deliveryFiles.length} 个文件，按顺序对应上方订单项）</span>
+                <span className="text-slate-400 font-normal ml-2">（{deliveryFiles.length} 个文件）</span>
               </label>
-              {deliveryFiles.length > 0 && deliveryFiles.length !== deliveryItemIds.length && (
-                <div className="text-xs text-red-500 mb-2 bg-red-50 p-2 rounded">
-                  ⚠️ 文件数量({deliveryFiles.length})与订单项数量({deliveryItemIds.length})不匹配
-                </div>
-              )}
               <input type="file" multiple
                 onChange={(e) => {
                   const files = Array.from(e.target.files || []);
@@ -666,13 +661,23 @@ export default function OrderDetail() {
               {deliveryFiles.length > 0 && (
                 <div className="mt-2 space-y-1">
                   {deliveryFiles.map((file, idx) => {
-                    const item = (data?.items || []).find((x: any) => x.id === deliveryItemIds[idx]);
+                    const matchedIdx = deliveryItemIds.length === 1
+                      ? 0
+                      : deliveryFiles.length === 1
+                        ? -1
+                        : idx % deliveryItemIds.length;
+                    const item = matchedIdx >= 0
+                      ? (data?.items || []).find((x: any) => x.id === deliveryItemIds[matchedIdx])
+                      : null;
                     return (
                       <div key={idx} className="flex items-center gap-2 text-xs bg-slate-50 p-2 rounded">
                         <span className="text-slate-400 w-5">{idx + 1}.</span>
                         <span className="font-medium truncate flex-1">{file.name}</span>
                         <span className="text-slate-400">{(file.size / 1024).toFixed(1)} KB</span>
                         {item && <span className="text-primary-600">→ {item.materialTitle}</span>}
+                        {deliveryFiles.length === 1 && deliveryItemIds.length > 1 && (
+                          <span className="text-emerald-600">（全部分配）</span>
+                        )}
                       </div>
                     );
                   })}
@@ -689,7 +694,7 @@ export default function OrderDetail() {
             </div>
 
             <div className="text-xs text-slate-400 bg-blue-50 p-3 rounded-lg">
-              💡 文件将按顺序与上方选中的订单项一一对应关联，下载时会精确匹配
+              💡 文件分配规则：1个订单项=全部文件；1个文件=全部分配；其他情况按顺序循环对应。下载时按精确匹配返回可打开的交付地址
             </div>
           </div>
         </Modal>

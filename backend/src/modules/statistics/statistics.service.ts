@@ -148,12 +148,21 @@ export class StatisticsService {
     if (satisfactionLevel) qb.andWhere('o.satisfactionLevel = :sl', { sl: satisfactionLevel });
 
     const list = await qb.getMany();
+    const total = list.length;
+    const totalScore = list.reduce((s, o) => s + (o.satisfactionLevel as number), 0);
+
+    const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    list.forEach((o) => {
+      const level = o.satisfactionLevel as number;
+      if (level >= 1 && level <= 5) distribution[level] += 1;
+    });
+
     return {
-      total: list.length,
+      totalCount: total,
       list,
-      averageRating: list.length
-        ? (list.reduce((s, o) => s + (o.satisfactionLevel as number), 0) / list.length).toFixed(2)
-        : 0,
+      averageRating: total ? (totalScore / total).toFixed(2) : '0.00',
+      totalScore,
+      distribution,
     };
   }
 
