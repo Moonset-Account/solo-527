@@ -14,8 +14,9 @@ class ExportReportRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'date_from' => 'required|date',
-            'date_to' => 'required|date|after_or_equal:date_from',
+            'export_type' => 'nullable|string|in:contracts,bills',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
             'status' => 'nullable|string',
             'property_id' => 'nullable|integer|exists:properties,id',
             'contract_id' => 'nullable|integer|exists:contracts,id',

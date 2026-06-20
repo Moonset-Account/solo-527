@@ -7,11 +7,17 @@ use App\Exports\ReportExport;
 use App\Models\Bill;
 use App\Models\Contract;
 use App\Services\OperationLogService;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Excel;
 
 class ReportExportController extends Controller
 {
-    public function export(ExportReportRequest $request)
+    public function form()
+    {
+        return Inertia::render('Reports/Export');
+    }
+
+    public function download(ExportReportRequest $request)
     {
         $data = $request->validated();
         $generator = $request->user();

@@ -1,10 +1,18 @@
 <script setup>
 import { Link, router } from '@inertiajs/vue3'
-
+import { reactive } from 'vue'
 
 const props = defineProps({
   bills: Object,
   filters: Object,
+})
+
+const filters = reactive({
+  status: props.filters?.status || '',
+  contract_id: props.filters?.contract_id || '',
+  date_from: props.filters?.date_from || '',
+  date_to: props.filters?.date_to || '',
+  type: props.filters?.type || '',
 })
 
 const statusOptions = [
@@ -35,7 +43,7 @@ const statusLabels = {
 }
 
 function applyFilter() {
-  router.get(route('bills.index'), props.filters, { preserveState: true, preserveScroll: true })
+  router.get(route('bills.index'), filters, { preserveState: true, preserveScroll: true })
 }
 
 function markAsPaid(billId) {

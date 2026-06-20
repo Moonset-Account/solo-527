@@ -1,6 +1,6 @@
 <script setup>
 import { reactive } from 'vue'
-
+import { router } from '@inertiajs/vue3'
 
 const form = reactive({
   export_type: 'contracts',
@@ -31,7 +31,40 @@ function submit() {
   for (const [key, value] of Object.entries(form)) {
     if (value) params.append(key, value)
   }
-  window.location.href = route('reports.export') + '?' + params.toString()
+
+  const url = route('reports.download')
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+      'Accept': 'application/octet-stream',
+    },
+    body: params.toString(),
+  })
+    .then(response => {
+      if (!response.ok) throw new Error('导出失败')
+      const disposition = response.headers.get('content-disposition')
+      let filename = form.export_type === 'bills' ? 'bills.xlsx' : 'contracts.xlsx'
+      if (disposition) {
+        const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+        if (match) filename = match[1].replace(/['"]/g, '')
+      }
+      return response.blob().then(blob => ({ blob, filename }))
+    })
+    .then(({ blob, filename }) => {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    })
+    .catch(err => {
+      alert('导出失败: ' + err.message)
+    })
 }
 </script>
 

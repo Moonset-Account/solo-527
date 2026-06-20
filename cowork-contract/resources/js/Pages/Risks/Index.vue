@@ -2,10 +2,15 @@
 import { Link, router } from '@inertiajs/vue3'
 import { reactive, ref } from 'vue'
 
-
 const props = defineProps({
   risks: Object,
   filters: Object,
+})
+
+const filters = reactive({
+  status: props.filters?.status || '',
+  severity: props.filters?.severity || '',
+  risk_type: props.filters?.risk_type || '',
 })
 
 const statusOptions = [
@@ -41,7 +46,7 @@ const assignRiskId = ref(null)
 const assignUserId = ref('')
 
 function applyFilter() {
-  router.get(route('risks.index'), props.filters, { preserveState: true, preserveScroll: true })
+  router.get(route('risks.index'), filters, { preserveState: true, preserveScroll: true })
 }
 
 function openCloseModal(riskId) {

@@ -10,7 +10,7 @@ use App\Http\Controllers\RentReminderController;
 use App\Http\Controllers\ReportExportController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth:sanctum', 'log.ops'])->prefix('v1')->group(function () {
+Route::middleware(['auth', 'log.ops'])->prefix('v1')->group(function () {
     Route::apiResource('contracts', ContractController::class);
     Route::get('contracts/{contract}/history', [ContractController::class, 'history']);
 
@@ -37,5 +37,5 @@ Route::middleware(['auth:sanctum', 'log.ops'])->prefix('v1')->group(function () 
     Route::put('notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
     Route::post('notifications/read-all', [NotificationController::class, 'markAllRead']);
 
-    Route::get('reports/export', [ReportExportController::class, 'export']);
+    Route::post('reports/export', [ReportExportController::class, 'download']);
 });

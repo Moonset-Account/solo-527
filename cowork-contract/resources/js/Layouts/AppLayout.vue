@@ -1,9 +1,9 @@
 <script setup>
-import { Link, usePage } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { Link, router, usePage } from '@inertiajs/vue3'
+import { ref, computed } from 'vue'
 
 const page = usePage()
-const auth = page.props.auth
+const auth = computed(() => page.props.auth)
 const sidebarOpen = ref(false)
 
 const navItems = [
@@ -15,6 +15,16 @@ const navItems = [
   { label: '通知', route: 'notifications.index', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' },
   { label: '报表导出', route: 'reports.export', icon: 'M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
 ]
+
+const roleLabels = {
+  admin: '管理员',
+  finance: '财务专员',
+  consultant: '招商顾问',
+}
+
+function logout() {
+  router.post(route('logout'))
+}
 </script>
 
 <template>
@@ -53,7 +63,8 @@ const navItems = [
           </div>
           <div class="flex items-center space-x-3">
             <span v-if="auth?.user" class="text-sm text-gray-600">{{ auth.user.name }}</span>
-            <span v-if="auth?.user" class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">{{ auth.user.role }}</span>
+            <span v-if="auth?.user" class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">{{ roleLabels[auth.user.role] || auth.user.role }}</span>
+            <button v-if="auth?.user" @click="logout" class="text-sm text-gray-500 hover:text-red-600 transition-colors">登出</button>
           </div>
         </header>
 

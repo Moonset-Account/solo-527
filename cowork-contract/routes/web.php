@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BillController;
 use App\Http\Controllers\ContractController;
 use App\Http\Controllers\ContractReviewController;
@@ -9,6 +10,10 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RentReminderController;
 use App\Http\Controllers\ReportExportController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('login', [AuthController::class, 'loginForm'])->name('login');
+Route::post('login', [AuthController::class, 'login']);
+Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::get('/', function () {
     return redirect()->route('contracts.index');
@@ -38,5 +43,6 @@ Route::middleware(['auth', 'log.ops'])->group(function () {
     Route::put('notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
     Route::post('notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.readAll');
 
-    Route::get('reports/export', [ReportExportController::class, 'export'])->name('reports.export');
+    Route::get('reports/export', [ReportExportController::class, 'form'])->name('reports.export');
+    Route::post('reports/export', [ReportExportController::class, 'download'])->name('reports.download');
 });

@@ -1,10 +1,18 @@
 <script setup>
 import { Link, router } from '@inertiajs/vue3'
-
+import { reactive, watch } from 'vue'
 
 const props = defineProps({
   contracts: Object,
   filters: Object,
+})
+
+const filters = reactive({
+  status: props.filters?.status || '',
+  property_id: props.filters?.property_id || '',
+  date_from: props.filters?.date_from || '',
+  date_to: props.filters?.date_to || '',
+  contract_no: props.filters?.contract_no || '',
 })
 
 const statusOptions = [
@@ -33,7 +41,7 @@ const statusLabels = {
 }
 
 function applyFilter() {
-  router.get(route('contracts.index'), props.filters, { preserveState: true, preserveScroll: true })
+  router.get(route('contracts.index'), filters, { preserveState: true, preserveScroll: true })
 }
 </script>
 
