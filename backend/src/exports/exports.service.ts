@@ -254,8 +254,10 @@ export class ExportsService {
       ip: 'localhost',
     });
 
-    const filename = `面试明细报表_${new Date().toISOString().split('T')[0]}.xlsx`;
-    const encodedFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const asciiFilename = `interview-details_${dateStr}.xlsx`;
+    const utf8Filename = `面试明细报表_${dateStr}.xlsx`;
+    const encodedFilename = encodeURIComponent(utf8Filename).replace(/['()]/g, escape);
 
     res.setHeader(
       'Content-Type',
@@ -263,7 +265,7 @@ export class ExportsService {
     );
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`,
+      `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodedFilename}`,
     );
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
 
@@ -386,8 +388,10 @@ export class ExportsService {
       ip: 'localhost',
     });
 
-    const filename = `面试质量分析_${new Date().toISOString().split('T')[0]}.xlsx`;
-    const encodedFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const asciiFilename = `assessment-stats_${dateStr}.xlsx`;
+    const utf8Filename = `面试质量分析_${dateStr}.xlsx`;
+    const encodedFilename = encodeURIComponent(utf8Filename).replace(/['()]/g, escape);
 
     res.setHeader(
       'Content-Type',
@@ -395,7 +399,7 @@ export class ExportsService {
     );
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`,
+      `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodedFilename}`,
     );
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
 
