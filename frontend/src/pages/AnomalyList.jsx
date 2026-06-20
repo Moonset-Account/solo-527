@@ -133,10 +133,9 @@ export default function AnomalyList() {
     setPagination({ ...pagination, current: 1 })
   }
 
-  const handleApplyTemplate = (template) => {
-    const filterData = template.filterConditions
-    form.setFieldsValue(filterData)
-    setFilters(filterData)
+  const handleApplyTemplate = (conditions) => {
+    form.setFieldsValue(conditions)
+    setFilters(conditions)
     setPagination({ ...pagination, current: 1 })
   }
 

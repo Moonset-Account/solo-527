@@ -83,16 +83,18 @@ export default function ReportEfficiency() {
     setPagination({ ...pagination, current: 1 })
   }
 
-  const handleApplyTemplate = (template) => {
-    const filterData = template.filterConditions
-    form.setFieldsValue({
-      ...filterData,
-      dateRange: filterData.startDate && filterData.endDate ? [
-        dayjs(filterData.startDate),
-        dayjs(filterData.endDate),
-      ] : null,
-    })
-    setFilters(filterData)
+  const handleApplyTemplate = (conditions) => {
+    const formValues = { ...conditions }
+    if (conditions.startDate || conditions.endDate) {
+      formValues.dateRange = [
+        conditions.startDate ? dayjs(conditions.startDate) : null,
+        conditions.endDate ? dayjs(conditions.endDate) : null,
+      ]
+    }
+    form.setFieldsValue(formValues)
+    const apiFilters = { ...conditions }
+    delete apiFilters.dateRange
+    setFilters(apiFilters)
     setPagination({ ...pagination, current: 1 })
   }
 

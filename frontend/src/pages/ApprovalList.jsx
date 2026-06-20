@@ -166,10 +166,9 @@ export default function ApprovalList() {
     setPagination({ ...pagination, current: 1 })
   }
 
-  const handleApplyTemplate = (template) => {
-    const filterData = template.filterConditions
-    searchForm.setFieldsValue(filterData)
-    setFilters(filterData)
+  const handleApplyTemplate = (conditions) => {
+    searchForm.setFieldsValue(conditions)
+    setFilters(conditions)
     setPagination({ ...pagination, current: 1 })
   }
 
