@@ -1,0 +1,52 @@
+
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.vscode/
+*.csproj.user
+*.dbmdl
+*.jfm
+*.[Cc]ache
+!?*.[Cc]ache
+/T?est[Rr]esult*/
+/[Bb]in
+/[Oo]bj
+/App_Data/
+/packages/
+/Tools/
+.idea/
+*.pidb
+*.orig
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Database
+*.mdf
+*.ldf
+*.db
+*.sqlite
