@@ -1,6 +1,6 @@
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, Form
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
@@ -17,28 +17,64 @@ from app.schemas import UserLogin, UserCreate, UserResponse, Token
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login")
 async def login(
     response: Response,
-    form_data: UserLogin,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    content_type = request.headers.get("content-type", "")
+    username: Optional[str] = None
+    password: Optional[str] = None
+
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            username = body.get("username")
+            password = body.get("password")
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="无效的JSON格式",
+            )
+    elif "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
+        form = await request.form()
+        username = form.get("username")
+        password = form.get("password")
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="不支持的Content-Type",
+        )
+
+    if not username or not password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="用户名和密码不能为空",
+        )
+
     result = await db.execute(
-        select(User).where(User.username == form_data.username)
+        select(User).where(User.username == username)
     )
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="用户名或密码错误",
-        )
+    if not user or not verify_password(password, user.hashed_password):
+        error_html = f'<div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">用户名或密码错误</div>'
+        if "application/json" in content_type:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="用户名或密码错误",
+            )
+        return HTMLResponse(content=error_html, status_code=401)
 
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="账号已被禁用",
-        )
+        error_html = f'<div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">账号已被禁用</div>'
+        if "application/json" in content_type:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="账号已被禁用",
+            )
+        return HTMLResponse(content=error_html, status_code=403)
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -61,7 +97,26 @@ async def login(
         samesite="lax",
     )
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    if user.role == UserRole.MEMBER:
+        redirect_url = "/mall"
+    else:
+        redirect_url = "/admin/dashboard"
+
+    if "application/json" in content_type:
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "redirect_url": redirect_url,
+            "role": user.role,
+        }
+    else:
+        response.headers["HX-Redirect"] = redirect_url
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "redirect_url": redirect_url,
+            "role": user.role,
+        }
 
 
 @router.post("/logout")
