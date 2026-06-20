@@ -25,6 +25,7 @@ export class AttachmentsService {
   async saveFile(file: Express.Multer.File, attachmentType: AttachmentType, operatorId: string, options?: {
     materialId?: string;
     deliveryId?: string;
+    orderItemId?: string;
     exceptionId?: string;
     isKey?: boolean;
     remark?: string;
@@ -57,6 +58,7 @@ export class AttachmentsService {
       isKey: options?.isKey || false,
       materialId: options?.materialId,
       deliveryId: options?.deliveryId,
+      orderItemId: options?.orderItemId,
       exceptionId: options?.exceptionId,
       remark: options?.remark,
       createdBy: operatorId,
@@ -68,6 +70,7 @@ export class AttachmentsService {
   async saveFiles(files: Express.Multer.File[], attachmentType: AttachmentType, operatorId: string, options?: {
     materialId?: string;
     deliveryId?: string;
+    orderItemId?: string;
     exceptionId?: string;
     remark?: string;
   }): Promise<Attachment[]> {

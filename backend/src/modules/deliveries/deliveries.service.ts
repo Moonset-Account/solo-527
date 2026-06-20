@@ -33,6 +33,20 @@ export class DeliveriesService {
       throw new BadRequestException('当前订单状态不允许提交交付');
     }
 
+    const { itemIds } = createDeliveryDto;
+    const validItems = order.items.filter(
+      (item: any) => itemIds.includes(item.id) && item.isSelected,
+    );
+    if (validItems.length !== itemIds.length) {
+      throw new BadRequestException('部分订单项无效或未选中，请检查后重试');
+    }
+
+    if (files && files.length > 0 && files.length !== itemIds.length) {
+      throw new BadRequestException(
+        `交付文件数量(${files.length})与订单项数量(${itemIds.length})不匹配，请为每个订单项提供对应的交付文件`,
+      );
+    }
+
     const prevDeliveries = await this.deliveriesRepository.find({
       where: { orderId: order.id },
       order: { revisionRound: 'DESC' },
@@ -71,9 +85,14 @@ export class DeliveriesService {
 
     const savedAttachments: any[] = [];
     if (files && files.length > 0) {
-      for (const file of files) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const itemId = itemIds[i];
+        const item = validItems.find((it: any) => it.id === itemId);
         const att = await this.attachmentsService.saveFile(file, AttachmentType.DELIVERY_FILE, submitterId, {
           deliveryId: saved.id,
+          orderItemId: itemId,
+          materialId: item?.materialId,
           remark: createDeliveryDto.deliveryNote,
         });
         savedAttachments.push({
@@ -83,6 +102,9 @@ export class DeliveriesService {
           mimetype: att.mimetype,
           size: att.size,
           isKey: att.isKey,
+          orderItemId: itemId,
+          materialId: item?.materialId,
+          materialTitle: item?.materialTitle,
         });
       }
     }
@@ -105,6 +127,8 @@ export class DeliveriesService {
           deliveryNote: createDeliveryDto.deliveryNote,
           attachments: savedAttachments,
           attachmentCount: savedAttachments.length,
+          itemIds,
+          itemCount: itemIds.length,
           remark: createDeliveryDto.deliveryNote,
         },
       },

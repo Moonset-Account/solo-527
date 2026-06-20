@@ -267,7 +267,9 @@ export class OrdersService {
     }
 
     const items = order.items.filter((i) => dto.itemIds.includes(i.id) && i.isSelected);
-    const ids = items.map((i) => i.id);
+    if (items.length === 0) {
+      throw new BadRequestException('没有可下载的订单项');
+    }
 
     const allAttachments: any[] = [];
     order.deliveries.forEach((delivery) => {
@@ -282,17 +284,26 @@ export class OrdersService {
             deliveryId: delivery.id,
             deliveryRound: delivery.revisionRound,
             isKey: att.isKey,
+            orderItemId: att.orderItemId,
+            materialId: att.materialId,
           });
         });
       }
     });
 
+    const downloadableIds: string[] = [];
+    const missingFiles: string[] = [];
+
     const downloadItems = items.map((item) => {
-      const matchingAttachments = allAttachments.filter((att) => {
-        const lowerName = att.originalName.toLowerCase();
-        const itemTitle = item.materialTitle.toLowerCase();
-        return lowerName.includes(itemTitle.substring(0, 5)) || lowerName.includes(item.id.substring(0, 8)) || true;
-      });
+      const matchingAttachments = allAttachments.filter(
+        (att) => att.orderItemId === item.id,
+      );
+
+      if (matchingAttachments.length === 0) {
+        missingFiles.push(item.materialTitle || item.id);
+      } else {
+        downloadableIds.push(item.id);
+      }
 
       return {
         id: item.id,
@@ -303,36 +314,46 @@ export class OrdersService {
         unitPrice: item.unitPrice,
         attachments: matchingAttachments,
         downloadUrl: matchingAttachments.length > 0 ? matchingAttachments[0].fileUrl : null,
+        hasFile: matchingAttachments.length > 0,
         downloaded: item.downloaded,
         downloadedAt: item.downloadedAt,
       };
     });
 
-    if (ids.length > 0) {
+    if (missingFiles.length > 0) {
+      throw new BadRequestException(
+        `以下订单项缺少交付文件，请联系摄影师补充：${missingFiles.join('、')}`,
+      );
+    }
+
+    if (downloadableIds.length > 0) {
       await this.orderItemsRepository.update(
-        { id: In(ids) },
+        { id: In(downloadableIds) },
         { downloaded: true, downloadedAt: new Date() },
       );
     }
 
     const operator = await this.usersRepository.findOne({ where: { id: userId } });
+    const downloadedAttachments = allAttachments.filter((att) =>
+      downloadableIds.includes(att.orderItemId),
+    );
 
     await this.timelinesService.create(
       {
         orderId: order.id,
         eventType: TimelineEventType.DOWNLOAD_RECORDED,
         title: '成片已下载',
-        description: `已下载 ${ids.length} 个文件`,
+        description: `已下载 ${downloadableIds.length} 个文件`,
         operatorId: userId,
         operatorName: operator?.name || '客户',
         operatorRole: operator?.role || userRole,
         relatedEntityId: order.id,
         relatedEntityType: 'order',
         metadata: {
-          downloadedCount: ids.length,
-          downloadedItemIds: ids,
-          attachments: allAttachments,
-          remark: `已下载 ${ids.length} 个文件`,
+          downloadedCount: downloadableIds.length,
+          downloadedItemIds: downloadableIds,
+          attachments: downloadedAttachments,
+          remark: `已下载 ${downloadableIds.length} 个文件`,
         },
       },
       userId,
@@ -340,9 +361,9 @@ export class OrdersService {
 
     return {
       success: true,
-      downloadedCount: ids.length,
+      downloadedCount: downloadableIds.length,
       items: downloadItems,
-      allAttachments,
+      allAttachments: downloadedAttachments,
     };
   }
 

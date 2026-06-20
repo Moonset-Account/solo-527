@@ -4,6 +4,7 @@ import { AttachmentType, AttachmentCategory } from '../../../common/enums/attach
 import { Material } from '../../materials/entities/material.entity';
 import { Delivery } from '../../deliveries/entities/delivery.entity';
 import { ExceptionRecord } from '../../exceptions/entities/exception-record.entity';
+import { OrderItem } from '../../orders/entities/order-item.entity';
 
 @Entity('attachments')
 export class Attachment extends BaseEntity {
@@ -51,6 +52,9 @@ export class Attachment extends BaseEntity {
   @Column({ type: 'uuid', name: 'delivery_id', nullable: true })
   deliveryId: string;
 
+  @Column({ type: 'uuid', name: 'order_item_id', nullable: true })
+  orderItemId: string;
+
   @Column({ type: 'uuid', name: 'exception_id', nullable: true })
   exceptionId: string;
 
@@ -64,6 +68,10 @@ export class Attachment extends BaseEntity {
   @ManyToOne(() => Delivery, (delivery) => delivery.attachments)
   @JoinColumn({ name: 'delivery_id' })
   delivery: Delivery;
+
+  @ManyToOne(() => OrderItem)
+  @JoinColumn({ name: 'order_item_id' })
+  orderItem: OrderItem;
 
   @ManyToOne(() => ExceptionRecord, (ex) => ex.attachments)
   @JoinColumn({ name: 'exception_id' })

@@ -14,6 +14,10 @@ export class CreateDeliveryDto {
   deliveryNote: string;
 
   @IsArray()
+  @IsUUID('4', { each: true })
+  itemIds: string[];
+
+  @IsArray()
   @IsOptional()
   attachmentIds?: string[];
 }

@@ -21,6 +21,8 @@ export default function OrderDetail() {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [showDelivery, setShowDelivery] = useState(false);
   const [deliveryForm, setDeliveryForm] = useState({ deliveryNote: '', type: 'initial' });
+  const [deliveryItemIds, setDeliveryItemIds] = useState<string[]>([]);
+  const [deliveryFiles, setDeliveryFiles] = useState<File[]>([]);
   const [showSatisfaction, setShowSatisfaction] = useState(false);
   const [satisfaction, setSatisfaction] = useState({ level: 5, feedback: '' });
   const [showPayment, setShowPayment] = useState(false);
@@ -29,6 +31,8 @@ export default function OrderDetail() {
   const [exceptionForm, setExceptionForm] = useState({
     type: 'refund', title: '', description: '', refundRequestedAmount: 0, refundReason: '',
   });
+  const [exceptionFiles, setExceptionFiles] = useState<File[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => { load(); }, [id]);
 
@@ -84,12 +88,42 @@ export default function OrderDetail() {
   };
 
   const handleSubmitDelivery = async () => {
+    if (deliveryItemIds.length === 0) {
+      alert('请至少选择一个订单项');
+      return;
+    }
+    if (deliveryFiles.length === 0) {
+      alert('请上传交付文件');
+      return;
+    }
+    if (deliveryFiles.length !== deliveryItemIds.length) {
+      alert(`文件数量(${deliveryFiles.length})与订单项数量(${deliveryItemIds.length})不匹配，请为每个订单项上传对应的文件`);
+      return;
+    }
+    if (!deliveryForm.deliveryNote.trim()) {
+      alert('请填写交付说明');
+      return;
+    }
+    setSubmitting(true);
     try {
-      await api.post('/deliveries', { orderId: id, ...deliveryForm });
+      const formData = new FormData();
+      formData.append('orderId', id as string);
+      formData.append('type', deliveryForm.type);
+      formData.append('deliveryNote', deliveryForm.deliveryNote);
+      deliveryItemIds.forEach((itemId) => formData.append('itemIds', itemId));
+      deliveryFiles.forEach((file) => formData.append('files', file));
+
+      await api.post('/deliveries', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
       setShowDelivery(false);
       setDeliveryForm({ deliveryNote: '', type: 'initial' });
+      setDeliveryItemIds([]);
+      setDeliveryFiles([]);
       load();
     } catch (e: any) { alert(e.message); }
+    finally { setSubmitting(false); }
   };
 
   const handleReview = async (deliveryId: string, accepted: boolean) => {
@@ -105,19 +139,52 @@ export default function OrderDetail() {
 
   const handleSatisfaction = async () => {
     try {
-      await api.put(`/orders/${id}/satisfaction`, satisfaction);
+      await api.put(`/orders/${id}/satisfaction`, {
+        satisfactionLevel: satisfaction.level,
+        satisfactionFeedback: satisfaction.feedback,
+      });
       setShowSatisfaction(false);
       load();
     } catch (e: any) { alert(e.message); }
   };
 
   const handleException = async () => {
+    if (!exceptionForm.title.trim()) {
+      alert('请填写异常标题');
+      return;
+    }
+    if (!exceptionForm.description.trim()) {
+      alert('请填写异常描述');
+      return;
+    }
+    setSubmitting(true);
     try {
-      await api.post('/exceptions', { orderId: id, ...exceptionForm });
+      const formData = new FormData();
+      formData.append('orderId', id as string);
+      formData.append('type', exceptionForm.type);
+      formData.append('title', exceptionForm.title);
+      formData.append('description', exceptionForm.description);
+      formData.append('refundRequestedAmount', String(exceptionForm.refundRequestedAmount));
+      formData.append('refundReason', exceptionForm.refundReason || '');
+      exceptionFiles.forEach((file) => formData.append('files', file));
+
+      await api.post('/exceptions', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
       setShowException(false);
       setExceptionForm({ type: 'refund', title: '', description: '', refundRequestedAmount: 0, refundReason: '' });
+      setExceptionFiles([]);
       load();
     } catch (e: any) { alert(e.message); }
+    finally { setSubmitting(false); }
+  };
+
+  const handleOpenDelivery = () => {
+    const selected = (data?.items || []).filter((x: any) => x.isSelected && !x.downloaded).map((x: any) => x.id);
+    setDeliveryItemIds(selected);
+    setDeliveryFiles([]);
+    setShowDelivery(true);
   };
 
   if (!data) return <div className="py-20 text-center text-slate-400">加载中...</div>;
@@ -140,7 +207,7 @@ export default function OrderDetail() {
             <button onClick={handleConfirmSelection} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm">确认选片</button>
           )}
           {['selected_confirmed', 'revising', 'delivering'].includes(data.status) && (user?.role === UserRole.PHOTOGRAPHER || user?.role === UserRole.ADMIN) && (
-            <button onClick={() => setShowDelivery(true)} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">提交交付</button>
+            <button onClick={handleOpenDelivery} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">提交交付</button>
           )}
           {['delivered', 'revising', 'completed'].includes(data.status) && user?.role === UserRole.CLIENT && !data.satisfactionLevel && (
             <button onClick={() => setShowSatisfaction(true)} className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm">评价订单</button>
@@ -536,7 +603,7 @@ export default function OrderDetail() {
       )}
 
       {showDelivery && (
-        <Modal title="提交交付" onClose={() => setShowDelivery(false)} onConfirm={handleSubmitDelivery} confirmText="提交">
+        <Modal title="提交交付" onClose={() => setShowDelivery(false)} onConfirm={handleSubmitDelivery} confirmText="提交" loading={submitting}>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">交付类型</label>
@@ -548,15 +615,81 @@ export default function OrderDetail() {
                 <option value="final">终版</option>
               </select>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                选择订单项 <span className="text-red-500">*</span>
+                <span className="text-slate-400 font-normal ml-2">（{deliveryItemIds.length} 项已选）</span>
+              </label>
+              <div className="max-h-48 overflow-y-auto border rounded-lg p-2 space-y-1">
+                {(data?.items || []).filter((x: any) => x.isSelected).map((item: any) => {
+                  const checked = deliveryItemIds.includes(item.id);
+                  return (
+                    <label key={item.id} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded cursor-pointer">
+                      <input type="checkbox" checked={checked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setDeliveryItemIds([...deliveryItemIds, item.id]);
+                          } else {
+                            setDeliveryItemIds(deliveryItemIds.filter((id) => id !== item.id));
+                          }
+                        }}
+                        className="w-4 h-4" />
+                      <img src={item.materialCoverUrl || `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=${encodeURIComponent(item.materialTitle)}&image_size=square`}
+                        alt="" className="w-10 h-10 rounded object-cover" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{item.materialTitle}</div>
+                        <div className="text-xs text-slate-400">{item.licenseType} · ¥{item.unitPrice}</div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                上传交付文件 <span className="text-red-500">*</span>
+                <span className="text-slate-400 font-normal ml-2">（{deliveryFiles.length} 个文件，按顺序对应上方订单项）</span>
+              </label>
+              {deliveryFiles.length > 0 && deliveryFiles.length !== deliveryItemIds.length && (
+                <div className="text-xs text-red-500 mb-2 bg-red-50 p-2 rounded">
+                  ⚠️ 文件数量({deliveryFiles.length})与订单项数量({deliveryItemIds.length})不匹配
+                </div>
+              )}
+              <input type="file" multiple
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  setDeliveryFiles(files);
+                }}
+                className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-600 file:text-white hover:file:bg-primary-700" />
+              {deliveryFiles.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {deliveryFiles.map((file, idx) => {
+                    const item = (data?.items || []).find((x: any) => x.id === deliveryItemIds[idx]);
+                    return (
+                      <div key={idx} className="flex items-center gap-2 text-xs bg-slate-50 p-2 rounded">
+                        <span className="text-slate-400 w-5">{idx + 1}.</span>
+                        <span className="font-medium truncate flex-1">{file.name}</span>
+                        <span className="text-slate-400">{(file.size / 1024).toFixed(1)} KB</span>
+                        {item && <span className="text-primary-600">→ {item.materialTitle}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <div>
               <label className="block text-sm font-medium mb-1">交付说明 *</label>
               <textarea value={deliveryForm.deliveryNote}
                 onChange={(e) => setDeliveryForm({ ...deliveryForm, deliveryNote: e.target.value })}
-                rows={5} className="w-full px-3 py-2 border rounded-lg outline-none resize-none"
+                rows={4} className="w-full px-3 py-2 border rounded-lg outline-none resize-none"
                 placeholder="请说明本次交付内容、修改点等详情..." />
             </div>
+
             <div className="text-xs text-slate-400 bg-blue-50 p-3 rounded-lg">
-              💡 提示：附件可以通过接口 /attachments/upload-multiple 上传后，将 attachmentIds 传入创建交付接口
+              💡 文件将按顺序与上方选中的订单项一一对应关联，下载时会精确匹配
             </div>
           </div>
         </Modal>
@@ -591,7 +724,7 @@ export default function OrderDetail() {
       )}
 
       {showException && (
-        <Modal title="提交异常" onClose={() => setShowException(false)} onConfirm={handleException} confirmText="提交">
+        <Modal title="提交异常" onClose={() => setShowException(false)} onConfirm={handleException} confirmText="提交" loading={submitting}>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">异常类型</label>
@@ -633,6 +766,32 @@ export default function OrderDetail() {
                 </div>
               </>
             )}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                上传证据附件
+                <span className="text-slate-400 font-normal ml-2">（{exceptionFiles.length} 个文件）</span>
+              </label>
+              <input type="file" multiple
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  setExceptionFiles(files);
+                }}
+                className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-red-500 file:text-white hover:file:bg-red-600" />
+              {exceptionFiles.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {exceptionFiles.map((file, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-xs bg-slate-50 p-2 rounded">
+                      <span className="text-slate-400 w-5">{idx + 1}.</span>
+                      <span className="font-medium truncate flex-1">{file.name}</span>
+                      <span className="text-slate-400">{(file.size / 1024).toFixed(1)} KB</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="text-xs text-slate-400 bg-amber-50 p-3 rounded-lg">
+              💡 请上传聊天记录、截图、合同等有效证据，方便后续处理
+            </div>
           </div>
         </Modal>
       )}
@@ -640,7 +799,7 @@ export default function OrderDetail() {
   );
 }
 
-function Modal({ title, children, onClose, onConfirm, confirmText = '确认' }: any) {
+function Modal({ title, children, onClose, onConfirm, confirmText = '确认', loading = false }: any) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
@@ -650,8 +809,10 @@ function Modal({ title, children, onClose, onConfirm, confirmText = '确认' }: 
         </div>
         <div className="p-6">{children}</div>
         <div className="p-6 border-t flex gap-3 justify-end sticky bottom-0 bg-white">
-          <button onClick={onClose} className="px-5 py-2 border rounded-lg hover:bg-slate-50">取消</button>
-          <button onClick={onConfirm} className="px-5 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">{confirmText}</button>
+          <button onClick={onClose} disabled={loading} className="px-5 py-2 border rounded-lg hover:bg-slate-50 disabled:opacity-50">取消</button>
+          <button onClick={onConfirm} disabled={loading} className="px-5 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
+            {loading ? '提交中...' : confirmText}
+          </button>
         </div>
       </div>
     </div>
