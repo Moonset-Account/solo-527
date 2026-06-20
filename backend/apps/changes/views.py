@@ -16,11 +16,14 @@ from apps.viewsets import OrganizationScopedViewSet
 class ChangeWindowViewSet(OrganizationScopedViewSet):
     queryset = ChangeWindow.objects.all()
     filterset_class = ChangeWindowFilter
-    search_fields = ['code', 'name', 'description']
-    ordering_fields = ['start_time', 'created_at', 'status']
+    search_fields = ['code', 'name', 'title', 'description']
+    ordering_fields = ['start_time', 'created_at', 'status', 'priority']
 
     def get_queryset(self):
-        qs = super().get_queryset().annotate(server_count=Count('servers'))
+        qs = super().get_queryset().annotate(
+            server_count=Count('servers'),
+            affected_servers_count=Count('servers')
+        )
         return qs
 
     def get_serializer_class(self):
@@ -38,6 +41,12 @@ class ChangeWindowViewSet(OrganizationScopedViewSet):
         instance = serializer.instance
         instance.code = f'{code}{instance.id:04d}'
         instance.applicant = self.request.user
+        if not instance.title:
+            instance.title = instance.name
+        if not instance.planned_start:
+            instance.planned_start = instance.start_time
+        if not instance.planned_end:
+            instance.planned_end = instance.end_time
         instance.save()
         self._create_log(instance, '创建变更', '', instance.status, f'创建变更: {instance.name}')
 

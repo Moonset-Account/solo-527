@@ -19,12 +19,17 @@ class InspectionItemSerializer(BaseModelSerializer):
 class InspectionTemplateListSerializer(BaseModelSerializer):
     item_count = serializers.IntegerField(read_only=True)
     task_count = serializers.IntegerField(read_only=True)
+    items_count = serializers.IntegerField(read_only=True)
+    template_type_display = serializers.CharField(source='get_template_type_display', read_only=True)
+    created_by_name = serializers.CharField(source='created_by.name', read_only=True, allow_null=True)
 
     class Meta(BaseModelSerializer.Meta):
         model = InspectionTemplate
         fields = BaseModelSerializer.Meta.fields + [
-            'id', 'name', 'code', 'description', 'cron_expression',
-            'is_active', 'item_count', 'task_count'
+            'id', 'name', 'code', 'template_type', 'template_type_display',
+            'description', 'cron_expression', 'timeout_seconds',
+            'is_active', 'is_enabled',
+            'item_count', 'task_count', 'items_count', 'created_by_name'
         ]
 
 
@@ -32,12 +37,15 @@ class InspectionTemplateDetailSerializer(BaseModelSerializer):
     items = InspectionItemSerializer(many=True, read_only=True)
     group_names = serializers.ListField(source='groups.values_list', read_only=True)
     server_names = serializers.ListField(source='servers.values_list', read_only=True)
+    template_type_display = serializers.CharField(source='get_template_type_display', read_only=True)
 
     class Meta(BaseModelSerializer.Meta):
         model = InspectionTemplate
         fields = BaseModelSerializer.Meta.fields + [
-            'id', 'name', 'code', 'description', 'cron_expression',
-            'is_active', 'groups', 'servers', 'items'
+            'id', 'name', 'code', 'template_type', 'template_type_display',
+            'description', 'cron_expression', 'timeout_seconds',
+            'is_active', 'is_enabled',
+            'groups', 'servers', 'items', 'group_names', 'server_names'
         ]
 
 
@@ -45,17 +53,20 @@ class InspectionTaskListSerializer(BaseModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     trigger_type_display = serializers.CharField(source='get_trigger_type_display', read_only=True)
     template_name = serializers.CharField(source='template.name', read_only=True)
-    triggered_by_name = serializers.CharField(source='triggered_by.name', read_only=True)
+    triggered_by_name = serializers.CharField(source='triggered_by.name', read_only=True, allow_null=True)
+    executed_by_name = serializers.CharField(source='triggered_by.name', read_only=True, allow_null=True)
+    started_at = serializers.DateTimeField(format='%Y-%m-%d %H:%M:%S', read_only=True)
+    finished_at = serializers.DateTimeField(format='%Y-%m-%d %H:%M:%S', read_only=True)
 
     class Meta(BaseModelSerializer.Meta):
         model = InspectionTask
         fields = BaseModelSerializer.Meta.fields + [
             'id', 'code', 'name', 'template', 'template_name',
             'status', 'status_display', 'trigger_type', 'trigger_type_display',
-            'started_at', 'finished_at',
+            'started_at', 'finished_at', 'duration_seconds',
             'total_count', 'success_count', 'warning_count',
-            'critical_count', 'failed_count',
-            'triggered_by', 'triggered_by_name'
+            'critical_count', 'failed_count', 'timeout_count',
+            'triggered_by', 'triggered_by_name', 'executed_by_name'
         ]
 
 

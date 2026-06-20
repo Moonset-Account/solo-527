@@ -14,13 +14,14 @@ from apps.viewsets import OrganizationScopedViewSet
 
 class InspectionTemplateViewSet(OrganizationScopedViewSet):
     queryset = InspectionTemplate.objects.all()
-    filterset_fields = ['is_active']
-    search_fields = ['name', 'code']
-    ordering_fields = ['name', 'created_at']
+    filterset_fields = ['is_active', 'is_enabled', 'template_type']
+    search_fields = ['name', 'code', 'description']
+    ordering_fields = ['name', 'created_at', 'template_type']
 
     def get_queryset(self):
         qs = super().get_queryset().annotate(
             item_count=Count('items'),
+            items_count=Count('items'),
             task_count=Count('tasks')
         )
         return qs

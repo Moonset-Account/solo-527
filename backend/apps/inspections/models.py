@@ -3,11 +3,30 @@ from apps.common import BaseModel
 
 
 class InspectionTemplate(BaseModel):
+    TYPE_SERVER = 'server'
+    TYPE_DATABASE = 'database'
+    TYPE_APPLICATION = 'application'
+    TYPE_NETWORK = 'network'
+    TYPE_SECURITY = 'security'
+    TYPE_CUSTOM = 'custom'
+
+    TEMPLATE_TYPE_CHOICES = [
+        (TYPE_SERVER, '服务器巡检'),
+        (TYPE_DATABASE, '数据库巡检'),
+        (TYPE_APPLICATION, '应用巡检'),
+        (TYPE_NETWORK, '网络巡检'),
+        (TYPE_SECURITY, '安全巡检'),
+        (TYPE_CUSTOM, '自定义'),
+    ]
+
     name = models.CharField(max_length=100, verbose_name='模板名称')
     code = models.CharField(max_length=50, blank=True, verbose_name='模板编码')
+    template_type = models.CharField(max_length=30, choices=TEMPLATE_TYPE_CHOICES, default=TYPE_CUSTOM, verbose_name='模板类型')
     description = models.TextField(blank=True, null=True, verbose_name='描述')
     cron_expression = models.CharField(max_length=100, blank=True, verbose_name='定时表达式')
+    timeout_seconds = models.IntegerField(default=3600, verbose_name='超时秒数')
     is_active = models.BooleanField(default=True, verbose_name='是否启用')
+    is_enabled = models.BooleanField(default=True, verbose_name='是否启用(别名)')
     groups = models.ManyToManyField(
         'assets.AssetGroup',
         blank=True,
@@ -29,6 +48,11 @@ class InspectionTemplate(BaseModel):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if self.is_active != self.is_enabled:
+            self.is_enabled = self.is_active
+        super().save(*args, **kwargs)
 
 
 class InspectionItem(BaseModel):
@@ -126,11 +150,13 @@ class InspectionTask(BaseModel):
     trigger_type = models.CharField(max_length=20, choices=TRIGGER_CHOICES, default=TRIGGER_MANUAL, verbose_name='触发方式')
     started_at = models.DateTimeField(null=True, blank=True, verbose_name='开始时间')
     finished_at = models.DateTimeField(null=True, blank=True, verbose_name='结束时间')
+    duration_seconds = models.IntegerField(default=0, verbose_name='执行耗时(秒)')
     total_count = models.IntegerField(default=0, verbose_name='总检查项')
     success_count = models.IntegerField(default=0, verbose_name='正常数')
     warning_count = models.IntegerField(default=0, verbose_name='告警数')
     critical_count = models.IntegerField(default=0, verbose_name='严重数')
     failed_count = models.IntegerField(default=0, verbose_name='失败数')
+    timeout_count = models.IntegerField(default=0, verbose_name='超时数')
     result_summary = models.TextField(blank=True, null=True, verbose_name='执行结果摘要')
     triggered_by = models.ForeignKey(
         'accounts.User',

@@ -3,22 +3,26 @@ from apps.common import BaseModel
 
 
 class NotificationRule(BaseModel):
-    TRIGGER_ALERT_NEW = 'alert_new'
-    TRIGGER_ALERT_ACK = 'alert_acknowledge'
-    TRIGGER_ALERT_CLOSE = 'alert_close'
-    TRIGGER_CHANGE_APPROVAL = 'change_approval'
-    TRIGGER_CHANGE_START = 'change_start'
-    TRIGGER_CHANGE_COMPLETE = 'change_complete'
-    TRIGGER_INSPECTION_RESULT = 'inspection_result'
+    TRIGGER_ALERT_NEW = 'alert_created'
+    TRIGGER_ALERT_ACK = 'alert_level_escalated'
+    TRIGGER_ALERT_CLOSE = 'alert_auto_closed'
+    TRIGGER_CHANGE_APPROVAL = 'change_window_approved'
+    TRIGGER_CHANGE_START = 'change_window_started'
+    TRIGGER_CHANGE_COMPLETE = 'change_window_completed'
+    TRIGGER_CHANGE_FAILED = 'change_window_failed'
+    TRIGGER_INSPECTION_COMPLETED = 'inspection_completed'
+    TRIGGER_INSPECTION_FAILED = 'inspection_failed'
 
     TRIGGER_CHOICES = [
-        (TRIGGER_ALERT_NEW, '新告警'),
-        (TRIGGER_ALERT_ACK, '告警确认'),
-        (TRIGGER_ALERT_CLOSE, '告警关闭'),
-        (TRIGGER_CHANGE_APPROVAL, '变更待审批'),
+        (TRIGGER_ALERT_NEW, '告警创建'),
+        (TRIGGER_ALERT_ACK, '告警升级'),
+        (TRIGGER_ALERT_CLOSE, '告警自动关闭'),
+        (TRIGGER_CHANGE_APPROVAL, '变更审批'),
         (TRIGGER_CHANGE_START, '变更开始'),
         (TRIGGER_CHANGE_COMPLETE, '变更完成'),
-        (TRIGGER_INSPECTION_RESULT, '巡检结果'),
+        (TRIGGER_CHANGE_FAILED, '变更失败'),
+        (TRIGGER_INSPECTION_COMPLETED, '巡检完成'),
+        (TRIGGER_INSPECTION_FAILED, '巡检失败'),
     ]
 
     METHOD_IN_APP = 'in_app'
@@ -26,6 +30,7 @@ class NotificationRule(BaseModel):
     METHOD_SMS = 'sms'
     METHOD_DINGTALK = 'dingtalk'
     METHOD_WECHAT = 'wechat'
+    METHOD_WEBHOOK = 'webhook'
 
     METHOD_CHOICES = [
         (METHOD_IN_APP, '站内消息'),
@@ -33,12 +38,29 @@ class NotificationRule(BaseModel):
         (METHOD_SMS, '短信'),
         (METHOD_DINGTALK, '钉钉'),
         (METHOD_WECHAT, '企业微信'),
+        (METHOD_WEBHOOK, 'Webhook'),
+    ]
+
+    LEVEL_INFO = 'info'
+    LEVEL_WARNING = 'warning'
+    LEVEL_CRITICAL = 'critical'
+    LEVEL_EMERGENCY = 'emergency'
+
+    SEVERITY_CHOICES = [
+        ('', '全部'),
+        (LEVEL_INFO, '提示及以上'),
+        (LEVEL_WARNING, '告警及以上'),
+        (LEVEL_CRITICAL, '严重及以上'),
+        (LEVEL_EMERGENCY, '仅紧急'),
     ]
 
     name = models.CharField(max_length=100, verbose_name='规则名称')
     trigger = models.CharField(max_length=50, choices=TRIGGER_CHOICES, verbose_name='触发事件')
+    event_type = models.CharField(max_length=50, choices=TRIGGER_CHOICES, verbose_name='事件类型(别名)')
     method = models.CharField(max_length=20, choices=METHOD_CHOICES, default=METHOD_IN_APP, verbose_name='通知方式')
+    channels = models.JSONField(default=list, verbose_name='通知渠道列表')
     alert_levels = models.CharField(max_length=100, blank=True, verbose_name='告警级别(逗号分隔)')
+    severity_level = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='', blank=True, verbose_name='严重级别阈值')
     recipients = models.ManyToManyField(
         'accounts.User',
         blank=True,
@@ -48,6 +70,7 @@ class NotificationRule(BaseModel):
     recipient_emails = models.TextField(blank=True, verbose_name='额外邮箱(逗号分隔)')
     template = models.TextField(blank=True, verbose_name='通知模板')
     is_active = models.BooleanField(default=True, verbose_name='是否启用')
+    is_enabled = models.BooleanField(default=True, verbose_name='是否启用(别名)')
     description = models.TextField(blank=True, null=True, verbose_name='描述')
 
     class Meta:
@@ -62,6 +85,17 @@ class NotificationRule(BaseModel):
     @property
     def alert_level_list(self):
         return [l.strip() for l in self.alert_levels.split(',') if l.strip()]
+
+    def save(self, *args, **kwargs):
+        if self.trigger and not self.event_type:
+            self.event_type = self.trigger
+        if self.event_type and not self.trigger:
+            self.trigger = self.event_type
+        if self.is_active != self.is_enabled:
+            self.is_enabled = self.is_active
+        if not self.channels and self.method:
+            self.channels = [self.method]
+        super().save(*args, **kwargs)
 
 
 class Notification(BaseModel):

@@ -11,11 +11,14 @@ class DictionaryItemSimpleSerializer(serializers.ModelSerializer):
 
 class DictionaryCategorySerializer(BaseModelSerializer):
     item_count = serializers.IntegerField(read_only=True)
+    items_count = serializers.IntegerField(read_only=True)
 
     class Meta(BaseModelSerializer.Meta):
         model = DictionaryCategory
         fields = BaseModelSerializer.Meta.fields + [
-            'id', 'code', 'name', 'description', 'item_count'
+            'id', 'code', 'name', 'description',
+            'is_active', 'is_enabled',
+            'item_count', 'items_count'
         ]
 
 
@@ -25,7 +28,9 @@ class DictionaryCategoryDetailSerializer(BaseModelSerializer):
     class Meta(BaseModelSerializer.Meta):
         model = DictionaryCategory
         fields = BaseModelSerializer.Meta.fields + [
-            'id', 'code', 'name', 'description', 'items'
+            'id', 'code', 'name', 'description',
+            'is_active', 'is_enabled',
+            'items'
         ]
 
 
@@ -36,5 +41,6 @@ class DictionaryItemSerializer(BaseModelSerializer):
         model = DictionaryItem
         fields = BaseModelSerializer.Meta.fields + [
             'id', 'category', 'category_name', 'code', 'name', 'value',
-            'sort_order', 'is_default', 'is_active', 'parent'
+            'sort_order', 'is_default', 'is_active', 'is_enabled',
+            'description', 'parent'
         ]

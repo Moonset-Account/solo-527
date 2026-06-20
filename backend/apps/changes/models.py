@@ -22,23 +22,43 @@ class ChangeWindow(BaseModel):
     TYPE_ROUTINE = 'routine'
     TYPE_EMERGENCY = 'emergency'
     TYPE_PLANNED = 'planned'
+    TYPE_STANDARD = 'standard'
 
     TYPE_CHOICES = [
         (TYPE_ROUTINE, '日常变更'),
         (TYPE_EMERGENCY, '紧急变更'),
         (TYPE_PLANNED, '计划变更'),
+        (TYPE_STANDARD, '标准变更'),
+    ]
+
+    PRIORITY_LOW = 'low'
+    PRIORITY_MEDIUM = 'medium'
+    PRIORITY_HIGH = 'high'
+    PRIORITY_URGENT = 'urgent'
+
+    PRIORITY_CHOICES = [
+        (PRIORITY_LOW, '低'),
+        (PRIORITY_MEDIUM, '中'),
+        (PRIORITY_HIGH, '高'),
+        (PRIORITY_URGENT, '紧急'),
     ]
 
     code = models.CharField(max_length=50, unique=True, verbose_name='变更编号')
     name = models.CharField(max_length=200, verbose_name='变更名称')
+    title = models.CharField(max_length=200, blank=True, verbose_name='变更标题(别名)')
     change_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_PLANNED, verbose_name='变更类型')
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default=PRIORITY_MEDIUM, verbose_name='优先级')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, verbose_name='变更状态')
     description = models.TextField(verbose_name='变更描述')
     plan_content = models.TextField(blank=True, null=True, verbose_name='变更方案')
+    implementation_plan = models.TextField(blank=True, null=True, verbose_name='实施步骤(别名)')
     rollback_plan = models.TextField(blank=True, null=True, verbose_name='回滚方案')
     risk_assessment = models.TextField(blank=True, null=True, verbose_name='风险评估')
+    test_result = models.TextField(blank=True, null=True, verbose_name='测试结果')
     start_time = models.DateTimeField(verbose_name='计划开始时间')
     end_time = models.DateTimeField(verbose_name='计划结束时间')
+    planned_start = models.DateTimeField(null=True, blank=True, verbose_name='计划开始(别名)')
+    planned_end = models.DateTimeField(null=True, blank=True, verbose_name='计划结束(别名)')
     actual_start = models.DateTimeField(null=True, blank=True, verbose_name='实际开始时间')
     actual_end = models.DateTimeField(null=True, blank=True, verbose_name='实际结束时间')
     applicant = models.ForeignKey(

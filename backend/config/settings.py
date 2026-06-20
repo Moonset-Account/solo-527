@@ -144,6 +144,14 @@ CACHES = {
     }
 }
 
+import os as _os
+
+LOG_DIR = BASE_DIR / 'logs'
+try:
+    _os.makedirs(LOG_DIR, exist_ok=True)
+except Exception:
+    pass
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -153,7 +161,7 @@ LOGGING = {
         },
         'file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': BASE_DIR / 'logs' / 'app.log',
+            'filename': str(LOG_DIR / 'app.log'),
             'maxBytes': 1024 * 1024 * 10,
             'backupCount': 5,
         },

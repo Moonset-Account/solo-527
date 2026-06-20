@@ -6,15 +6,18 @@ from apps.serializers import BaseModelSerializer
 class NotificationRuleSerializer(BaseModelSerializer):
     trigger_display = serializers.CharField(source='get_trigger_display', read_only=True)
     method_display = serializers.CharField(source='get_method_display', read_only=True)
+    event_type_display = serializers.CharField(source='get_event_type_display', read_only=True)
     recipient_count = serializers.IntegerField(read_only=True)
 
     class Meta(BaseModelSerializer.Meta):
         model = NotificationRule
         fields = BaseModelSerializer.Meta.fields + [
             'id', 'name', 'trigger', 'trigger_display',
-            'method', 'method_display', 'alert_levels',
-            'recipients', 'recipient_emails', 'template',
-            'is_active', 'description', 'recipient_count'
+            'event_type', 'event_type_display',
+            'method', 'method_display', 'channels',
+            'alert_levels', 'severity_level',
+            'recipients', 'recipient_count', 'recipient_emails',
+            'template', 'is_active', 'is_enabled', 'description'
         ]
 
 

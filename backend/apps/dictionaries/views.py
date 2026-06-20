@@ -11,12 +11,12 @@ from apps.viewsets import OrganizationScopedViewSet
 
 class DictionaryCategoryViewSet(OrganizationScopedViewSet):
     queryset = DictionaryCategory.objects.all()
-    filterset_fields = ['code']
-    search_fields = ['name', 'code']
+    filterset_fields = ['code', 'is_active', 'is_enabled']
+    search_fields = ['name', 'code', 'description']
     ordering_fields = ['code', 'name', 'created_at']
 
     def get_queryset(self):
-        qs = super().get_queryset().annotate(item_count=Count('items'))
+        qs = super().get_queryset().annotate(item_count=Count('items'), items_count=Count('items'))
         return qs
 
     def get_serializer_class(self):
@@ -35,6 +35,22 @@ class DictionaryCategoryViewSet(OrganizationScopedViewSet):
             is_active=True
         ).order_by('sort_order', 'code')
         serializer = DictionaryItemSimpleSerializer(items, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def items(self, request, pk=None):
+        category = self.get_object()
+        qs = DictionaryItem.objects.filter(
+            category=category,
+            organization=request.user.organization
+        ).order_by('sort_order', 'code')
+        is_active = request.query_params.get('is_active')
+        is_enabled = request.query_params.get('is_enabled')
+        if is_active != '' and is_active is not None:
+            qs = qs.filter(is_active=is_active.lower() == 'true')
+        if is_enabled != '' and is_enabled is not None:
+            qs = qs.filter(is_enabled=is_enabled.lower() == 'true')
+        serializer = DictionaryItemSerializer(qs, many=True)
         return Response(serializer.data)
 
 

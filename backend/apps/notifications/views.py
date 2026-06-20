@@ -10,7 +10,7 @@ from apps.viewsets import OrganizationScopedViewSet
 class NotificationRuleViewSet(OrganizationScopedViewSet):
     queryset = NotificationRule.objects.all()
     serializer_class = NotificationRuleSerializer
-    filterset_fields = ['trigger', 'method', 'is_active']
+    filterset_fields = ['trigger', 'event_type', 'method', 'is_active', 'is_enabled']
     search_fields = ['name', 'description']
     ordering_fields = ['name', 'created_at']
 
