@@ -59,14 +59,44 @@ export default defineEventHandler(async (event) => {
 
     const reportNo = `RPT${period.replace('-', '')}`
 
-    const report = await prisma.$transaction(async (tx) => {
-      const existing = await tx.billingReport.findUnique({
-        where: { reportNo }
-      })
-      if (existing) {
-        throw new Error(`该月份报表 ${reportNo} 已存在`)
+    const existingReport = await prisma.billingReport.findUnique({
+      where: { reportNo },
+      include: {
+        billingRecords: {
+          include: {
+            patient: { select: { id: true, patientNo: true, name: true, firstVisitDate: true } },
+            medicalRecord: { select: { id: true, recordNo: true, diagnosis: true } },
+            course: { select: { id: true, courseNo: true, name: true, isLost: true, lostReason: true } },
+            creator: { select: { id: true, name: true } }
+          },
+          orderBy: { paymentDate: 'desc' }
+        }
       }
+    })
 
+    if (existingReport) {
+      const records = existingReport.billingRecords || []
+      const toNum = (v: any) => (typeof v?.toNumber === 'function' ? v.toNumber() : Number(v || 0))
+      return successResponse({
+        report: existingReport,
+        isExisting: true,
+        recordCount: records.length,
+        summary: {
+          totalAmount: records.reduce((sum, b) => sum + toNum(b.amount), 0),
+          paidAmount: records.reduce((sum, b) => sum + toNum(b.paidAmount), 0),
+          unpaidAmount: records.reduce((sum, b) => sum + (toNum(b.amount) - toNum(b.paidAmount)), 0),
+          patientCount: new Set(records.map(b => b.patientId)).size,
+          newPatientCount: records.filter(b =>
+            b.patient?.firstVisitDate && dayjs(b.patient.firstVisitDate).isAfter(dayjs(startDate).subtract(1, 'day'))
+          ).length,
+          lostPatientCount: new Set(records.filter(b => b.course?.isLost).map(b => b.patientId)).size
+        },
+        period,
+        billingRecords: records
+      }, `收费报表 ${reportNo} 已存在，返回关联明细单据`)
+    }
+
+    const report = await prisma.$transaction(async (tx) => {
       const newReport = await tx.billingReport.create({
         data: {
           reportNo,
@@ -139,12 +169,24 @@ export default defineEventHandler(async (event) => {
       return newReport
     })
 
+    const finalRecords = await prisma.billingRecord.findMany({
+      where: { reportId: report.id },
+      include: {
+        patient: { select: { id: true, patientNo: true, name: true, firstVisitDate: true } },
+        medicalRecord: { select: { id: true, recordNo: true, diagnosis: true } },
+        course: { select: { id: true, courseNo: true, name: true, isLost: true, lostReason: true } },
+        creator: { select: { id: true, name: true } }
+      },
+      orderBy: { paymentDate: 'desc' }
+    })
+
     return successResponse({
       report,
-      recordCount: billingRecords.length,
+      isExisting: false,
+      recordCount: finalRecords.length,
       summary,
       period,
-      billingRecords
+      billingRecords: finalRecords
     }, '收费报表生成成功，已关联所有明细单据')
   } catch (error: any) {
     if (error instanceof z.ZodError) {
