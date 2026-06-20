@@ -37,7 +37,6 @@ public class DesensitizationController {
     @GetMapping("/{id}")
     public ApiResponse<DesensitizationConfig> getConfigDetail(@PathVariable Long id) {
         return desensitizationService.getConfigList(null, null, Pageable.unpaged())
-            .getData()
             .getContent()
             .stream()
             .filter(c -> c.getId().equals(id))

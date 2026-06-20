@@ -117,10 +117,11 @@ public class DesensitizationService {
             redisTemplate.opsForValue().set(cacheKey, configs, 1, TimeUnit.HOURS);
         }
 
+        final List<DesensitizationConfig> finalConfigs = configs;
         return dataList.stream()
             .map(data -> {
                 Map<String, Object> result = new HashMap<>(data);
-                for (DesensitizationConfig config : configs) {
+                for (DesensitizationConfig config : finalConfigs) {
                     if (shouldApplyDesensitization(config, userDataLevel)) {
                         String columnName = config.getColumnName();
                         if (result.containsKey(columnName)) {

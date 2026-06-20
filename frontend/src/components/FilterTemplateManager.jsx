@@ -3,7 +3,26 @@ import { Button, Modal, Form, Input, Select, message, Dropdown, Space } from 'an
 import { SaveOutlined, FolderOpenOutlined, DownOutlined } from '@ant-design/icons'
 import { filterApi } from '@/services/api'
 
-export default function FilterTemplateManager({ pageCode, pageName, filters, onApplyTemplate, onSaveSuccess }) {
+const PAGE_NAME_MAP = {
+  anomaly_list: '异常原因列表',
+  approval_list: '权限审批列表',
+  report_efficiency: '报表效率看板',
+  dashboard: '数据看板',
+  alert_rules: '告警规则配置',
+  dimension_config: '维度配置',
+  dataset_permissions: '数据集权限',
+  desensitization_config: '数据脱敏配置',
+  data_delay_monitor: '数据延迟监控',
+  filter_templates: '筛选模板管理',
+}
+
+function getPageNameDefault(pageCode) {
+  return PAGE_NAME_MAP[pageCode] || pageCode
+}
+
+export default function FilterTemplateManager({ pageCode, pageName, filters, currentFilters, onApplyTemplate, onSaveSuccess }) {
+  const realFilters = filters || currentFilters || {}
+  const realPageName = pageName || getPageNameDefault(pageCode)
   const [saveModalOpen, setSaveModalOpen] = useState(false)
   const [templates, setTemplates] = useState([])
   const [form] = Form.useForm()
@@ -27,9 +46,9 @@ export default function FilterTemplateManager({ pageCode, pageName, filters, onA
     try {
       await filterApi.create({
         templateName: values.templateName,
-        pageCode,
-        pageName,
-        filterConditions: JSON.stringify(filters),
+        pageCode: pageCode,
+        pageName: realPageName,
+        filterConditions: JSON.stringify(realFilters),
         description: values.description,
         isPublic: values.isPublic || false,
       })

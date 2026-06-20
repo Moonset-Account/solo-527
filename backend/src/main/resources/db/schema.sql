@@ -1,7 +1,3 @@
-CREATE DATABASE IF NOT EXISTS data_portal;
-
-\c data_portal;
-
 CREATE TABLE IF NOT EXISTS sys_permission (
     id BIGSERIAL PRIMARY KEY,
     permission_code VARCHAR(100) UNIQUE NOT NULL,

@@ -10,6 +10,42 @@ import {
 import { delayApi } from '@/services/api'
 import dayjs from 'dayjs'
 
+function parseNotifyUsers(notifyUsers) {
+  if (!notifyUsers) return []
+  if (Array.isArray(notifyUsers)) return notifyUsers
+  if (typeof notifyUsers === 'string') {
+    return notifyUsers
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+  }
+  try {
+    const parsed = JSON.parse(notifyUsers)
+    return Array.isArray(parsed) ? parsed : []
+  } catch (e) {
+    return []
+  }
+}
+
+function formatNotification(n) {
+  if (!n) return ''
+  if (typeof n === 'string') return n
+  const datasetName = n.datasetName || n.dataset_code || n.datasetCode || '未知数据集'
+  const delayMinutes = n.delayMinutes ?? n.delay_minutes ?? 0
+  const severity = n.severity
+  const expectedTime = n.expectedTime || n.expected_time || n.expectedUpdateTime
+  let timeStr = ''
+  if (expectedTime) {
+    try {
+      timeStr = `(预期更新: ${dayjs(expectedTime).format('MM-DD HH:mm')})`
+    } catch (e) {
+      timeStr = ''
+    }
+  }
+  const severityText = severity === 'HIGH' ? '【严重】' : severity === 'MEDIUM' ? '【中等】' : ''
+  return `${severityText}${datasetName} 延迟 ${delayMinutes} 分钟 ${timeStr}`
+}
+
 export default function DataDelayMonitor() {
   const [data, setData] = useState([])
   const [total, setTotal] = useState(0)
@@ -21,7 +57,10 @@ export default function DataDelayMonitor() {
   useEffect(() => {
     loadData()
     loadNotifications()
-    const timer = setInterval(loadData, 60000)
+    const timer = setInterval(() => {
+      loadData()
+      loadNotifications()
+    }, 60000)
     return () => clearInterval(timer)
   }, [pagination.current, pagination.pageSize])
 
@@ -36,8 +75,10 @@ export default function DataDelayMonitor() {
         delayApi.getList(params),
         delayApi.getStats(),
       ])
-      setData(list?.content || list || [])
-      setTotal(list?.totalElements || list?.length || 0)
+      const listData = list?.content || list || []
+      const totalCount = list?.totalElements != null ? list.totalElements : (list?.length || 0)
+      setData(listData)
+      setTotal(totalCount)
       setStats(statsResult || {})
     } catch (error) {
       console.error('加载延迟监控数据失败', error)
@@ -49,9 +90,11 @@ export default function DataDelayMonitor() {
   const loadNotifications = async () => {
     try {
       const result = await delayApi.getNotifications()
-      setNotifications(result || [])
+      const notifList = Array.isArray(result) ? result : (Array.isArray(result?.data) ? result.data : [])
+      setNotifications(notifList)
     } catch (error) {
       console.error('加载通知失败', error)
+      setNotifications([])
     }
   }
 
@@ -71,7 +114,7 @@ export default function DataDelayMonitor() {
       case 'WARNING': return '预警'
       case 'DELAYED': return '延迟'
       case 'CRITICAL': return '严重延迟'
-      default: return status
+      default: return status || '未知'
     }
   }
 
@@ -86,9 +129,10 @@ export default function DataDelayMonitor() {
     try {
       await delayApi.clearNotification(index)
       message.success('已清除通知')
-      loadNotifications()
+      setNotifications(prev => prev.filter((_, i) => i !== index))
     } catch (error) {
       console.error('清除通知失败', error)
+      loadNotifications()
     }
   }
 
@@ -99,6 +143,7 @@ export default function DataDelayMonitor() {
       setNotifications([])
     } catch (error) {
       console.error('清除通知失败', error)
+      loadNotifications()
     }
   }
 
@@ -113,36 +158,45 @@ export default function DataDelayMonitor() {
       title: '数据集编码',
       dataIndex: 'datasetCode',
       key: 'datasetCode',
-      render: (text) => <code>{text}</code>,
+      render: (text, record) => <code>{text || record.dataset_code || '-'}</code>,
     },
     {
       title: '数据集名称',
       dataIndex: 'datasetName',
       key: 'datasetName',
-      render: (text) => <strong>{text}</strong>,
+      render: (text, record) => <strong>{text || record.dataset_name || '-'}</strong>,
     },
     {
       title: '最后更新时间',
       dataIndex: 'lastUpdateTime',
       key: 'lastUpdateTime',
-      render: (text) => text ? dayjs(text).format('YYYY-MM-DD HH:mm:ss') : '-',
+      render: (text, record) => {
+        const t = text || record.last_update_time
+        return t ? dayjs(t).format('YYYY-MM-DD HH:mm:ss') : '-'
+      },
     },
     {
       title: '预期更新时间',
       dataIndex: 'expectedUpdateTime',
       key: 'expectedUpdateTime',
-      render: (text) => text ? dayjs(text).format('YYYY-MM-DD HH:mm:ss') : '-',
+      render: (text, record) => {
+        const t = text || record.expected_update_time
+        return t ? dayjs(t).format('YYYY-MM-DD HH:mm:ss') : '-'
+      },
     },
     {
       title: '延迟时间',
       dataIndex: 'delayMinutes',
       key: 'delayMinutes',
-      render: (text) => (
-        <span style={{ color: getDelayColor(text), fontWeight: 'bold' }}>
-          {text > 0 ? `${text} 分钟` : '0 分钟'}
-        </span>
-      ),
-      sorter: (a, b) => a.delayMinutes - b.delayMinutes,
+      render: (text, record) => {
+        const m = text ?? record.delay_minutes ?? 0
+        return (
+          <span style={{ color: getDelayColor(m), fontWeight: 'bold' }}>
+            {m > 0 ? `${m} 分钟` : '0 分钟'}
+          </span>
+        )
+      },
+      sorter: (a, b) => (a.delayMinutes ?? a.delay_minutes ?? 0) - (b.delayMinutes ?? b.delay_minutes ?? 0),
     },
     {
       title: '状态',
@@ -155,21 +209,22 @@ export default function DataDelayMonitor() {
         { text: '延迟', value: 'DELAYED' },
         { text: '严重延迟', value: 'CRITICAL' },
       ],
-      onFilter: (value, record) => record.status === value,
+      onFilter: (value, record) => (record.status || '') === value,
     },
     {
-      title: '通知用户',
+      title: '通知对象',
       dataIndex: 'notifyUsers',
       key: 'notifyUsers',
-      render: (text) => {
-        if (!text) return '-'
-        const users = Array.isArray(text) ? text : JSON.parse(text || '[]')
+      render: (text, record) => {
+        const raw = text || record.notify_users
+        const users = parseNotifyUsers(raw)
+        if (users.length === 0) return '-'
         return (
           <Space wrap>
-            {users.slice(0, 3).map((u, i) => (
-              <Tag key={i} color="blue">{u}</Tag>
+            {users.slice(0, 5).map((u, i) => (
+              <Tag key={i} color="geekblue">{u}</Tag>
             ))}
-            {users.length > 3 && <Tag>+{users.length - 3}</Tag>}
+            {users.length > 5 && <Tag>+{users.length - 5}</Tag>}
           </Space>
         )
       },
@@ -178,9 +233,15 @@ export default function DataDelayMonitor() {
       title: '监控时间',
       dataIndex: 'monitoredAt',
       key: 'monitoredAt',
-      render: (text) => dayjs(text).format('YYYY-MM-DD HH:mm'),
+      render: (text, record) => {
+        const t = text || record.notifiedAt || record.notified_at || record.updatedAt || record.updated_at
+        return t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-'
+      },
     },
   ]
+
+  const totalCount = stats.total || 0
+  const delayedCount = stats.delayed ?? (totalCount - (stats.normal ?? 0))
 
   return (
     <div>
@@ -196,16 +257,31 @@ export default function DataDelayMonitor() {
           }
           description={
             <Space direction="vertical" style={{ width: '100%' }}>
-              {notifications.slice(0, 3).map((n, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>{n}</span>
-                  <Button type="link" size="small" onClick={() => handleClearNotification(i)}>
-                    清除
-                  </Button>
-                </div>
-              ))}
-              {notifications.length > 3 && (
-                <div>...还有 {notifications.length - 3} 条通知</div>
+              {notifications.slice(0, 5).map((n, i) => {
+                const notifyUsers = parseNotifyUsers(n.notifyUsers || n.notify_users)
+                return (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{formatNotification(n)}</div>
+                      {notifyUsers.length > 0 && (
+                        <div style={{ marginTop: 4 }}>
+                          <Space wrap size={[4, 4]}>
+                            <span style={{ color: '#888', fontSize: 12 }}>通知：</span>
+                            {notifyUsers.map((u, j) => (
+                              <Tag key={j} color="geekblue" style={{ margin: 0 }}>{u}</Tag>
+                            ))}
+                          </Space>
+                        </div>
+                      )}
+                    </div>
+                    <Button type="link" size="small" onClick={() => handleClearNotification(i)}>
+                      清除
+                    </Button>
+                  </div>
+                )
+              })}
+              {notifications.length > 5 && (
+                <div style={{ color: '#888', fontSize: 12 }}>...还有 {notifications.length - 5} 条通知</div>
               )}
             </Space>
           }
@@ -255,7 +331,7 @@ export default function DataDelayMonitor() {
                   延迟数据集
                 </Space>
               }
-              value={stats.delayed || 0}
+              value={delayedCount}
               valueStyle={{ color: '#fa8c16' }}
             />
           </Card>
@@ -295,9 +371,9 @@ export default function DataDelayMonitor() {
         <Table
           dataSource={data}
           columns={columns}
-          rowKey="id"
+          rowKey={(record) => record.id || `${record.datasetCode}-${record.datasetCode}`}
           loading={loading}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1300 }}
           pagination={{
             ...pagination,
             total,
@@ -307,12 +383,11 @@ export default function DataDelayMonitor() {
             onChange: (page, pageSize) => setPagination({ current: page, pageSize }),
           }}
           rowClassName={(record) => {
-            switch (record.status) {
-              case 'CRITICAL': return 'delay-critical'
-              case 'DELAYED': return 'delay-delayed'
-              case 'WARNING': return 'delay-warning'
-              default: return ''
-            }
+            const s = record.status
+            if (s === 'CRITICAL') return 'delay-critical'
+            if (s === 'DELAYED') return 'delay-delayed'
+            if (s === 'WARNING') return 'delay-warning'
+            return ''
           }}
         />
       </Card>
