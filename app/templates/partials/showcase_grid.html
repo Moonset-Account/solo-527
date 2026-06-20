@@ -1,0 +1,46 @@
+<span id="total-count" hx-swap-oob="true">共 {{ total }} 条</span>
+<div class="work-grid">
+    {% if items %}
+    {% for w in items %}
+    <div class="work-card">
+        <img src="{{ w.image_url or '/static/images/placeholder.svg' }}" alt="{{ w.title }}" onerror="this.src='/static/images/placeholder.svg'">
+        <div class="work-info">
+            <div style="margin-bottom: 8px;">
+                {% if w.treatment_name %}
+                <span class="work-category">{{ w.treatment_name }}</span>
+                {% endif %}
+            </div>
+            <div class="work-title">{{ w.title }}</div>
+            <div class="work-desc">{{ w.description or '' }}</div>
+            <div class="work-stats">
+                <span>❤️ {{ w.like_count }} 点赞</span>
+                <span>💬 {{ w.comment_count|default(0) }} 评论</span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state" style="grid-column: 1/-1;">暂无作品</div>
+    {% endif %}
+</div>
+<div class="pagination">
+    {% if total_pages > 1 %}
+    <button hx-get="/api/works/public?page={{ current_page - 1 }}&limit=12"
+            hx-target="#showcase-grid"
+            hx-include="#showcase-filters"
+            hx-swap="innerHTML"
+            {% if current_page == 1 %}disabled{% endif %}>上一页</button>
+    {% for i in range(1, total_pages + 1) %}
+    <button hx-get="/api/works/public?page={{ i }}&limit=12"
+            hx-target="#showcase-grid"
+            hx-include="#showcase-filters"
+            hx-swap="innerHTML"
+            class="{{ 'active' if i == current_page else '' }}">{{ i }}</button>
+    {% endfor %}
+    <button hx-get="/api/works/public?page={{ current_page + 1 }}&limit=12"
+            hx-target="#showcase-grid"
+            hx-include="#showcase-filters"
+            hx-swap="innerHTML"
+            {% if current_page == total_pages %}disabled{% endif %}>下一页</button>
+    {% endif %}
+</div>

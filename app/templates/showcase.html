@@ -133,6 +133,58 @@
         .nav-bar a:hover {
             color: #667eea;
         }
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filter-bar input,
+        .filter-bar select {
+            padding: 10px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .filter-bar input {
+            flex: 1;
+            min-width: 200px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+            font-size: 14px;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 30px;
+        }
+        .pagination button {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .pagination button:hover:not(:disabled) {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        .pagination button.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -150,106 +202,60 @@
         <p>专业美容护理 · 效果看得见</p>
     </div>
 
-    <div class="showcase-filter">
-        <button class="active" onclick="filterByTreatment('all', this)">全部</button>
+    <div class="filter-bar" id="showcase-filters">
+        <input type="text" name="keyword" placeholder="搜索作品标题..."
+               hx-get="/api/works/public?page=1&limit=12"
+               hx-trigger="keyup changed delay:500ms"
+               hx-target="#showcase-grid"
+               hx-swap="innerHTML"
+               hx-include="#showcase-filters">
+        <select name="treatment_id"
+                hx-get="/api/works/public?page=1&limit=12"
+                hx-trigger="change"
+                hx-target="#showcase-grid"
+                hx-swap="innerHTML"
+                hx-include="#showcase-filters">
+            <option value="">全部疗程</option>
+        </select>
+        <button class="btn btn-sm btn-default"
+                hx-get="/api/works/public?page=1&limit=12"
+                hx-target="#showcase-grid"
+                hx-swap="innerHTML"
+                hx-on:click="document.getElementById('showcase-filters').reset();">重置</button>
+        <button class="btn btn-sm btn-primary"
+                hx-get="/api/works/public?page=1&limit=12"
+                hx-target="#showcase-grid"
+                hx-swap="innerHTML"
+                hx-include="#showcase-filters">搜索</button>
     </div>
 
-    <div class="work-grid" id="works-grid">
-        <div class="empty-state" style="grid-column: 1/-1;">加载中...</div>
+    <div id="showcase-grid"
+         hx-get="/api/works/public?page=1&limit=12"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <div class="work-grid">
+            <div class="empty-state" style="grid-column: 1/-1;">加载中...</div>
+        </div>
+        <div class="pagination"></div>
     </div>
-
-    <div class="pagination" id="pagination" style="margin-top: 30px;"></div>
 </div>
 
 <script>
-let currentPage = 1;
-const pageSize = 12;
-
-function loadTreatments() {
+document.addEventListener('DOMContentLoaded', function() {
     fetch('/api/treatments/public?limit=50')
         .then(res => res.json())
         .then(data => {
-            const filterBar = document.querySelector('.showcase-filter');
+            const select = document.querySelector('select[name="treatment_id"]');
             if (data.items && data.items.length > 0) {
                 data.items.forEach(t => {
-                    const btn = document.createElement('button');
-                    btn.textContent = t.name;
-                    btn.onclick = () => filterByTreatment(t.id, btn);
-                    filterBar.appendChild(btn);
+                    const option = document.createElement('option');
+                    option.value = t.id;
+                    option.textContent = t.name;
+                    select.appendChild(option);
                 });
             }
-        })
-        .catch(err => console.error('Failed to load treatments:', err));
-}
-
-function filterByTreatment(id, btn) {
-    document.querySelectorAll('.showcase-filter button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentTreatment = id;
-    currentPage = 1;
-    loadWorks();
-}
-
-let currentTreatment = 'all';
-
-function loadWorks() {
-    let url = `/api/works/public?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
-    if (currentTreatment !== 'all') {
-        url += `&treatment_id=${currentTreatment}`;
-    }
-
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            renderGrid(data.items);
-            renderPagination(data.total);
         });
-}
-
-function renderGrid(items) {
-    const grid = document.getElementById('works-grid');
-    if (items.length === 0) {
-        grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">暂无作品</div>';
-        return;
-    }
-    grid.innerHTML = items.map(w => `
-        <div class="work-card">
-            <img src="${w.image_url || '/static/images/placeholder.svg'}" alt="${w.title}" onerror="this.src='/static/images/placeholder.svg'">
-            <div class="work-info">
-                <div style="margin-bottom: 8px;">
-                    ${w.treatment_name ? `<span class="work-category">${w.treatment_name}</span>` : ''}
-                </div>
-                <div class="work-title">${w.title}</div>
-                <div class="work-desc">${w.description || ''}</div>
-                <div class="work-stats">
-                    <span>👁 ${w.view_count} 浏览</span>
-                    <span>❤️ ${w.like_count} 喜欢</span>
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-function renderPagination(total) {
-    const totalPages = Math.ceil(total / pageSize);
-    const pagination = document.getElementById('pagination');
-    if (totalPages <= 1) { pagination.innerHTML = ''; return; }
-    let html = `<button onclick="changePage(${currentPage-1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>`;
-    for (let i = 1; i <= totalPages; i++) {
-        html += `<button class="${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
-    }
-    html += `<button onclick="changePage(${currentPage+1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>`;
-    pagination.innerHTML = html;
-}
-
-function changePage(page) {
-    currentPage = page;
-    loadWorks();
-    window.scrollTo({top: 0, behavior: 'smooth'});
-}
-
-loadTreatments();
-loadWorks();
+});
 </script>
 </body>
 </html>

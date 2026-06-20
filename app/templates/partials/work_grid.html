@@ -1,0 +1,68 @@
+<span id="total-count" hx-swap-oob="true">共 {{ total }} 条</span>
+<div class="work-grid">
+    {% if items %}
+    {% for w in items %}
+    <div class="work-card">
+        <img src="{{ w.image_url or '/static/images/placeholder.svg' }}" alt="{{ w.title }}" onerror="this.src='/static/images/placeholder.svg'">
+        <div class="work-info">
+            <div class="work-title">{{ w.title }}</div>
+            <div class="work-desc">{{ w.description or '' }}</div>
+            <div class="work-stats">
+                <span>👁 {{ w.view_count }}</span>
+                <span>❤️ {{ w.like_count }}</span>
+                <span class="badge {{ 'badge-success' if w.status == 'published' else 'badge-warning' if w.status == 'pending' else 'badge-default' if w.status == 'draft' else 'badge-warning' }}">
+                    {{ '已发布' if w.status == 'published' else '待审核' if w.status == 'pending' else '草稿' if w.status == 'draft' else '隐藏' }}
+                </span>
+            </div>
+            <div style="margin-top: 10px;">
+                {% if w.status == 'pending' %}
+                <button class="btn btn-sm btn-success"
+                        hx-post="/api/works/{{ w.id }}/approve"
+                        hx-target="#works-container"
+                        hx-swap="innerHTML"
+                        hx-include="#works-filters">通过</button>
+                <button class="btn btn-sm btn-danger"
+                        hx-post="/api/works/{{ w.id }}/reject"
+                        hx-target="#works-container"
+                        hx-swap="innerHTML"
+                        hx-include="#works-filters">拒绝</button>
+                {% endif %}
+                <button class="btn btn-sm btn-primary"
+                        hx-get="/api/works/{{ w.id }}/edit"
+                        hx-target="#work-form-container"
+                        hx-swap="innerHTML">编辑</button>
+                <button class="btn btn-sm btn-danger"
+                        hx-delete="/api/works/{{ w.id }}"
+                        hx-target="#works-container"
+                        hx-swap="innerHTML"
+                        hx-include="#works-filters"
+                        hx-confirm="确定要删除这个作品吗？">删除</button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state" style="grid-column: 1/-1;">暂无作品</div>
+    {% endif %}
+</div>
+<div class="pagination">
+    {% if total_pages > 1 %}
+    <button hx-get="/api/works?page={{ current_page - 1 }}&limit=6"
+            hx-target="#works-container"
+            hx-include="#works-filters"
+            hx-swap="innerHTML"
+            {% if current_page == 1 %}disabled{% endif %}>上一页</button>
+    {% for i in range(1, total_pages + 1) %}
+    <button hx-get="/api/works?page={{ i }}&limit=6"
+            hx-target="#works-container"
+            hx-include="#works-filters"
+            hx-swap="innerHTML"
+            class="{{ 'active' if i == current_page else '' }}">{{ i }}</button>
+    {% endfor %}
+    <button hx-get="/api/works?page={{ current_page + 1 }}&limit=6"
+            hx-target="#works-container"
+            hx-include="#works-filters"
+            hx-swap="innerHTML"
+            {% if current_page == total_pages %}disabled{% endif %}>下一页</button>
+    {% endif %}
+</div>

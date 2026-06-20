@@ -1,0 +1,56 @@
+<span id="total-count" hx-swap-oob="true">共 {{ total }} 条</span>
+<table>
+    <thead>
+    <tr>
+        <th>核销单号</th>
+        <th>顾客</th>
+        <th>疗程</th>
+        <th>次数</th>
+        <th>操作人</th>
+        <th>时间</th>
+        <th>状态</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% if items %}
+    {% for v in items %}
+    <tr>
+        <td>{{ v.verification_no }}</td>
+        <td>{{ v.customer_name }}<br><small style="color:#999">{{ v.customer_phone }}</small></td>
+        <td>{{ v.treatment_name }}</td>
+        <td>{{ v.sessions_used }}次</td>
+        <td>{{ v.operator_name }}</td>
+        <td>{{ format_date(v.verification_time) }}</td>
+        <td>
+            <span class="badge {{ 'badge-success' if v.status == 'verified' else 'badge-danger' if v.status == 'cancelled' else 'badge-warning' }}">
+                {{ '已核销' if v.status == 'verified' else '已取消' if v.status == 'cancelled' else '待核销' }}
+            </span>
+        </td>
+    </tr>
+    {% endfor %}
+    {% else %}
+    <tr><td colspan="7" class="empty-state">暂无数据</td></tr>
+    {% endif %}
+    </tbody>
+</table>
+<div class="pagination">
+    {% if total_pages > 1 %}
+    <button hx-get="{{ url_for('list_verifications') }}?page={{ current_page - 1 }}&limit={{ query_params.limit }}"
+            hx-target="#verification-table-container"
+            hx-include="#verification-filters"
+            hx-swap="innerHTML"
+            {% if current_page == 1 %}disabled{% endif %}>上一页</button>
+    {% for i in range(1, total_pages + 1) %}
+    <button hx-get="{{ url_for('list_verifications') }}?page={{ i }}&limit={{ query_params.limit }}"
+            hx-target="#verification-table-container"
+            hx-include="#verification-filters"
+            hx-swap="innerHTML"
+            class="{{ 'active' if i == current_page else '' }}">{{ i }}</button>
+    {% endfor %}
+    <button hx-get="{{ url_for('list_verifications') }}?page={{ current_page + 1 }}&limit={{ query_params.limit }}"
+            hx-target="#verification-table-container"
+            hx-include="#verification-filters"
+            hx-swap="innerHTML"
+            {% if current_page == total_pages %}disabled{% endif %}>下一页</button>
+    {% endif %}
+</div>

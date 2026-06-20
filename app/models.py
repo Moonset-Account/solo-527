@@ -41,6 +41,7 @@ class WorkStatus(str, enum.Enum):
     DRAFT = "draft"
     PUBLISHED = "published"
     HIDDEN = "hidden"
+    REJECTED = "rejected"
 
 
 class CommentStatus(str, enum.Enum):
@@ -87,8 +88,10 @@ class Customer(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
     phone = Column(String(20), index=True, nullable=False)
+    email = Column(String(100))
     gender = Column(String(10))
     birthday = Column(Date)
+    level = Column(String(50))
     note = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

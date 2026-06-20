@@ -1,0 +1,57 @@
+<span id="total-count" hx-swap-oob="true">共 {{ total }} 条</span>
+{% if items %}
+{% for t in items %}
+<div class="todo-item {{ t.priority }} {{ 'completed' if t.status == 'completed' else '' }}">
+    <div class="todo-content">
+        <div class="todo-title">{{ t.title }}</div>
+        <div class="todo-desc">
+            <span class="badge {{ 'badge-danger' if t.priority == 'high' else 'badge-warning' if t.priority == 'medium' else 'badge-success' }}">
+                {{ '高优' if t.priority == 'high' else '中优' if t.priority == 'medium' else '低优' }}
+            </span>
+            {% if t.assignee_name %}
+            · 负责人：{{ t.assignee_name }}
+            {% endif %}
+            {% if t.due_date %}
+            · 截止：{{ format_date_short(t.due_date) }}
+            {% endif %}
+            · 创建于 {{ format_date_short(t.created_at) }}
+        </div>
+        {% if t.description %}
+        <div class="todo-desc" style="margin-top: 4px;">{{ t.description }}</div>
+        {% endif %}
+    </div>
+    <div class="todo-actions">
+        {% if t.status != 'completed' %}
+        <button class="btn btn-sm btn-success"
+                hx-post="/api/todos/{{ t.id }}/complete"
+                hx-target="#todos-container"
+                hx-swap="innerHTML"
+                hx-on::after-request="showToast('已完成', 'success');">完成</button>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="empty-state">暂无待办</div>
+{% endif %}
+<div class="pagination">
+    {% if total_pages > 1 %}
+    <button hx-get="/api/todos?page={{ current_page - 1 }}&limit=10"
+            hx-target="#todos-container"
+            hx-include="#todo-filters"
+            hx-swap="innerHTML"
+            {% if current_page == 1 %}disabled{% endif %}>上一页</button>
+    {% for i in range(1, total_pages + 1) %}
+    <button hx-get="/api/todos?page={{ i }}&limit=10"
+            hx-target="#todos-container"
+            hx-include="#todo-filters"
+            hx-swap="innerHTML"
+            class="{{ 'active' if i == current_page else '' }}">{{ i }}</button>
+    {% endfor %}
+    <button hx-get="/api/todos?page={{ current_page + 1 }}&limit=10"
+            hx-target="#todos-container"
+            hx-include="#todo-filters"
+            hx-swap="innerHTML"
+            {% if current_page == total_pages %}disabled{% endif %}>下一页</button>
+    {% endif %}
+</div>

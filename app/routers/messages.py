@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, desc
 from typing import Optional
@@ -8,6 +9,8 @@ from datetime import date, datetime
 from app.database import get_db
 from app.auth import get_current_user, allow_all, allow_admin, allow_manager
 from app.models import Message, Todo, User, MessageType, TodoStatus
+from app.htmx_utils import is_htmx, get_page
+from app.templates import templates
 
 router = APIRouter(prefix="/api", tags=["消息与待办"])
 
@@ -31,15 +34,17 @@ class TodoUpdate(BaseModel):
 
 @router.get("/todos")
 def list_todos(
+    request: Request,
     status: Optional[TodoStatus] = None,
     priority: Optional[str] = None,
     assignee_id: Optional[int] = None,
     keyword: Optional[str] = None,
-    skip: int = 0,
+    page: int = 1,
     limit: int = 50,
     db: Session = Depends(get_db),
     current_user: User = Depends(allow_all)
 ):
+    skip = (page - 1) * limit
     query = db.query(Todo)
     if status:
         query = query.filter(Todo.status == status)
@@ -73,6 +78,20 @@ def list_todos(
             "created_at": t.created_at,
             "completed_at": t.completed_at
         })
+    
+    if is_htmx(request):
+        total_pages = (total + limit - 1) // limit
+        return templates.TemplateResponse(
+            "partials/todo_list.html",
+            {
+                "request": request,
+                "items": items,
+                "total": total,
+                "current_page": page,
+                "total_pages": total_pages
+            }
+        )
+    
     return {"total": total, "items": items}
 
 
@@ -94,19 +113,70 @@ def todo_statistics(
 
 
 @router.post("/todos")
-def create_todo(
-    data: TodoCreate,
+async def create_todo(
+    request: Request,
+    title: Optional[str] = None,
+    description: str = "",
+    priority: str = "medium",
+    assignee_id: Optional[int] = None,
+    due_date: Optional[date] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(allow_all)
 ):
+    content_type = request.headers.get("content-type", "")
+    if content_type.startswith("application/x-www-form-urlencoded") or content_type.startswith("multipart/form-data"):
+        form = await request.form()
+        if form.get("title"):
+            title = form.get("title")
+        if form.get("description"):
+            description = form.get("description")
+        if form.get("priority"):
+            priority = form.get("priority")
+        if form.get("assignee_id"):
+            assignee_id = int(form.get("assignee_id"))
+        if form.get("due_date"):
+            due_date = date.fromisoformat(form.get("due_date"))
+    elif content_type.startswith("application/json"):
+        try:
+            body = await request.json()
+            title = body.get("title", title)
+            description = body.get("description", description)
+            priority = body.get("priority", priority)
+            assignee_id = body.get("assignee_id", assignee_id)
+            due_date = body.get("due_date", due_date)
+        except Exception:
+            pass
+    
+    if not title:
+        if is_htmx(request):
+            return HTMLResponse(
+                '<div class="toast toast-error" style="position:fixed;top:20px;right:20px;z-index:9999">请填写标题</div>',
+                status_code=400
+            )
+        raise HTTPException(status_code=400, detail="title is required")
+
     todo = Todo(
-        **data.model_dump(),
+        title=title,
+        description=description,
+        priority=priority,
+        assignee_id=assignee_id,
+        due_date=due_date,
         creator_id=current_user.id,
         status=TodoStatus.PENDING
     )
     db.add(todo)
     db.commit()
     db.refresh(todo)
+    
+    if is_htmx(request):
+        return list_todos(
+            request=request,
+            page=1,
+            limit=50,
+            db=db,
+            current_user=current_user
+        )
+    
     return todo
 
 
@@ -131,30 +201,52 @@ def update_todo(
 
 
 @router.post("/todos/{todo_id}/complete")
-def complete_todo(
+async def complete_todo(
+    request: Request,
     todo_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(allow_all)
 ):
+    content_type = request.headers.get("content-type", "")
+    if content_type.startswith("application/x-www-form-urlencoded") or content_type.startswith("multipart/form-data"):
+        form = await request.form()
+    
     todo = db.query(Todo).filter(Todo.id == todo_id).first()
     if not todo:
+        if is_htmx(request):
+            return HTMLResponse(
+                '<div class="toast toast-error" style="position:fixed;top:20px;right:20px;z-index:9999">待办不存在</div>',
+                status_code=404
+            )
         raise HTTPException(status_code=404, detail="待办不存在")
     todo.status = TodoStatus.COMPLETED
     todo.completed_at = datetime.now()
     db.commit()
+    
+    if is_htmx(request):
+        return list_todos(
+            request=request,
+            page=1,
+            limit=50,
+            db=db,
+            current_user=current_user
+        )
+    
     return {"message": "已完成"}
 
 
 @router.get("/messages")
 def list_messages(
+    request: Request,
     type: Optional[MessageType] = None,
     is_read: Optional[bool] = None,
     keyword: Optional[str] = None,
-    skip: int = 0,
+    page: int = 1,
     limit: int = 50,
     db: Session = Depends(get_db),
     current_user: User = Depends(allow_all)
 ):
+    skip = (page - 1) * limit
     query = db.query(Message)
     if type:
         query = query.filter(Message.type == type)
@@ -181,6 +273,20 @@ def list_messages(
             "related_id": m.related_id,
             "created_at": m.created_at
         })
+    
+    if is_htmx(request):
+        total_pages = (total + limit - 1) // limit
+        return templates.TemplateResponse(
+            "partials/message_list.html",
+            {
+                "request": request,
+                "items": items,
+                "total": total,
+                "current_page": page,
+                "total_pages": total_pages
+            }
+        )
+    
     return {"total": total, "items": items}
 
 
@@ -194,26 +300,61 @@ def unread_message_count(
 
 
 @router.post("/messages/{message_id}/read")
-def mark_message_read(
+async def mark_message_read(
+    request: Request,
     message_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(allow_all)
 ):
+    content_type = request.headers.get("content-type", "")
+    if content_type.startswith("application/x-www-form-urlencoded") or content_type.startswith("multipart/form-data"):
+        form = await request.form()
+    
     message = db.query(Message).filter(Message.id == message_id).first()
     if not message:
+        if is_htmx(request):
+            return HTMLResponse(
+                '<div class="toast toast-error" style="position:fixed;top:20px;right:20px;z-index:9999">消息不存在</div>',
+                status_code=404
+            )
         raise HTTPException(status_code=404, detail="消息不存在")
     message.is_read = True
     db.commit()
+    
+    if is_htmx(request):
+        return list_messages(
+            request=request,
+            page=1,
+            limit=50,
+            db=db,
+            current_user=current_user
+        )
+    
     return {"message": "已标记为已读"}
 
 
 @router.post("/messages/read-all")
-def mark_all_read(
+async def mark_all_read(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(allow_all)
 ):
+    content_type = request.headers.get("content-type", "")
+    if content_type.startswith("application/x-www-form-urlencoded") or content_type.startswith("multipart/form-data"):
+        form = await request.form()
+    
     db.query(Message).filter(Message.is_read == False).update({Message.is_read: True})
     db.commit()
+    
+    if is_htmx(request):
+        return list_messages(
+            request=request,
+            page=1,
+            limit=50,
+            db=db,
+            current_user=current_user
+        )
+    
     return {"message": "全部已读"}
 
 

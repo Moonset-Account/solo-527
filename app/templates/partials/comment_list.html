@@ -1,0 +1,63 @@
+<span id="total-count" hx-swap-oob="true">共 {{ total }} 条</span>
+<div id="comments-list">
+    {% if items %}
+    {% for c in items %}
+    <div class="detail-row" style="padding: 16px 0; border-bottom: 1px solid #f0f0f0;">
+        <div style="flex: 1;">
+            <div style="margin-bottom: 8px;">
+                <strong>{{ c.customer_name }}</strong>
+                <span style="color: #faad14; margin-left: 8px;">{{ '★' * c.rating }}{{ '☆' * (5 - c.rating) }}</span>
+                <span class="badge {{ 'badge-success' if c.status == 'approved' else 'badge-danger' if c.status == 'rejected' else 'badge-warning' }}" style="margin-left: 8px;">
+                    {{ '已通过' if c.status == 'approved' else '已拒绝' if c.status == 'rejected' else '待审核' }}
+                </span>
+                <span style="color: #999; font-size: 12px; margin-left: 8px;">{{ format_date(c.created_at) }}</span>
+            </div>
+            <div style="color: #333; margin-bottom: 8px;">{{ c.content }}</div>
+            <div style="color: #999; font-size: 13px;">作品：{{ c.work_title }}</div>
+            {% if c.reply_content %}
+            <div style="background: #f0f9ff; padding: 8px 12px; border-radius: 6px; margin-top: 8px; color: #666;">
+                <strong>回复：</strong>{{ c.reply_content }}
+            </div>
+            {% endif %}
+        </div>
+        <div>
+            {% if c.status == 'pending' %}
+            <button class="btn btn-sm btn-success"
+                    hx-post="/api/comments/{{ c.id }}/approve"
+                    hx-target="#comments-container"
+                    hx-swap="innerHTML"
+                    hx-include="#comments-filters">通过</button>
+            <button class="btn btn-sm btn-danger"
+                    hx-post="/api/comments/{{ c.id }}/reject"
+                    hx-target="#comments-container"
+                    hx-swap="innerHTML"
+                    hx-include="#comments-filters">拒绝</button>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">暂无评论</div>
+    {% endif %}
+</div>
+<div class="pagination">
+    {% if total_pages > 1 %}
+    <button hx-get="/api/comments?page={{ current_page - 1 }}&limit=10"
+            hx-target="#comments-container"
+            hx-include="#comments-filters"
+            hx-swap="innerHTML"
+            {% if current_page == 1 %}disabled{% endif %}>上一页</button>
+    {% for i in range(1, total_pages + 1) %}
+    <button hx-get="/api/comments?page={{ i }}&limit=10"
+            hx-target="#comments-container"
+            hx-include="#comments-filters"
+            hx-swap="innerHTML"
+            class="{{ 'active' if i == current_page else '' }}">{{ i }}</button>
+    {% endfor %}
+    <button hx-get="/api/comments?page={{ current_page + 1 }}&limit=10"
+            hx-target="#comments-container"
+            hx-include="#comments-filters"
+            hx-swap="innerHTML"
+            {% if current_page == total_pages %}disabled{% endif %}>下一页</button>
+    {% endif %}
+</div>

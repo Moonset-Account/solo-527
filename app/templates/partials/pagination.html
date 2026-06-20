@@ -1,0 +1,18 @@
+{% if total_pages > 1 %}
+{% for i in range(1, total_pages + 1) %}
+{% endfor %}
+<button hx-get="{{ url_for(hx_endpoint) }}?page={{ current_page - 1 }}{% for key, value in query_params.items() if value %}&{{ key }}={{ value }}{% endfor %}" 
+        hx-target="{{ hx_target }}"
+        hx-include="{{ hx_include if hx_include else 'this' }}"
+        {% if current_page == 1 %}disabled{% endif %}>上一页</button>
+{% for i in range(1, total_pages + 1) %}
+<button hx-get="{{ url_for(hx_endpoint) }}?page={{ i }}{% for key, value in query_params.items() if value %}&{{ key }}={{ value }}{% endfor %}" 
+        hx-target="{{ hx_target }}"
+        hx-include="{{ hx_include if hx_include else 'this' }}"
+        class="{{ 'active' if i == current_page else '' }}">{{ i }}</button>
+{% endfor %}
+<button hx-get="{{ url_for(hx_endpoint) }}?page={{ current_page + 1 }}{% for key, value in query_params.items() if value %}&{{ key }}={{ value }}{% endfor %}" 
+        hx-target="{{ hx_target }}"
+        hx-include="{{ hx_include if hx_include else 'this' }}"
+        {% if current_page == total_pages %}disabled{% endif %}>下一页</button>
+{% endif %}

@@ -1,0 +1,58 @@
+<span id="total-count" hx-swap-oob="true">共 {{ total }} 条</span>
+<table>
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>姓名</th>
+        <th>手机号</th>
+        <th>性别</th>
+        <th>生日</th>
+        <th>注册时间</th>
+        <th>操作</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% if items %}
+    {% for c in items %}
+    <tr>
+        <td>{{ c.id }}</td>
+        <td>{{ c.name }}</td>
+        <td>{{ c.phone }}</td>
+        <td>{{ c.gender or '-' }}</td>
+        <td>{{ format_date_short(c.birthday) }}</td>
+        <td>{{ format_date_short(c.created_at) }}</td>
+        <td>
+            <button class="btn btn-sm btn-primary"
+                    hx-get="/api/customers/{{ c.id }}"
+                    hx-target="#customer-edit-form"
+                    hx-swap="innerHTML"
+                    hx-on::after-request="document.getElementById('modal-title').textContent = '编辑顾客'; document.getElementById('modal').style.display = 'flex';">编辑</button>
+        </td>
+    </tr>
+    {% endfor %}
+    {% else %}
+    <tr><td colspan="7" class="empty-state">暂无数据</td></tr>
+    {% endif %}
+    </tbody>
+</table>
+<div class="pagination">
+    {% if total_pages > 1 %}
+    <button hx-get="/api/customers?page={{ current_page - 1 }}&limit=10"
+            hx-target="#customers-container"
+            hx-include="#customer-filters"
+            hx-swap="innerHTML"
+            {% if current_page == 1 %}disabled{% endif %}>上一页</button>
+    {% for i in range(1, total_pages + 1) %}
+    <button hx-get="/api/customers?page={{ i }}&limit=10"
+            hx-target="#customers-container"
+            hx-include="#customer-filters"
+            hx-swap="innerHTML"
+            class="{{ 'active' if i == current_page else '' }}">{{ i }}</button>
+    {% endfor %}
+    <button hx-get="/api/customers?page={{ current_page + 1 }}&limit=10"
+            hx-target="#customers-container"
+            hx-include="#customer-filters"
+            hx-swap="innerHTML"
+            {% if current_page == total_pages %}disabled{% endif %}>下一页</button>
+    {% endif %}
+</div>

@@ -1,0 +1,68 @@
+<span id="total-count" hx-swap-oob="true">共 {{ total }} 条</span>
+<table>
+    <thead>
+    <tr>
+        <th>单号</th>
+        <th>顾客</th>
+        <th>金额</th>
+        <th>实收</th>
+        <th>差异</th>
+        <th>收银员</th>
+        <th>支付方式</th>
+        <th>时间</th>
+        <th>状态</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% if items %}
+    {% for p in items %}
+    <tr>
+        <td>{{ p.payment_no }}</td>
+        <td>{{ p.customer_name if p.customer_name else '散客' }}<br><small style="color:#999">{{ p.customer_phone if p.customer_phone else '-' }}</small></td>
+        <td>¥{{ format_money(p.amount) }}</td>
+        <td>¥{{ format_money(p.actual_amount) }}</td>
+        <td>
+            {% if p.diff_amount > 0 %}
+            <span class="badge badge-danger">+¥{{ format_money(p.diff_amount) }}</span>
+            {% elif p.diff_amount < 0 %}
+            <span class="badge badge-warning">¥{{ format_money(p.diff_amount) }}</span>
+            {% else %}
+            <span class="badge badge-success">¥0.00</span>
+            {% endif %}
+        </td>
+        <td>{{ p.cashier_name }}</td>
+        <td>{{ '现金' if p.payment_method == 'cash' else '微信' if p.payment_method == 'wechat' else '支付宝' if p.payment_method == 'alipay' else '刷卡' }}</td>
+        <td>{{ format_date(p.payment_time) }}</td>
+        <td>
+            <span class="badge {{ 'badge-success' if p.status == 'paid' else 'badge-danger' if p.status == 'refunded' else 'badge-warning' if p.status == 'partial' else 'badge-default' }}">
+                {{ '已支付' if p.status == 'paid' else '已退款' if p.status == 'refunded' else '部分支付' if p.status == 'partial' else '待支付' }}
+            </span>
+        </td>
+    </tr>
+    {% endfor %}
+    {% else %}
+    <tr><td colspan="9" class="empty-state">暂无数据</td></tr>
+    {% endif %}
+    </tbody>
+</table>
+<div class="pagination">
+    {% if total_pages > 1 %}
+    <button hx-get="{{ url_for('list_payments') }}?page={{ current_page - 1 }}&limit=10"
+            hx-target="#payment-table-container"
+            hx-include="#payment-filters"
+            hx-swap="innerHTML"
+            {% if current_page == 1 %}disabled{% endif %}>上一页</button>
+    {% for i in range(1, total_pages + 1) %}
+    <button hx-get="{{ url_for('list_payments') }}?page={{ i }}&limit=10"
+            hx-target="#payment-table-container"
+            hx-include="#payment-filters"
+            hx-swap="innerHTML"
+            class="{{ 'active' if i == current_page else '' }}">{{ i }}</button>
+    {% endfor %}
+    <button hx-get="{{ url_for('list_payments') }}?page={{ current_page + 1 }}&limit=10"
+            hx-target="#payment-table-container"
+            hx-include="#payment-filters"
+            hx-swap="innerHTML"
+            {% if current_page == total_pages %}disabled{% endif %}>下一页</button>
+    {% endif %}
+</div>

@@ -3,56 +3,51 @@
 {% set page_title = '评论审核' %}
 {% block main_content %}
 
-<div class="filter-bar">
-    <select id="status" onchange="loadComments()">
-        <option value="pending">待审核</option>
-        <option value="">全部</option>
-        <option value="approved">已通过</option>
-        <option value="rejected">已拒绝</option>
-    </select>
-    <select id="work_id">
-        <option value="">全部作品</option>
-    </select>
-    <input type="text" id="keyword" placeholder="搜索评论内容..." style="flex: 1;" onkeyup="if(event.key==='Enter')loadComments()">
-    <button class="btn btn-primary" onclick="loadComments()">搜索</button>
-</div>
-
 <div class="card">
     <div class="card-header">
         <h3>评论列表</h3>
         <span id="total-count">共 0 条</span>
     </div>
-    <div id="comments-list">
-        <div class="empty-state">加载中...</div>
-    </div>
-    <div class="pagination" id="pagination"></div>
-</div>
-
-<div id="review-modal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>审核评论</h3>
-            <button class="modal-close" onclick="closeReviewModal()">&times;</button>
+    <div class="filter-bar" id="comments-filters">
+        <select name="status"
+                hx-get="/api/comments?page=1&limit=10"
+                hx-trigger="change"
+                hx-target="#comments-container"
+                hx-swap="innerHTML"
+                hx-include="#comments-filters">
+            <option value="pending">待审核</option>
+            <option value="">全部</option>
+            <option value="approved">已通过</option>
+            <option value="rejected">已拒绝</option>
+        </select>
+        <input type="text" name="keyword" placeholder="搜索内容/用户名..."
+               style="flex: 1; min-width: 200px;"
+               hx-get="/api/comments?page=1&limit=10"
+               hx-trigger="keyup changed delay:500ms, search"
+               hx-target="#comments-container"
+               hx-swap="innerHTML"
+               hx-include="#comments-filters">
+        <div class="actions">
+            <button class="btn btn-sm btn-default"
+                    hx-get="/api/comments?page=1&limit=10"
+                    hx-target="#comments-container"
+                    hx-swap="innerHTML"
+                    hx-on:click="document.getElementById('comments-filters').reset();">重置</button>
+            <button class="btn btn-sm btn-primary"
+                    hx-get="/api/comments?page=1&limit=10"
+                    hx-target="#comments-container"
+                    hx-swap="innerHTML"
+                    hx-include="#comments-filters">搜索</button>
         </div>
-        <form id="review-form">
-            <input type="hidden" id="comment-id">
-            <div class="form-group">
-                <label>评论内容</label>
-                <p id="comment-content" style="padding: 12px; background: #f9fafb; border-radius: 8px;"></p>
-            </div>
-            <div class="form-group">
-                <label>评分</label>
-                <p id="comment-rating"></p>
-            </div>
-            <div class="form-group">
-                <label>回复内容</label>
-                <textarea id="reply_content" rows="3" placeholder="可选：回复顾客的内容"></textarea>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-danger" onclick="reviewComment('rejected')">拒绝</button>
-                <button type="button" class="btn btn-success" onclick="reviewComment('approved')">通过</button>
-            </div>
-        </form>
+    </div>
+    <div id="comments-container"
+         hx-get="/api/comments?page=1&limit=10"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <div id="comments-list">
+            <div class="empty-state">加载中...</div>
+        </div>
+        <div class="pagination"></div>
     </div>
 </div>
 
@@ -60,123 +55,5 @@
 
 {% block page_scripts %}
 <script>
-let currentPage = 1;
-const pageSize = 10;
-
-function loadWorks() {
-    fetch('/api/works?limit=100')
-        .then(res => res.json())
-        .then(data => {
-            const options = data.items.map(w => `<option value="${w.id}">${w.title}</option>`).join('');
-            document.getElementById('work_id').innerHTML = '<option value="">全部作品</option>' + options;
-        });
-}
-
-function loadComments() {
-    const status = document.getElementById('status').value;
-    const work_id = document.getElementById('work_id').value;
-    const keyword = document.getElementById('keyword').value;
-    let url = `/api/comments?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
-    if (status) url += `&status=${status}`;
-    if (work_id) url += `&work_id=${work_id}`;
-    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
-
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('total-count').textContent = `共 ${data.total} 条`;
-            renderList(data.items);
-            renderPagination(data.total);
-        });
-}
-
-function renderList(items) {
-    const list = document.getElementById('comments-list');
-    if (items.length === 0) {
-        list.innerHTML = '<div class="empty-state">暂无评论</div>';
-        return;
-    }
-    list.innerHTML = items.map(c => `
-        <div class="detail-row" style="padding: 16px 0; border-bottom: 1px solid #f0f0f0;">
-            <div style="flex: 1;">
-                <div style="margin-bottom: 8px;">
-                    <strong>${c.customer_name}</strong>
-                    <span style="color: #faad14; margin-left: 8px;">${'★'.repeat(c.rating)}${'☆'.repeat(5-c.rating)}</span>
-                    <span class="badge ${c.status === 'approved' ? 'badge-success' : c.status === 'rejected' ? 'badge-danger' : 'badge-warning'}" style="margin-left: 8px;">
-                        ${c.status === 'approved' ? '已通过' : c.status === 'rejected' ? '已拒绝' : '待审核'}
-                    </span>
-                    <span style="color: #999; font-size: 12px; margin-left: 8px;">${formatDate(c.created_at)}</span>
-                </div>
-                <div style="color: #333; margin-bottom: 8px;">${c.content}</div>
-                <div style="color: #999; font-size: 13px;">作品：${c.work_title}</div>
-                ${c.reply_content ? `<div style="background: #f0f9ff; padding: 8px 12px; border-radius: 6px; margin-top: 8px; color: #666;">
-                    <strong>回复：</strong>${c.reply_content}
-                </div>` : ''}
-            </div>
-            <div>
-                ${c.status === 'pending' ? `<button class="btn btn-sm btn-primary" onclick="openReview(${c.id})">审核</button>` : ''}
-            </div>
-        </div>
-    `).join('');
-}
-
-function renderPagination(total) {
-    const totalPages = Math.ceil(total / pageSize);
-    const pagination = document.getElementById('pagination');
-    if (totalPages <= 1) { pagination.innerHTML = ''; return; }
-    let html = `<button onclick="changePage(${currentPage-1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>`;
-    for (let i = 1; i <= totalPages; i++) {
-        html += `<button class="${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
-    }
-    html += `<button onclick="changePage(${currentPage+1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>`;
-    pagination.innerHTML = html;
-}
-
-function changePage(page) {
-    currentPage = page;
-    loadComments();
-}
-
-function openReview(id) {
-    fetch(`/api/comments?work_id=&skip=0&limit=1`)
-    fetch(`/api/comments?skip=0&limit=100`)
-        .then(res => res.json())
-        .then(data => {
-            const comment = data.items.find(c => c.id === id);
-            if (comment) {
-                document.getElementById('comment-id').value = comment.id;
-                document.getElementById('comment-content').textContent = comment.content;
-                document.getElementById('comment-rating').innerHTML = '★'.repeat(comment.rating) + '☆'.repeat(5 - comment.rating);
-                document.getElementById('reply_content').value = comment.reply_content || '';
-                document.getElementById('review-modal').style.display = 'flex';
-            }
-        });
-}
-
-function closeReviewModal() {
-    document.getElementById('review-modal').style.display = 'none';
-}
-
-function reviewComment(status) {
-    const id = document.getElementById('comment-id').value;
-    const data = {
-        status: status,
-        reply_content: document.getElementById('reply_content').value
-    };
-    fetch(`/api/comments/${id}/review`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
-    }).then(res => {
-        if (res.ok) {
-            showToast('审核成功', 'success');
-            closeReviewModal();
-            loadComments();
-        }
-    });
-}
-
-loadWorks();
-loadComments();
 </script>
 {% endblock %}

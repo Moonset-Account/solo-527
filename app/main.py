@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 import os
@@ -10,6 +9,7 @@ from app.database import engine, Base, SessionLocal, get_db
 from app.models import *
 from app.auth import get_current_user_from_cookie
 from app.middleware import TimingMiddleware, ApiStatusMiddleware
+from app.templates import templates
 
 from app.routers import auth, treatments, verification, works, messages, customers, monitor
 
@@ -27,8 +27,6 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
-templates = Jinja2Templates(directory="app/templates")
 
 app.include_router(auth.router)
 app.include_router(treatments.router)
@@ -90,6 +88,38 @@ def _migrate_columns():
         try:
             conn.execute(text("""
                 UPDATE api_status SET method = 'GET' WHERE method IS NULL OR method = ''
+            """))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            pass
+        try:
+            conn.execute(text("""
+                ALTER TABLE customers ADD COLUMN IF NOT EXISTS email VARCHAR(100)
+            """))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            pass
+        try:
+            conn.execute(text("""
+                ALTER TABLE customers ADD COLUMN IF NOT EXISTS gender VARCHAR(10)
+            """))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            pass
+        try:
+            conn.execute(text("""
+                ALTER TABLE customers ADD COLUMN IF NOT EXISTS birthday DATE
+            """))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            pass
+        try:
+            conn.execute(text("""
+                ALTER TABLE customers ADD COLUMN IF NOT EXISTS level VARCHAR(50)
             """))
             conn.commit()
         except Exception:
@@ -250,7 +280,21 @@ async def treatment_cards_page(request: Request):
         user = get_current_user_from_cookie(request, db)
         if not user:
             return templates.TemplateResponse("login.html", {"request": request})
-        return templates.TemplateResponse("treatment_cards.html", {"request": request, "user": user})
+        
+        from app.models import Customer, Treatment, User, TreatmentCard
+        customers = db.query(Customer).order_by(Customer.name).all()
+        treatments = db.query(Treatment).filter(Treatment.status == 'active').order_by(Treatment.name).all()
+        operators = db.query(User).filter(User.is_active == True).order_by(User.full_name).all()
+        total_cards = db.query(TreatmentCard).count()
+        
+        return templates.TemplateResponse("treatment_cards.html", {
+            "request": request, 
+            "user": user,
+            "customers": customers,
+            "treatments": treatments,
+            "operators": operators,
+            "total_cards": total_cards
+        })
     finally:
         db.close()
 
@@ -262,7 +306,35 @@ async def verification_page(request: Request):
         user = get_current_user_from_cookie(request, db)
         if not user:
             return templates.TemplateResponse("login.html", {"request": request})
-        return templates.TemplateResponse("verification.html", {"request": request, "user": user})
+        
+        from app.models import Customer, User, Verification, VerificationStatus
+        from datetime import date, timedelta
+        customers = db.query(Customer).order_by(Customer.name).all()
+        operators = db.query(User).filter(User.is_active == True).order_by(User.full_name).all()
+        total_verifications = db.query(Verification).count()
+        
+        today = date.today()
+        month_start = today.replace(day=1)
+        today_verifications = db.query(Verification).filter(
+            Verification.verification_time >= today,
+            Verification.status == VerificationStatus.VERIFIED
+        ).count()
+        month_verifications = db.query(Verification).filter(
+            Verification.verification_time >= month_start,
+            Verification.status == VerificationStatus.VERIFIED
+        ).count()
+        
+        return templates.TemplateResponse("verification.html", {
+            "request": request, 
+            "user": user,
+            "customers": customers,
+            "operators": operators,
+            "total_verifications": total_verifications,
+            "stats": {
+                "today_verifications": today_verifications,
+                "month_verifications": month_verifications
+            }
+        })
     finally:
         db.close()
 
@@ -274,7 +346,19 @@ async def payments_page(request: Request):
         user = get_current_user_from_cookie(request, db)
         if not user:
             return templates.TemplateResponse("login.html", {"request": request})
-        return templates.TemplateResponse("payments.html", {"request": request, "user": user})
+        
+        from app.models import Customer, User, PaymentRecord
+        customers = db.query(Customer).order_by(Customer.name).all()
+        cashiers = db.query(User).filter(User.is_active == True).order_by(User.full_name).all()
+        total_payments = db.query(PaymentRecord).count()
+        
+        return templates.TemplateResponse("payments.html", {
+            "request": request, 
+            "user": user,
+            "customers": customers,
+            "cashiers": cashiers,
+            "total_payments": total_payments
+        })
     finally:
         db.close()
 

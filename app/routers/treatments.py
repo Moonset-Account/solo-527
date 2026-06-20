@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, desc, asc
 from typing import Optional, List
@@ -8,6 +9,8 @@ from datetime import date
 from app.database import get_db
 from app.auth import get_current_user, allow_all, allow_admin
 from app.models import Treatment, TreatmentCard, Customer, TreatmentStatus, TreatmentCardStatus, User
+from app.htmx_utils import is_htmx
+from app.templates import templates
 
 router = APIRouter(prefix="/api", tags=["疗程"])
 
@@ -160,6 +163,7 @@ class TreatmentCardUpdate(BaseModel):
 
 @router.get("/treatment-cards")
 def list_treatment_cards(
+    request: Request,
     status: Optional[TreatmentCardStatus] = None,
     keyword: Optional[str] = None,
     creator_id: Optional[int] = None,
@@ -168,11 +172,12 @@ def list_treatment_cards(
     treatment_id: Optional[int] = None,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
-    skip: int = 0,
-    limit: int = 50,
+    page: int = 1,
+    limit: int = 10,
     db: Session = Depends(get_db),
     current_user: User = Depends(allow_all)
 ):
+    skip = (page - 1) * limit
     query = db.query(TreatmentCard).join(Customer).join(Treatment)
     if status:
         query = query.filter(TreatmentCard.status == status)
@@ -225,6 +230,20 @@ def list_treatment_cards(
             "creator_name": card.creator.full_name if card.creator else None,
             "created_at": card.created_at
         })
+    
+    if is_htmx(request):
+        total_pages = (total + limit - 1) // limit
+        return templates.TemplateResponse(
+            "partials/treatment_card_list.html",
+            {
+                "request": request,
+                "items": items,
+                "total": total,
+                "current_page": page,
+                "total_pages": total_pages
+            }
+        )
+    
     return {"total": total, "items": items}
 
 
@@ -257,24 +276,98 @@ def get_treatment_card(
 
 
 @router.post("/treatment-cards")
-def create_treatment_card(
-    data: TreatmentCardCreate,
+async def create_treatment_card(
+    request: Request,
+    card_no: Optional[str] = None,
+    customer_id: Optional[int] = None,
+    treatment_id: Optional[int] = None,
+    total_sessions: Optional[int] = None,
+    purchase_date: Optional[date] = None,
+    expiry_date: Optional[date] = None,
+    price_paid: Optional[float] = None,
+    note: str = "",
     db: Session = Depends(get_db),
     current_user: User = Depends(allow_admin)
 ):
-    existing = db.query(TreatmentCard).filter(TreatmentCard.card_no == data.card_no).first()
+    content_type = request.headers.get("content-type", "")
+    if content_type.startswith("application/x-www-form-urlencoded") or content_type.startswith("multipart/form-data"):
+        form = await request.form()
+        if form.get("card_no"):
+            card_no = form.get("card_no")
+        if form.get("customer_id"):
+            customer_id = int(form.get("customer_id"))
+        if form.get("treatment_id"):
+            treatment_id = int(form.get("treatment_id"))
+        if form.get("total_sessions"):
+            total_sessions = int(form.get("total_sessions"))
+        if form.get("purchase_date"):
+            from datetime import date as date_type
+            purchase_date = date_type.fromisoformat(form.get("purchase_date"))
+        if form.get("expiry_date"):
+            from datetime import date as date_type
+            expiry_date = date_type.fromisoformat(form.get("expiry_date")) if form.get("expiry_date") else None
+        if form.get("price_paid"):
+            price_paid = float(form.get("price_paid"))
+        if form.get("note"):
+            note = form.get("note")
+    elif content_type.startswith("application/json"):
+        try:
+            import json
+            body = await request.json()
+            card_no = body.get("card_no", card_no)
+            customer_id = body.get("customer_id", customer_id)
+            treatment_id = body.get("treatment_id", treatment_id)
+            total_sessions = body.get("total_sessions", total_sessions)
+            purchase_date = body.get("purchase_date", purchase_date)
+            expiry_date = body.get("expiry_date", expiry_date)
+            price_paid = body.get("price_paid", price_paid)
+            note = body.get("note", note)
+        except Exception:
+            pass
+    
+    if not card_no or not customer_id or not treatment_id or not total_sessions or not purchase_date:
+        if is_htmx(request):
+            return HTMLResponse(
+                '<div class="toast toast-error" style="position:fixed;top:20px;right:20px;z-index:9999">请填写完整信息</div>',
+                status_code=400
+            )
+        raise HTTPException(status_code=400, detail="请填写完整信息")
+
+    existing = db.query(TreatmentCard).filter(TreatmentCard.card_no == card_no).first()
     if existing:
+        if is_htmx(request):
+            return HTMLResponse(
+                '<div class="toast toast-error" style="position:fixed;top:20px;right:20px;z-index:9999">卡号已存在</div>',
+                status_code=400
+            )
         raise HTTPException(status_code=400, detail="卡号已存在")
 
     card = TreatmentCard(
-        **data.model_dump(),
-        remaining_sessions=data.total_sessions,
+        card_no=card_no,
+        customer_id=customer_id,
+        treatment_id=treatment_id,
+        total_sessions=total_sessions,
+        remaining_sessions=total_sessions,
+        purchase_date=purchase_date,
+        expiry_date=expiry_date,
+        price_paid=price_paid,
+        note=note,
         status=TreatmentCardStatus.ACTIVE,
         creator_id=current_user.id
     )
     db.add(card)
     db.commit()
     db.refresh(card)
+
+    if is_htmx(request):
+        return list_treatment_cards(
+            request=request,
+            page=1,
+            limit=10,
+            db=db,
+            current_user=current_user
+        )
+    
     return card
 
 
@@ -297,12 +390,24 @@ def update_treatment_card(
 
 
 @router.get("/customer/{customer_id}/treatment-cards")
+@router.get("/customer/treatment-cards")
 def get_customer_treatment_cards(
-    customer_id: int,
+    request: Request,
+    customer_id: Optional[int] = None,
     status: Optional[TreatmentCardStatus] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(allow_all)
 ):
+    if customer_id is None:
+        customer_id = request.query_params.get("customer_id")
+        if customer_id:
+            customer_id = int(customer_id)
+    
+    if not customer_id:
+        if is_htmx(request):
+            return HTMLResponse('<option value="">请先选择顾客</option>')
+        raise HTTPException(status_code=400, detail="customer_id is required")
+    
     query = db.query(TreatmentCard).filter(TreatmentCard.customer_id == customer_id)
     if status:
         query = query.filter(TreatmentCard.status == status)
@@ -319,4 +424,13 @@ def get_customer_treatment_cards(
             "expiry_date": card.expiry_date,
             "status": card.status.value
         })
+    
+    if is_htmx(request):
+        if len(items) == 0:
+            return HTMLResponse('<option value="">该顾客暂无有效疗程卡</option>')
+        options = '<option value="">请选择疗程卡</option>'
+        for card in items:
+            options += f'<option value="{card["id"]}">{card["treatment_name"]} (剩余{card["remaining_sessions"]}次)</option>'
+        return HTMLResponse(options)
+    
     return items

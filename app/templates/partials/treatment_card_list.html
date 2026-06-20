@@ -1,0 +1,68 @@
+<span id="total-count" hx-swap-oob="true">共 {{ total }} 条</span>
+<table>
+    <thead>
+    <tr>
+        <th>卡号</th>
+        <th>顾客</th>
+        <th>疗程</th>
+        <th>总次数</th>
+        <th>剩余次数</th>
+        <th>购买日期</th>
+        <th>有效期</th>
+        <th>开卡人</th>
+        <th>状态</th>
+        <th>操作</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% if items %}
+    {% for c in items %}
+    <tr>
+        <td>{{ c.card_no }}</td>
+        <td>{{ c.customer_name }}<br><small style="color:#999">{{ c.customer_phone }}</small></td>
+        <td>{{ c.treatment_name }}</td>
+        <td>{{ c.total_sessions }}次</td>
+        <td>
+            <span class="badge {{ 'badge-danger' if c.remaining_sessions <= 3 else 'badge-warning' if c.remaining_sessions <= 5 else 'badge-success' }}">
+                {{ c.remaining_sessions }}次
+            </span>
+        </td>
+        <td>{{ format_date_short(c.purchase_date) }}</td>
+        <td>{{ format_date_short(c.expiry_date) }}</td>
+        <td>{{ c.creator_name if c.creator_name else '-' }}</td>
+        <td>
+            <span class="badge {{ 'badge-success' if c.status == 'active' else 'badge-default' if c.status == 'expired' else 'badge-warning' }}">
+                {{ '有效' if c.status == 'active' else '已过期' if c.status == 'expired' else '已用完' }}
+            </span>
+        </td>
+        <td>
+            <a href="/treatment-cards/{{ c.id }}" class="btn btn-sm btn-primary">详情</a>
+        </td>
+    </tr>
+    {% endfor %}
+    {% else %}
+    <tr><td colspan="10" class="empty-state">暂无数据</td></tr>
+    {% endif %}
+    </tbody>
+</table>
+<div class="pagination">
+    {% if total_pages > 1 %}
+    <button hx-get="{{ url_for('list_treatment_cards') }}?page={{ current_page - 1 }}&limit=10"
+            hx-target="#treatment-card-table-container"
+            hx-include="#treatment-card-filters"
+            hx-swap="innerHTML"
+            {% if current_page == 1 %}disabled{% endif %}>上一页</button>
+    {% for i in range(1, total_pages + 1) %}
+    <button hx-get="{{ url_for('list_treatment_cards') }}?page={{ i }}&limit=10"
+            hx-target="#treatment-card-table-container"
+            hx-include="#treatment-card-filters"
+            hx-swap="innerHTML"
+            class="{{ 'active' if i == current_page else '' }}">{{ i }}</button>
+    {% endfor %}
+    <button hx-get="{{ url_for('list_treatment_cards') }}?page={{ current_page + 1 }}&limit=10"
+            hx-target="#treatment-card-table-container"
+            hx-include="#treatment-card-filters"
+            hx-swap="innerHTML"
+            {% if current_page == total_pages %}disabled{% endif %}>下一页</button>
+    {% endif %}
+</div>

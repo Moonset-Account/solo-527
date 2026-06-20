@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, desc
 from typing import Optional
@@ -13,6 +14,8 @@ from app.models import (
     Message, MessageType, Todo, TodoStatus, ReminderRule
 )
 from app.config import settings
+from app.htmx_utils import is_htmx, get_page
+from app.templates import templates
 
 router = APIRouter(prefix="/api", tags=["核销与收银"])
 
@@ -26,17 +29,19 @@ class VerificationCreate(BaseModel):
 
 @router.get("/verifications")
 def list_verifications(
+    request: Request,
     status: Optional[VerificationStatus] = None,
     customer_keyword: Optional[str] = None,
     operator_id: Optional[int] = None,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     keyword: Optional[str] = None,
-    skip: int = 0,
-    limit: int = 50,
+    page: int = 1,
+    limit: int = 10,
     db: Session = Depends(get_db),
     current_user: User = Depends(allow_all)
 ):
+    skip = (page - 1) * limit
     query = db.query(Verification).join(Customer).join(Treatment).join(User, Verification.operator_id == User.id)
     if status:
         query = query.filter(Verification.status == status)
@@ -74,21 +79,96 @@ def list_verifications(
             "verification_time": v.verification_time,
             "note": v.note
         })
+    
+    if is_htmx(request):
+        total_pages = (total + limit - 1) // limit
+        query_params = {
+            "status": status.value if status else "",
+            "operator_id": operator_id or "",
+            "start_date": start_date.isoformat() if start_date else "",
+            "end_date": end_date.isoformat() if end_date else "",
+            "keyword": keyword or "",
+            "limit": limit
+        }
+        return templates.TemplateResponse(
+            "partials/verification_list.html",
+            {
+                "request": request,
+                "items": items,
+                "total": total,
+                "current_page": page,
+                "total_pages": total_pages,
+                "query_params": query_params,
+                "hx_endpoint": "list_verifications",
+                "hx_target": "#verification-table-container",
+                "hx_include": "#verification-filters"
+            }
+        )
+    
     return {"total": total, "items": items}
 
 
 @router.post("/verifications")
-def create_verification(
-    data: VerificationCreate,
+async def create_verification(
+    request: Request,
+    customer_id: Optional[int] = None,
+    treatment_card_id: Optional[int] = None,
+    sessions_used: int = 1,
+    note: str = "",
     db: Session = Depends(get_db),
     current_user: User = Depends(allow_all)
 ):
-    card = db.query(TreatmentCard).filter(TreatmentCard.id == data.treatment_card_id).first()
+    content_type = request.headers.get("content-type", "")
+    if content_type.startswith("application/x-www-form-urlencoded") or content_type.startswith("multipart/form-data"):
+        form = await request.form()
+        if form.get("customer_id"):
+            customer_id = int(form.get("customer_id"))
+        if form.get("treatment_card_id"):
+            treatment_card_id = int(form.get("treatment_card_id"))
+        if form.get("sessions_used"):
+            sessions_used = int(form.get("sessions_used"))
+        if form.get("note"):
+            note = form.get("note")
+    elif content_type.startswith("application/json"):
+        try:
+            import json
+            body = await request.json()
+            customer_id = body.get("customer_id", customer_id)
+            treatment_card_id = body.get("treatment_card_id", treatment_card_id)
+            sessions_used = body.get("sessions_used", sessions_used)
+            note = body.get("note", note)
+        except Exception:
+            pass
+    
+    if not customer_id or not treatment_card_id:
+        if is_htmx(request):
+            return HTMLResponse(
+                '<div class="toast toast-error" style="position:fixed;top:20px;right:20px;z-index:9999">请选择顾客和疗程卡</div>',
+                status_code=400
+            )
+        raise HTTPException(status_code=400, detail="请选择顾客和疗程卡")
+
+    card = db.query(TreatmentCard).filter(TreatmentCard.id == treatment_card_id).first()
     if not card:
+        if is_htmx(request):
+            return HTMLResponse(
+                '<div class="toast toast-error" style="position:fixed;top:20px;right:20px;z-index:9999">疗程卡不存在</div>',
+                status_code=404
+            )
         raise HTTPException(status_code=404, detail="疗程卡不存在")
     if card.status != TreatmentCardStatus.ACTIVE:
+        if is_htmx(request):
+            return HTMLResponse(
+                '<div class="toast toast-error" style="position:fixed;top:20px;right:20px;z-index:9999">疗程卡状态不可用</div>',
+                status_code=400
+            )
         raise HTTPException(status_code=400, detail="疗程卡状态不可用")
-    if card.remaining_sessions < data.sessions_used:
+    if card.remaining_sessions < sessions_used:
+        if is_htmx(request):
+            return HTMLResponse(
+                '<div class="toast toast-error" style="position:fixed;top:20px;right:20px;z-index:9999">剩余次数不足</div>',
+                status_code=400
+            )
         raise HTTPException(status_code=400, detail="剩余次数不足")
 
     import uuid
@@ -96,23 +176,33 @@ def create_verification(
 
     verification = Verification(
         verification_no=verification_no,
-        customer_id=data.customer_id,
-        treatment_card_id=data.treatment_card_id,
+        customer_id=customer_id,
+        treatment_card_id=treatment_card_id,
         treatment_id=card.treatment_id,
         operator_id=current_user.id,
-        sessions_used=data.sessions_used,
+        sessions_used=sessions_used,
         status=VerificationStatus.VERIFIED,
-        note=data.note
+        note=note
     )
     db.add(verification)
 
-    card.remaining_sessions -= data.sessions_used
+    card.remaining_sessions -= sessions_used
     if card.remaining_sessions <= 0:
         card.status = TreatmentCardStatus.USED_UP
 
     db.commit()
     db.refresh(verification)
 
+    if is_htmx(request):
+        from app.routers.verification import list_verifications
+        return list_verifications(
+            request=request,
+            page=1,
+            limit=10,
+            db=db,
+            current_user=current_user
+        )
+    
     return verification
 
 
@@ -154,6 +244,7 @@ class PaymentCreate(BaseModel):
 
 @router.get("/payments")
 def list_payments(
+    request: Request,
     status: Optional[PaymentStatus] = None,
     customer_keyword: Optional[str] = None,
     cashier_id: Optional[int] = None,
@@ -162,11 +253,12 @@ def list_payments(
     keyword: Optional[str] = None,
     payment_method: Optional[str] = None,
     has_diff: Optional[bool] = None,
-    skip: int = 0,
-    limit: int = 50,
+    page: int = 1,
+    limit: int = 10,
     db: Session = Depends(get_db),
     current_user: User = Depends(allow_all)
 ):
+    skip = (page - 1) * limit
     query = db.query(PaymentRecord).outerjoin(Customer).join(User, PaymentRecord.cashier_id == User.id)
     if status:
         query = query.filter(PaymentRecord.status == status)
@@ -212,32 +304,92 @@ def list_payments(
             "payment_time": p.payment_time,
             "note": p.note
         })
+    
+    if is_htmx(request):
+        total_pages = (total + limit - 1) // limit
+        return templates.TemplateResponse(
+            "partials/payment_list.html",
+            {
+                "request": request,
+                "items": items,
+                "total": total,
+                "current_page": page,
+                "total_pages": total_pages
+            }
+        )
+    
     return {"total": total, "items": items}
 
 
 @router.post("/payments")
-def create_payment(
-    data: PaymentCreate,
+async def create_payment(
+    request: Request,
+    customer_id: Optional[int] = None,
+    treatment_card_id: Optional[int] = None,
+    amount: Optional[float] = None,
+    actual_amount: Optional[float] = None,
+    payment_method: str = "cash",
+    payment_type: str = "card_purchase",
+    note: str = "",
     db: Session = Depends(get_db),
     current_user: User = Depends(allow_all)
 ):
+    content_type = request.headers.get("content-type", "")
+    if content_type.startswith("application/x-www-form-urlencoded") or content_type.startswith("multipart/form-data"):
+        form = await request.form()
+        if form.get("customer_id"):
+            customer_id = int(form.get("customer_id"))
+        if form.get("treatment_card_id"):
+            treatment_card_id = int(form.get("treatment_card_id"))
+        if form.get("amount"):
+            amount = float(form.get("amount"))
+        if form.get("actual_amount"):
+            actual_amount = float(form.get("actual_amount"))
+        if form.get("payment_method"):
+            payment_method = form.get("payment_method")
+        if form.get("payment_type"):
+            payment_type = form.get("payment_type")
+        if form.get("note"):
+            note = form.get("note")
+    elif content_type.startswith("application/json"):
+        try:
+            import json
+            body = await request.json()
+            customer_id = body.get("customer_id", customer_id)
+            treatment_card_id = body.get("treatment_card_id", treatment_card_id)
+            amount = body.get("amount", amount)
+            actual_amount = body.get("actual_amount", actual_amount)
+            payment_method = body.get("payment_method", payment_method)
+            payment_type = body.get("payment_type", payment_type)
+            note = body.get("note", note)
+        except Exception:
+            pass
+    
+    if amount is None or actual_amount is None:
+        if is_htmx(request):
+            return HTMLResponse(
+                '<div class="toast toast-error" style="position:fixed;top:20px;right:20px;z-index:9999">请填写金额</div>',
+                status_code=400
+            )
+        raise HTTPException(status_code=400, detail="amount and actual_amount are required")
+
     import uuid
     payment_no = f"SK{datetime.now().strftime('%Y%m%d%H%M%S')}{uuid.uuid4().hex[:4].upper()}"
 
-    diff_amount = data.actual_amount - data.amount
+    diff_amount = actual_amount - amount
 
     payment = PaymentRecord(
         payment_no=payment_no,
-        customer_id=data.customer_id,
-        treatment_card_id=data.treatment_card_id,
+        customer_id=customer_id,
+        treatment_card_id=treatment_card_id,
         cashier_id=current_user.id,
-        amount=data.amount,
-        actual_amount=data.actual_amount,
+        amount=amount,
+        actual_amount=actual_amount,
         diff_amount=diff_amount,
-        payment_method=data.payment_method,
-        payment_type=data.payment_type,
+        payment_method=payment_method,
+        payment_type=payment_type,
         status=PaymentStatus.PAID,
-        note=data.note
+        note=note
     )
     db.add(payment)
     db.commit()
@@ -274,6 +426,15 @@ def create_payment(
 
     db.commit()
 
+    if is_htmx(request):
+        return list_payments(
+            request=request,
+            page=1,
+            limit=10,
+            db=db,
+            current_user=current_user
+        )
+    
     return payment
 
 
