@@ -189,7 +189,7 @@ CREATE TABLE test_drive_record (
     technician_id BIGINT NOT NULL COMMENT '试驾技师ID',
     workstation_id BIGINT COMMENT '来源工位ID(溯源)',
     repair_order_id BIGINT COMMENT '关联维修单ID(溯源)',
-    drive_start_time DATETIME NOT NULL COMMENT '试驾开始时间',
+    drive_start_time DATETIME COMMENT '试驾开始时间',
     drive_end_time DATETIME COMMENT '试驾结束时间',
     drive_route VARCHAR(500) COMMENT '试驾路线',
     drive_distance DECIMAL(8,2) COMMENT '试驾里程(公里)',

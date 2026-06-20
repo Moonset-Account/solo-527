@@ -58,7 +58,8 @@ public interface RepairOrderRepository extends JpaRepository<RepairOrder, Long> 
     List<RepairOrder> findClosedOrdersByTimeRange(@Param("startTime") LocalDateTime startTime,
                                                   @Param("endTime") LocalDateTime endTime);
 
-    @Query("SELECT COUNT(r) FROM RepairOrder r WHERE r.status = 5 AND r.actualEndTime > r.planEndTime " +
+    @Query("SELECT COUNT(r) FROM RepairOrder r WHERE r.status = 6 " +
+           "AND (r.delayReason IS NOT NULL OR r.actualEndTime > r.planEndTime) " +
            "AND r.closeTime BETWEEN :startTime AND :endTime")
     Long countDelayedOrdersByTimeRange(@Param("startTime") LocalDateTime startTime,
                                        @Param("endTime") LocalDateTime endTime);

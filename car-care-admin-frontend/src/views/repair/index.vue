@@ -460,7 +460,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { repairOrderAPI, batchOperationAPI, commonAPI, detectionRecordAPI } from '@/api'
+import { repairOrderAPI, batchOperationAPI, commonAPI, detectionRecordAPI, memberPackageOrderAPI } from '@/api'
 import {
   formatDateTime,
   getRepairStatusText,
@@ -640,12 +640,15 @@ const handleSelectionChange = (selection) => {
   selectedIds.value = selection.map(item => item.id)
 }
 
-const openOrderDialog = (row = null) => {
+const openOrderDialog = async (row = null) => {
   repairItemList.value = []
   if (row) {
     Object.assign(orderForm, row)
     if (row.repairItems) {
       repairItemList.value = JSON.parse(JSON.stringify(row.repairItems))
+    }
+    if (row.memberId) {
+      await onMemberChange()
     }
   } else {
     Object.assign(orderForm, {
@@ -661,6 +664,8 @@ const openOrderDialog = (row = null) => {
       problemDescription: '',
       createBy: 3
     })
+    packageOrderList.value = []
+    detectionRecordList.value = []
   }
   orderDialogVisible.value = true
 }
@@ -874,7 +879,23 @@ const getItemTypeText = (type) => {
   return map[type] || type
 }
 
-const onMemberChange = () => {}
+const onMemberChange = async () => {
+  if (!orderForm.memberId) {
+    packageOrderList.value = []
+    detectionRecordList.value = []
+    return
+  }
+  try {
+    const [pkgRes, detRes] = await Promise.all([
+      memberPackageOrderAPI.getPage({ memberId: orderForm.memberId, status: 1, pageNum: 1, pageSize: 50 }),
+      detectionRecordAPI.getPage({ memberId: orderForm.memberId, pageNum: 1, pageSize: 50 })
+    ])
+    packageOrderList.value = pkgRes.data.list || []
+    detectionRecordList.value = detRes.data.list || []
+  } catch (error) {
+    handleAPIError(error)
+  }
+}
 
 const loadBaseData = async () => {
   try {

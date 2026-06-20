@@ -31,7 +31,7 @@ public class TestDriveRecord extends BaseEntity {
     @Column(name = "repair_order_id")
     private Long repairOrderId;
 
-    @Column(name = "drive_start_time", nullable = false)
+    @Column(name = "drive_start_time")
     private LocalDateTime driveStartTime;
 
     @Column(name = "drive_end_time")
