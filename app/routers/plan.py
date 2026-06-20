@@ -104,10 +104,12 @@ async def htmx_create_plan(
     )
     await db.commit()
     await db.refresh(plan)
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         "plans/_row.html",
         {"request": request, "p": plan, "loop": {"index": 1}},
     )
+    response.status_code = 201
+    return response
 
 
 @router.post("/htmx/{plan_id}/toggle")
@@ -145,10 +147,12 @@ async def htmx_create_plan_rule(
     )
     await db.commit()
     await db.refresh(rule)
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         "plans/_rule_row.html",
         {"request": request, "rule": rule, "loop": {"index": 1}},
     )
+    response.status_code = 201
+    return response
 
 
 @router.post("/htmx/rules/{rule_id}/toggle")

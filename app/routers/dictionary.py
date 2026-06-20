@@ -85,10 +85,12 @@ async def htmx_create_dictionary(
     )
     await db.commit()
     await db.refresh(entry)
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         "dictionaries/_row.html",
         {"request": request, "d": entry, "loop": {"index": 1}},
     )
+    response.status_code = 201
+    return response
 
 
 @router.post("/htmx/{dict_id}/toggle")

@@ -99,10 +99,12 @@ async def htmx_create_reminder(
     )
     await db.commit()
     await db.refresh(reminder)
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         "reminders/_row.html",
         {"request": request, "r": reminder, "loop": {"index": 1}},
     )
+    response.status_code = 201
+    return response
 
 
 @router.post("/htmx/{reminder_id}/toggle")

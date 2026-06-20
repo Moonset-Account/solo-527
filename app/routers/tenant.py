@@ -104,10 +104,12 @@ async def htmx_create_tenant(
     )
     await db.commit()
     await db.refresh(tenant)
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         "tenants/_row.html",
         {"request": request, "t": tenant, "loop": {"index": 1}},
     )
+    response.status_code = 201
+    return response
 
 
 @router.post("/htmx/{tenant_id}/toggle")
@@ -131,22 +133,27 @@ async def htmx_create_feature_flag(
     tenant_id: str,
     flag_key: str = Form(...),
     flag_name: str = Form(...),
+    is_enabled: str | None = Form(default=None),
     notes: str | None = Form(default=None),
     db: AsyncSession = Depends(get_db),
 ):
     svc = FeatureFlagService(db)
+    enabled = True if is_enabled in ("on", "true", "1", True) else False
     new_flag = await svc.create(
         tenant_id=tenant_id,
         flag_key=flag_key,
         flag_name=flag_name,
+        is_enabled=enabled,
         notes=notes,
     )
     await db.commit()
     await db.refresh(new_flag)
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         "tenants/_flag_row.html",
         {"request": request, "flag": new_flag, "loop": {"index": 1}},
     )
+    response.status_code = 201
+    return response
 
 
 @router.post("/htmx/feature-flags/{flag_id}/toggle")
