@@ -63,6 +63,38 @@ def _migrate_columns():
         except Exception:
             conn.rollback()
             pass
+        try:
+            conn.execute(text("""
+                ALTER TABLE api_status DROP CONSTRAINT IF EXISTS api_status_endpoint_key
+            """))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            pass
+        try:
+            conn.execute(text("""
+                DROP INDEX IF EXISTS ix_api_status_endpoint
+            """))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            pass
+        try:
+            conn.execute(text("""
+                ALTER TABLE api_status ADD CONSTRAINT uq_api_status_method_endpoint UNIQUE (method, endpoint)
+            """))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            pass
+        try:
+            conn.execute(text("""
+                UPDATE api_status SET method = 'GET' WHERE method IS NULL OR method = ''
+            """))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            pass
 
 
 def _init_demo_data(db):

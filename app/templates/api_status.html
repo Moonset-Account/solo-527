@@ -81,7 +81,7 @@ function loadHealth() {
 }
 
 function loadStatus() {
-    fetch('/api/api-status')
+    apiFetch('/api/api-status')
         .then(res => res.json())
         .then(data => {
             if (data.items.length === 0) {

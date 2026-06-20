@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey, Enum, Date, Numeric
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey, Enum, Date, Numeric, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -265,10 +265,13 @@ class Todo(Base):
 
 class ApiStatus(Base):
     __tablename__ = "api_status"
+    __table_args__ = (
+        UniqueConstraint("method", "endpoint", name="uq_api_status_method_endpoint"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    endpoint = Column(String(200), unique=True, index=True)
-    method = Column(String(10))
+    endpoint = Column(String(200), index=True, nullable=False)
+    method = Column(String(10), nullable=False)
     last_called = Column(DateTime(timezone=True))
     call_count = Column(Integer, default=0)
     error_count = Column(Integer, default=0)

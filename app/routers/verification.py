@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, desc
 from typing import Optional
 from pydantic import BaseModel
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from app.database import get_db
 from app.auth import get_current_user, allow_all, allow_admin, allow_manager
@@ -54,7 +54,7 @@ def list_verifications(
     if start_date:
         query = query.filter(Verification.verification_time >= start_date)
     if end_date:
-        query = query.filter(Verification.verification_time <= end_date)
+        query = query.filter(Verification.verification_time < end_date + timedelta(days=1))
 
     total = query.count()
     verifications = query.order_by(desc(Verification.verification_time)).offset(skip).limit(limit).all()
@@ -184,7 +184,7 @@ def list_payments(
     if start_date:
         query = query.filter(PaymentRecord.payment_time >= start_date)
     if end_date:
-        query = query.filter(PaymentRecord.payment_time <= end_date)
+        query = query.filter(PaymentRecord.payment_time < end_date + timedelta(days=1))
     if payment_method:
         query = query.filter(PaymentRecord.payment_method == payment_method)
     if has_diff is not None:
@@ -289,7 +289,7 @@ def payment_stats(
     if start_date:
         query = query.filter(PaymentRecord.payment_time >= start_date)
     if end_date:
-        query = query.filter(PaymentRecord.payment_time <= end_date)
+        query = query.filter(PaymentRecord.payment_time < end_date + timedelta(days=1))
 
     total_amount = query.with_entities(func.sum(PaymentRecord.amount)).scalar() or 0
     total_actual = query.with_entities(func.sum(PaymentRecord.actual_amount)).scalar() or 0

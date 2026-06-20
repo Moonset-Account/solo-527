@@ -91,8 +91,9 @@ class ApiStatusMiddleware(BaseHTTPMiddleware):
                 db.add(new_status)
 
             db.commit()
-        except Exception:
-            pass
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
         finally:
             db.close()
 
