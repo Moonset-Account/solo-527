@@ -57,11 +57,17 @@ export class AuthService {
     return {
       accessToken: token,
       user: {
-        id: user._id.toString(),
+        _id: user._id.toString(),
         username: user.username,
         email: user.email,
         role: user.role,
         name: user.name,
+        phone: user.phone,
+        department: user.department,
+        position: user.position,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
       },
     };
   }

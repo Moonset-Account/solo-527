@@ -224,11 +224,28 @@ async function handleQuickCreate() {
       loading.value = true;
       try {
         const schedule = availableSchedules.value.find(s => s._id === formData.scheduleId);
+        if (!schedule) {
+          ElMessage.error('请选择有效的档期');
+          return;
+        }
+
         await interviewStore.quickCreate({
-          ...formData,
-          startTime: schedule?.startTime,
-          endTime: schedule?.endTime,
-        });
+          candidateName: formData.candidateName,
+          candidatePhone: formData.candidatePhone,
+          candidateEmail: formData.candidateEmail,
+          position: formData.position,
+          level: formData.level,
+          interviewerId: formData.interviewerId,
+          scheduleId: formData.scheduleId,
+          interviewDate: formData.interviewDate,
+          timeSlot: `${schedule.startTime}-${schedule.endTime}`,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          channel: formData.channel,
+          location: formData.location,
+          skills: formData.skills,
+          remark: formData.remark,
+        } as any);
         ElMessage.success('预约成功');
         router.push('/interviews');
       } catch (e: any) {

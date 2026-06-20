@@ -11,6 +11,8 @@ import { Interview } from '../interviews/schemas/interview.schema';
 import { InterviewStatus } from '../common/enums/interview-status.enum';
 import { User } from '../users/schemas/user.schema';
 import { Role } from '../common/enums/role.enum';
+import { Schedule, ScheduleStatus } from '../interviewers/schemas/schedule.schema';
+import { Assessment } from '../assessments/schemas/assessment.schema';
 
 @Injectable()
 export class RemindersService implements OnModuleInit {
@@ -19,6 +21,8 @@ export class RemindersService implements OnModuleInit {
     @InjectModel(ReminderConfig.name) private reminderConfigModel: Model<ReminderConfigDocument>,
     @InjectModel(Interview.name) private interviewModel: Model<any>,
     @InjectModel(User.name) private userModel: Model<any>,
+    @InjectModel(Schedule.name) private scheduleModel: Model<any>,
+    @InjectModel(Assessment.name) private assessmentModel: Model<any>,
   ) {}
 
   async onModuleInit() {
@@ -397,5 +401,190 @@ export class RemindersService implements OnModuleInit {
         );
       }
     }
+  }
+
+  @Cron('0 9 * * 1')
+  async checkInterviewerQuota() {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    const interviewers = await this.userModel.find({
+      role: Role.INTERVIEWER,
+      isActive: true,
+    }).exec();
+
+    const enabledConfigs = await this.reminderConfigModel.find({
+      enabled: true,
+      trigger: ReminderTrigger.INTERVIEWER_QUOTA,
+    }).exec();
+
+    if (enabledConfigs.length === 0) return;
+
+    for (const interviewer of interviewers) {
+      const totalSchedules = await this.scheduleModel.countDocuments({
+        interviewerId: interviewer._id,
+        date: { $gte: startOfMonth, $lte: endOfMonth },
+      }).exec();
+
+      const bookedSchedules = await this.scheduleModel.countDocuments({
+        interviewerId: interviewer._id,
+        date: { $gte: startOfMonth, $lte: endOfMonth },
+        status: ScheduleStatus.BOOKED,
+      }).exec();
+
+      const usedPercentage = totalSchedules > 0 
+        ? Math.round((bookedSchedules / totalSchedules) * 100) 
+        : 0;
+
+      for (const config of enabledConfigs) {
+        const threshold = config.config.quotaWarningPercentage || 80;
+        if (usedPercentage < threshold) continue;
+
+        const existing = await this.reminderModel.findOne({
+          'metadata.relatedData.interviewerId': interviewer._id.toString(),
+          configId: config._id,
+          createdAt: {
+            $gte: new Date(now.getFullYear(), now.getMonth(), 1),
+          },
+        }).exec();
+
+        if (existing) continue;
+
+        const admins = await this.userModel.find({
+          role: { $in: config.targetRoles },
+        }).exec();
+
+        for (const admin of admins) {
+          await this.createReminder(
+            admin._id.toString(),
+            config.type,
+            config.type === ReminderType.BLOCKING
+              ? `阻断告警：${interviewer.name}档期已满`
+              : `提醒：${interviewer.name}档期使用${usedPercentage}%`,
+            `面试官 ${interviewer.name}（${interviewer.department || '未分配部门'}）本月档期使用情况：\n- 总档期：${totalSchedules} 个\n- 已预约：${bookedSchedules} 个\n- 使用率：${usedPercentage}%\n\n${usedPercentage >= 100 ? '该面试官本月档期已全部占用，请立即安排新增档期！' : '请及时关注档期余量，提前补充可用时间。'}`,
+            {
+              module: 'schedules',
+              relatedData: {
+                interviewerId: interviewer._id.toString(),
+                interviewerName: interviewer.name,
+                totalSchedules,
+                bookedSchedules,
+                usedPercentage,
+                month: `${now.getFullYear()}-${now.getMonth() + 1}`,
+              },
+            },
+            config._id.toString(),
+          );
+        }
+      }
+    }
+  }
+
+  @Cron('0 */2 * * *')
+  async checkNoAssessment() {
+    const config = await this.reminderConfigModel.findOne({
+      enabled: true,
+      trigger: ReminderTrigger.NO_ASSESSMENT,
+    }).exec();
+
+    if (!config) return;
+
+    const deadlineHours = config.config.assessmentDeadlineHours || 2;
+    const now = new Date();
+    const checkTime = new Date(now.getTime() - deadlineHours * 60 * 60 * 1000);
+
+    const completedInterviews = await this.interviewModel.find({
+      status: InterviewStatus.COMPLETED,
+      endInterviewTime: { $lte: checkTime },
+      hireResult: { $in: ['pending', null] },
+    }).populate('interviewerId').exec();
+
+    for (const interview of completedInterviews) {
+      const existingAssessment = await this.assessmentModel.findOne({
+        interviewId: interview._id,
+      }).exec();
+
+      if (existingAssessment) continue;
+
+      const existing = await this.reminderModel.findOne({
+        'metadata.recordId': interview._id.toString(),
+        type: config.type,
+        createdAt: { $gte: new Date(now.getTime() - 4 * 60 * 60 * 1000) },
+      }).exec();
+
+      if (existing) continue;
+
+      const targetUsers = new Set<string>();
+      targetUsers.add(interview.interviewerId._id.toString());
+
+      const admins = await this.userModel.find({
+        role: { $in: config.targetRoles },
+      }).exec();
+      admins.forEach(a => targetUsers.add(a._id.toString()));
+
+      for (const userId of targetUsers) {
+        await this.createReminder(
+          userId,
+          config.type,
+          `测评未完成提醒：${interview.candidateName}`,
+          `${interview.candidateName} 的面试已于 ${new Date(interview.endInterviewTime).toLocaleString('zh-CN')} 结束，超过 ${deadlineHours} 小时仍未完成测评。\n请尽快完成测评并填写录用建议。`,
+          {
+            module: 'assessments',
+            recordId: interview._id.toString(),
+            relatedData: {
+              candidateName: interview.candidateName,
+              position: interview.position,
+              endTime: interview.endInterviewTime,
+            },
+          },
+          config._id.toString(),
+        );
+      }
+    }
+  }
+
+  async runAllChecks() {
+    try {
+      await this.checkInterviewReminders();
+    } catch (e) { console.error('checkInterviewReminders error:', e); }
+    try {
+      await this.checkNoCheckin();
+    } catch (e) { console.error('checkNoCheckin error:', e); }
+    try {
+      await this.checkNoAssessment();
+    } catch (e) { console.error('checkNoAssessment error:', e); }
+    try {
+      await this.checkInterviewerQuota();
+    } catch (e) { console.error('checkInterviewerQuota error:', e); }
+    return { message: '所有提醒检测已执行完成' };
+  }
+
+  async createTestReminders(userId: string) {
+    await this.createReminder(
+      userId,
+      ReminderType.INFO,
+      '【示例】普通提示：面试日程提醒',
+      '这是一条普通提示消息，用于提醒您关注今日面试日程安排。\n普通提示仅作信息告知，不会阻断操作流程。',
+      { module: 'test', relatedData: { type: 'info' } },
+    );
+
+    await this.createReminder(
+      userId,
+      ReminderType.WARNING,
+      '【示例】警告：档期使用超80%',
+      '警告：某面试官档期使用率已超过 80%，请及时补充可用时间段。',
+      { module: 'test', relatedData: { type: 'warning' } },
+    );
+
+    await this.createReminder(
+      userId,
+      ReminderType.BLOCKING,
+      '【示例】阻断告警：档期已满，请立即处理',
+      '阻断告警：核心面试官本月档期已 100% 占用！\n此告警必须处理后才能进行关键操作，请立即为该面试官新增可用档期。',
+      { module: 'test', relatedData: { type: 'blocking' } },
+    );
+
+    return { message: '测试提醒已创建，请查看' };
   }
 }

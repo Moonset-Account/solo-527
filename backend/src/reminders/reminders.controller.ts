@@ -48,4 +48,15 @@ export class RemindersController {
   updateConfig(@Param('id') id: string, @Body() updateData: any) {
     return this.remindersService.updateConfig(id, updateData);
   }
+
+  @Post('run-checks')
+  @Roles(Role.ADMIN)
+  runChecks() {
+    return this.remindersService.runAllChecks();
+  }
+
+  @Post('test-reminders')
+  createTestReminders(@CurrentUser() user: any) {
+    return this.remindersService.createTestReminders(user.id);
+  }
 }

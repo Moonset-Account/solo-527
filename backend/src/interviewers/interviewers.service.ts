@@ -9,12 +9,15 @@ import { SearchDto } from '../common/dto/search.dto';
 import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
 import { OperationLogsService } from '../operation-logs/operation-logs.service';
 import { OperationType } from '../common/enums/operation-type.enum';
+import { User } from '../users/schemas/user.schema';
+import { Role } from '../common/enums/role.enum';
 
 @Injectable()
 export class InterviewersService {
   constructor(
     @InjectModel(Interviewer.name) private interviewerModel: Model<InterviewerDocument>,
     @InjectModel(Schedule.name) private scheduleModel: Model<ScheduleDocument>,
+    @InjectModel(User.name) private userModel: Model<any>,
     private operationLogsService: OperationLogsService,
   ) {}
 
@@ -316,5 +319,57 @@ export class InterviewersService {
       totalScheduled: totalCount,
       upcomingScheduled: upcomingCount,
     };
+  }
+
+  async initDefaultSchedules() {
+    const count = await this.scheduleModel.countDocuments().exec();
+    if (count > 0) return;
+
+    const interviewers = await this.userModel
+      .find({ role: Role.INTERVIEWER, isActive: true })
+      .exec();
+
+    if (interviewers.length === 0) return;
+
+    const timeSlots = [
+      '09:00-10:00',
+      '10:00-11:00',
+      '11:00-12:00',
+      '14:00-15:00',
+      '15:00-16:00',
+      '16:00-17:00',
+      '17:00-18:00',
+    ];
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (const interviewer of interviewers) {
+      for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() + dayOffset);
+        const dayOfWeek = date.getDay();
+        
+        if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+
+        for (const slot of timeSlots) {
+          const [startTime, endTime] = slot.split('-');
+          if (!startTime || !endTime) continue;
+
+          const schedule = new this.scheduleModel({
+            interviewerId: interviewer._id,
+            date: new Date(date),
+            startTime,
+            endTime,
+            status: ScheduleStatus.AVAILABLE,
+            location: '会议室A',
+            notes: dayOffset === 0 ? '当日可预约档期' : '',
+          });
+          await schedule.save();
+        }
+      }
+    }
+
+    console.log('默认档期已初始化');
   }
 }

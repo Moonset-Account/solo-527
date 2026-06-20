@@ -68,29 +68,41 @@ export class InterviewsService {
   }
 
   async quickCreate(dto: QuickCreateInterviewDto, operatorId: string): Promise<Interview> {
-    const [startTime, endTime] = dto.timeSlot.split('-');
-    if (!startTime || !endTime) {
-      throw new BadRequestException('时间段格式不正确，应为 HH:mm-HH:mm');
-    }
+    let schedule: any;
 
-    const schedule = await this.scheduleModel.findOne({
-      interviewerId: new Types.ObjectId(dto.interviewerId),
-      date: new Date(dto.interviewDate),
-      startTime,
-      endTime,
-      status: ScheduleStatus.AVAILABLE,
-    }).exec();
+    if (dto.scheduleId) {
+      schedule = await this.scheduleModel.findById(dto.scheduleId).exec();
+      if (!schedule) {
+        throw new NotFoundException('指定的档期不存在');
+      }
+      if (schedule.status !== ScheduleStatus.AVAILABLE) {
+        throw new ConflictException('该档期不可用或已被预约');
+      }
+    } else {
+      const [startTime, endTime] = dto.timeSlot.split('-');
+      if (!startTime || !endTime) {
+        throw new BadRequestException('时间段格式不正确，应为 HH:mm-HH:mm');
+      }
 
-    if (!schedule) {
-      throw new ConflictException('该时间段没有可用档期');
+      schedule = await this.scheduleModel.findOne({
+        interviewerId: new Types.ObjectId(dto.interviewerId),
+        date: new Date(dto.interviewDate),
+        startTime,
+        endTime,
+        status: ScheduleStatus.AVAILABLE,
+      }).exec();
+
+      if (!schedule) {
+        throw new ConflictException('该时间段没有可用档期');
+      }
     }
 
     return this.create(
       {
         ...dto,
         scheduleId: schedule._id.toString(),
-        startTime,
-        endTime,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime,
         interviewDate: dto.interviewDate,
       },
       operatorId,

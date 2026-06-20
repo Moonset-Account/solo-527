@@ -71,13 +71,29 @@ export class QuickCreateInterviewDto {
   @IsNotEmpty()
   candidatePhone: string;
 
+  @IsEmail()
+  @IsOptional()
+  candidateEmail?: string;
+
   @IsString()
   @IsOptional()
   position?: string;
 
   @IsString()
+  @IsOptional()
+  level?: string;
+
+  @IsArray()
+  @IsOptional()
+  skills?: string[];
+
+  @IsString()
   @IsNotEmpty()
   interviewerId: string;
+
+  @IsString()
+  @IsOptional()
+  scheduleId?: string;
 
   @IsDateString()
   @IsNotEmpty()
@@ -86,4 +102,24 @@ export class QuickCreateInterviewDto {
   @IsString()
   @IsNotEmpty()
   timeSlot: string;
+
+  @IsString()
+  @IsOptional()
+  startTime?: string;
+
+  @IsString()
+  @IsOptional()
+  endTime?: string;
+
+  @IsString()
+  @IsOptional()
+  location?: string;
+
+  @IsString()
+  @IsOptional()
+  channel?: string;
+
+  @IsString()
+  @IsOptional()
+  remark?: string;
 }

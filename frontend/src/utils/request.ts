@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import NProgress from 'nprogress';
 
-const TOKEN_KEY = 'access_token';
+const TOKEN_KEY = 'token';
 
 const service: AxiosInstance = axios.create({
   baseURL: '/api',
@@ -27,6 +27,12 @@ service.interceptors.request.use(
 service.interceptors.response.use(
   (response: AxiosResponse) => {
     NProgress.done();
+    const contentType = response.headers['content-type'] as string;
+    if ((contentType && (contentType.includes('application/octet-stream') || 
+        contentType.includes('application/vnd.openxmlformats'))) ||
+        response.config.responseType === 'blob') {
+      return response;
+    }
     return response.data;
   },
   (error) => {
@@ -42,7 +48,7 @@ service.interceptors.response.use(
             type: 'warning',
           }).then(() => {
             localStorage.removeItem(TOKEN_KEY);
-            localStorage.removeItem('user_info');
+            localStorage.removeItem('user');
             window.location.href = '/login';
           });
           break;

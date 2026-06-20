@@ -4,22 +4,50 @@ export interface ExportParams {
   startDate?: string;
   endDate?: string;
   status?: string;
-  interviewerId?: string;
+  ownerId?: string;
   keyword?: string;
 }
 
-export const exportInterviewDetails = (params: ExportParams): Promise<void> => {
-  return request.get('/exports/interview-details', {
-    params,
+function extractFilename(contentDisposition: string): string {
+  if (!contentDisposition) return '';
+  const matches = /filename\*=UTF-8''([^;]+)/i.exec(contentDisposition);
+  if (matches && matches[1]) {
+    return decodeURIComponent(matches[1]);
+  }
+  const fallback = /filename="?([^";]+)"?/i.exec(contentDisposition);
+  return fallback ? fallback[1] : '';
+}
+
+export const exportInterviewDetails = async (params: ExportParams): Promise<void> => {
+  const queryParams: any = {
+    startDate: params.startDate,
+    endDate: params.endDate,
+    status: params.status,
+    interviewerId: params.ownerId,
+    keyword: params.keyword,
+  };
+  const response: any = await request.get('/exports/interview-details', {
+    params: queryParams,
     responseType: 'blob',
   });
+  const filename = extractFilename(response.headers?.['content-disposition']) 
+    || `面试明细报表_${new Date().toISOString().split('T')[0]}.xlsx`;
+  downloadBlob(response.data, filename);
 };
 
-export const exportAssessmentStats = (params: Omit<ExportParams, 'status' | 'keyword'>): Promise<void> => {
-  return request.get('/exports/assessment-stats', {
-    params,
+export const exportAssessmentStats = async (params: Omit<ExportParams, 'status' | 'keyword'>): Promise<void> => {
+  const queryParams: any = {
+    startDate: params.startDate,
+    endDate: params.endDate,
+    interviewerId: params.ownerId,
+  };
+  const response: any = await request.get('/exports/assessment-stats', {
+    params: queryParams,
     responseType: 'blob',
   });
+  const filename = extractFilename(response.headers?.['content-disposition']) 
+    || `面试质量分析_${new Date().toISOString().split('T')[0]}.xlsx`;
+  downloadBlob(response.data, filename);
 };
 
 export const downloadBlob = (blob: Blob, filename: string) => {
