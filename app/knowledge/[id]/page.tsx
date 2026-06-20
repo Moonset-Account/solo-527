@@ -109,7 +109,7 @@ async function fetchRelatedKnowledge(category: string, currentId: string): Promi
   if (!result.success) {
     return [];
   }
-  return (result.data.list || []).filter((item: RelatedKnowledge) => item.id !== currentId).slice(0, 3);
+  return (result.data.items || []).filter((item: RelatedKnowledge) => item.id !== currentId).slice(0, 3);
 }
 
 export default function KnowledgeDetailPage() {
@@ -177,17 +177,22 @@ export default function KnowledgeDetailPage() {
       if (userRating <= 0) {
         throw new Error('请先选择评分');
       }
+      if (!knowledge?.hits || knowledge.hits.length === 0) {
+        throw new Error('当前知识暂无关联工单，无法提交评价');
+      }
       const keywords = feedback
         .split(/[，。！？、\s]+/)
         .filter(word => word.length >= 2)
         .slice(0, 5);
+
+      const realTicketId = knowledge.hits[0].ticketId;
 
       const response = await fetch('/api/satisfaction', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           knowledgeId,
-          ticketId: 'TK000000',
+          ticketId: realTicketId,
           score: userRating,
           feedback: feedback || undefined,
           keywords,

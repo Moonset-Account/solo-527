@@ -110,13 +110,17 @@ export default function HitsPage() {
   }, []);
 
   const screenMutation = useMutation({
-    mutationFn: async (status: 'VALID' | 'FALSE_POSITIVE') => {
+    mutationFn: async (params: { status: 'VALID' | 'FALSE_POSITIVE'; hitIds?: string[] }) => {
+      const ids = params.hitIds || selectedHits;
+      if (ids.length === 0) {
+        throw new Error('请先选择记录');
+      }
       const response = await fetch('/api/hits/screen', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          hitIds: selectedHits,
-          status,
+          hitIds: ids,
+          status: params.status,
         }),
       });
       if (!response.ok) {
@@ -128,7 +132,7 @@ export default function HitsPage() {
     onSuccess: (data, variables) => {
       setToast({
         type: 'success',
-        message: `已成功将 ${data.data.updatedCount} 条记录标记为 ${getStatusText(variables)}`,
+        message: `已成功将 ${data.data.updatedCount} 条记录标记为 ${getStatusText(variables.status)}`,
       });
       setSelectedHits([]);
       queryClient.invalidateQueries({ queryKey: ['hits'] });
@@ -191,7 +195,7 @@ export default function HitsPage() {
 
   const handleBatchScreen = (status: 'VALID' | 'FALSE_POSITIVE') => {
     if (selectedHits.length === 0) return;
-    screenMutation.mutate(status);
+    screenMutation.mutate({ status });
   };
 
   const handleExport = (format: 'xlsx' | 'csv') => {
@@ -508,22 +512,30 @@ export default function HitsPage() {
                                     size="sm"
                                     className="gap-1 h-7 px-2 bg-green-600 hover:bg-green-700"
                                     onClick={() => {
-                                      setSelectedHits([hit.id]);
-                                      screenMutation.mutate('VALID');
+                                      screenMutation.mutate({ status: 'VALID', hitIds: [hit.id] });
                                     }}
+                                    disabled={screenMutation.isPending}
                                   >
-                                    <Check className="h-3 w-3" />
+                                    {screenMutation.isPending ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Check className="h-3 w-3" />
+                                    )}
                                   </Button>
                                   <Button
                                     variant="default"
                                     size="sm"
                                     className="gap-1 h-7 px-2 bg-red-600 hover:bg-red-700"
                                     onClick={() => {
-                                      setSelectedHits([hit.id]);
-                                      screenMutation.mutate('FALSE_POSITIVE');
+                                      screenMutation.mutate({ status: 'FALSE_POSITIVE', hitIds: [hit.id] });
                                     }}
+                                    disabled={screenMutation.isPending}
                                   >
-                                    <X className="h-3 w-3" />
+                                    {screenMutation.isPending ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <X className="h-3 w-3" />
+                                    )}
                                   </Button>
                                 </div>
                               )}

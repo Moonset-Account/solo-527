@@ -58,11 +58,12 @@ interface KnowledgeItem {
 }
 
 interface KnowledgeSearchResponse {
-  list: KnowledgeItem[];
+  items: KnowledgeItem[];
   total: number;
   page: number;
   pageSize: number;
-  totalPages: number;
+  totalPages?: number;
+  highlights?: Record<string, string>;
 }
 
 interface SatisfactionStats {
@@ -135,8 +136,8 @@ export default function InvalidKnowledgePage() {
   });
 
   const filteredKnowledge = useMemo(() => {
-    if (!knowledgeData?.list) return [];
-    return knowledgeData.list.filter(item => {
+    if (!knowledgeData?.items) return [];
+    return knowledgeData.items.filter(item => {
       const matchesCategory = selectedCategory === '全部分类' || item.category === selectedCategory;
       return matchesCategory;
     });
