@@ -1,3 +1,4 @@
+from __future__ import annotations
 from datetime import datetime
 from sqlalchemy import Boolean, DateTime, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -40,6 +41,3 @@ class InvoiceHeader(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     tenant: Mapped["Tenant"] = relationship(back_populates="invoices")
-
-
-from app.models.tenant import Tenant  # noqa: E402

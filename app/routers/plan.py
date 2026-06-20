@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -80,3 +80,87 @@ async def toggle_plan_rule(rule_id: str, db: AsyncSession = Depends(get_db)):
     rule = await svc.toggle(rule_id)
     await db.commit()
     return rule
+
+
+@router.post("/htmx/", status_code=201)
+async def htmx_create_plan(
+    request: Request,
+    name: str = Form(...),
+    code: str = Form(...),
+    price: float = Form(default=0),
+    call_limit: int = Form(default=0),
+    rate_limit: int = Form(default=0),
+    notes: str | None = Form(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = PlanService(db)
+    plan = await svc.create(
+        name=name,
+        code=code,
+        price=float(price),
+        call_limit=int(call_limit),
+        rate_limit=int(rate_limit),
+        notes=notes,
+    )
+    await db.commit()
+    await db.refresh(plan)
+    return templates.TemplateResponse(
+        "plans/_row.html",
+        {"request": request, "p": plan, "loop": {"index": 1}},
+    )
+
+
+@router.post("/htmx/{plan_id}/toggle")
+async def htmx_toggle_plan(
+    request: Request,
+    plan_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    svc = PlanService(db)
+    plan = await svc.toggle_active(plan_id)
+    await db.commit()
+    return templates.TemplateResponse(
+        "plans/_row.html",
+        {"request": request, "p": plan, "loop": {"index": 1}},
+    )
+
+
+@router.post("/htmx/{plan_id}/rules", status_code=201)
+async def htmx_create_plan_rule(
+    request: Request,
+    plan_id: str,
+    rule_key: str = Form(...),
+    rule_name: str = Form(...),
+    rule_value: str = Form(...),
+    notes: str | None = Form(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = PlanRuleService(db)
+    rule = await svc.create(
+        plan_id=plan_id,
+        rule_key=rule_key,
+        rule_name=rule_name,
+        rule_value=rule_value,
+        notes=notes,
+    )
+    await db.commit()
+    await db.refresh(rule)
+    return templates.TemplateResponse(
+        "plans/_rule_row.html",
+        {"request": request, "rule": rule, "loop": {"index": 1}},
+    )
+
+
+@router.post("/htmx/rules/{rule_id}/toggle")
+async def htmx_toggle_plan_rule(
+    request: Request,
+    rule_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    svc = PlanRuleService(db)
+    rule = await svc.toggle(rule_id)
+    await db.commit()
+    return templates.TemplateResponse(
+        "plans/_rule_row.html",
+        {"request": request, "rule": rule, "loop": {"index": 1}},
+    )

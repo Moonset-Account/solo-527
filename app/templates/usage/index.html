@@ -101,7 +101,7 @@
     if (trendChart) trendChart.destroy();
 
     var labels = trend.map(function(t) { return t.date || t.period_start; });
-    var counts = trend.map(function(t) { return t.call_count || 0; });
+    var counts = trend.map(function(t) { return t.total_calls || 0; });
 
     trendChart = new Chart(ctx, {
       type: 'line',

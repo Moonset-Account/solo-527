@@ -8,7 +8,7 @@
   </div>
 
   <div id="add-flag-form" class="hidden mb-4 p-4 bg-gray-50 rounded-lg">
-    <form hx-post="/tenants/api/{{ tenant_id }}/feature-flags"
+    <form hx-post="/tenants/htmx/{{ tenant_id }}/feature-flags"
       hx-target="#flags-table-body"
       hx-swap="beforeend"
       hx-on::after-request="document.getElementById('add-flag-form').classList.add('hidden')">
@@ -53,7 +53,7 @@
         </td>
         <td class="px-4 py-2.5 text-gray-500">{{ flag.notes or '-' }}</td>
         <td class="px-4 py-2.5">
-          <button hx-post="/tenants/api/feature-flags/{{ flag.id }}/toggle"
+          <button hx-post="/tenants/htmx/feature-flags/{{ flag.id }}/toggle"
             hx-target="closest tr"
             hx-swap="outerHTML"
             class="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-100">

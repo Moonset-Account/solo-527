@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -80,3 +80,85 @@ async def toggle_feature_flag(flag_id: str, db: AsyncSession = Depends(get_db)):
     flag = await svc.toggle(flag_id)
     await db.commit()
     return flag
+
+
+@router.post("/htmx/", status_code=201)
+async def htmx_create_tenant(
+    request: Request,
+    name: str = Form(...),
+    code: str = Form(...),
+    contact_email: str | None = Form(default=None),
+    contact_phone: str | None = Form(default=None),
+    plan_id: str | None = Form(default=None),
+    notes: str | None = Form(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = TenantService(db)
+    tenant = await svc.create(
+        name=name,
+        code=code,
+        contact_email=contact_email,
+        contact_phone=contact_phone,
+        plan_id=plan_id,
+        notes=notes,
+    )
+    await db.commit()
+    await db.refresh(tenant)
+    return templates.TemplateResponse(
+        "tenants/_row.html",
+        {"request": request, "t": tenant, "loop": {"index": 1}},
+    )
+
+
+@router.post("/htmx/{tenant_id}/toggle")
+async def htmx_toggle_tenant(
+    request: Request,
+    tenant_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    svc = TenantService(db)
+    tenant = await svc.toggle_active(tenant_id)
+    await db.commit()
+    return templates.TemplateResponse(
+        "tenants/_row.html",
+        {"request": request, "t": tenant, "loop": {"index": 1}},
+    )
+
+
+@router.post("/htmx/{tenant_id}/feature-flags", status_code=201)
+async def htmx_create_feature_flag(
+    request: Request,
+    tenant_id: str,
+    flag_key: str = Form(...),
+    flag_name: str = Form(...),
+    notes: str | None = Form(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = FeatureFlagService(db)
+    new_flag = await svc.create(
+        tenant_id=tenant_id,
+        flag_key=flag_key,
+        flag_name=flag_name,
+        notes=notes,
+    )
+    await db.commit()
+    await db.refresh(new_flag)
+    return templates.TemplateResponse(
+        "tenants/_flag_row.html",
+        {"request": request, "flag": new_flag, "loop": {"index": 1}},
+    )
+
+
+@router.post("/htmx/feature-flags/{flag_id}/toggle")
+async def htmx_toggle_feature_flag(
+    request: Request,
+    flag_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    svc = FeatureFlagService(db)
+    flag = await svc.toggle(flag_id)
+    await db.commit()
+    return templates.TemplateResponse(
+        "tenants/_flag_row.html",
+        {"request": request, "flag": flag, "loop": {"index": 1}},
+    )

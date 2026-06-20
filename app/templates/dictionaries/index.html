@@ -34,7 +34,7 @@
         </div>
 
         <div id="add-dict-form" class="hidden p-4 bg-gray-50 border-b border-gray-200">
-          <form hx-post="/dictionaries/api/"
+          <form hx-post="/dictionaries/htmx/"
             hx-target="#dict-table-body"
             hx-swap="beforeend"
             hx-on::after-request="document.getElementById('add-dict-form').classList.add('hidden')">

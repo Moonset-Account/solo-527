@@ -33,7 +33,7 @@
         </div>
 
         <div id="add-reminder-form" class="hidden p-4 bg-gray-50 border-b border-gray-200">
-          <form hx-post="/reminders/api/"
+          <form hx-post="/reminders/htmx/"
             hx-target="#reminder-table-body"
             hx-swap="beforeend"
             hx-on::after-request="document.getElementById('add-reminder-form').classList.add('hidden')">

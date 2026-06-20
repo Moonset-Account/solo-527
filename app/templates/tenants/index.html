@@ -18,7 +18,7 @@
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
-      <form hx-post="/tenants/api/" hx-target="#tenant-table-body" hx-swap="beforeend" hx-on::after-request="document.getElementById('add-tenant-modal').classList.add('hidden')">
+      <form hx-post="/tenants/htmx/" hx-target="#tenant-table-body" hx-swap="beforeend" hx-on::after-request="document.getElementById('add-tenant-modal').classList.add('hidden')">
         <div class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">名称</label>

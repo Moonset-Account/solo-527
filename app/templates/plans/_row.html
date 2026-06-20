@@ -1,0 +1,27 @@
+<tr class="hover:bg-blue-50/40 {% if loop.index is even %}bg-gray-50/50{% endif %}">
+  <td class="px-4 py-3 font-medium text-gray-900">{{ p.name }}</td>
+  <td class="px-4 py-3 text-gray-600">{{ p.code }}</td>
+  <td class="px-4 py-3 text-gray-600">¥{{ p.price or '0.00' }}</td>
+  <td class="px-4 py-3 text-gray-600">{{ p.call_limit or '0' }}</td>
+  <td class="px-4 py-3">
+    {% if p.is_active %}
+    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">启用</span>
+    {% else %}
+    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">停用</span>
+    {% endif %}
+  </td>
+  <td class="px-4 py-3">
+    <div class="flex items-center gap-2">
+      <button hx-post="/plans/htmx/{{ p.id }}/toggle"
+        hx-target="closest tr"
+        hx-swap="outerHTML"
+        class="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-100">
+        {{ '停用' if p.is_active else '启用' }}
+      </button>
+      <button onclick="loadPlanRules('{{ p.id }}')"
+        class="text-xs px-2 py-1 rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-50">
+        规则
+      </button>
+    </div>
+  </td>
+</tr>

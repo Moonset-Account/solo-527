@@ -1,0 +1,20 @@
+<tr class="hover:bg-blue-50/40 {% if loop.index is even %}bg-gray-50/50{% endif %}">
+  <td class="px-4 py-3 font-medium text-gray-900">{{ rule.rule_key }}</td>
+  <td class="px-4 py-3 text-gray-600">{{ rule.rule_name }}</td>
+  <td class="px-4 py-3 text-gray-600">{{ rule.rule_value }}</td>
+  <td class="px-4 py-3">
+    {% if rule.is_active %}
+    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">启用</span>
+    {% else %}
+    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">停用</span>
+    {% endif %}
+  </td>
+  <td class="px-4 py-3">
+    <button hx-post="/plans/htmx/rules/{{ rule.id }}/toggle"
+      hx-target="closest tr"
+      hx-swap="outerHTML"
+      class="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-100">
+      {{ '停用' if rule.is_active else '启用' }}
+    </button>
+  </td>
+</tr>

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -63,3 +63,44 @@ async def rollback_dictionary(dict_id: str, version_id: str, db: AsyncSession = 
     entry = await svc.rollback(dict_id, version_id)
     await db.commit()
     return entry
+
+
+@router.post("/htmx/", status_code=201)
+async def htmx_create_dictionary(
+    request: Request,
+    dict_type: str = Form(...),
+    dict_key: str = Form(...),
+    dict_value: str = Form(...),
+    sort_order: int = Form(default=0),
+    notes: str | None = Form(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = DictionaryService(db)
+    entry = await svc.create(
+        dict_type=dict_type,
+        dict_key=dict_key,
+        dict_value=dict_value,
+        sort_order=int(sort_order),
+        notes=notes,
+    )
+    await db.commit()
+    await db.refresh(entry)
+    return templates.TemplateResponse(
+        "dictionaries/_row.html",
+        {"request": request, "d": entry, "loop": {"index": 1}},
+    )
+
+
+@router.post("/htmx/{dict_id}/toggle")
+async def htmx_toggle_dictionary(
+    request: Request,
+    dict_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    svc = DictionaryService(db)
+    entry = await svc.toggle_active(dict_id)
+    await db.commit()
+    return templates.TemplateResponse(
+        "dictionaries/_row.html",
+        {"request": request, "d": entry, "loop": {"index": 1}},
+    )

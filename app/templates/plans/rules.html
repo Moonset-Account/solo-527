@@ -8,7 +8,7 @@
   </div>
 
   <div id="add-rule-form" class="hidden mb-4 p-4 bg-gray-50 rounded-lg">
-    <form hx-post="/plans/api/{{ plan_id }}/rules"
+    <form hx-post="/plans/htmx/{{ plan_id }}/rules"
       hx-target="#rules-table-body"
       hx-swap="beforeend"
       hx-on::after-request="document.getElementById('add-rule-form').classList.add('hidden')">
@@ -57,7 +57,7 @@
           {% endif %}
         </td>
         <td class="px-4 py-2.5">
-          <button hx-post="/plans/api/rules/{{ rule.id }}/toggle"
+          <button hx-post="/plans/htmx/rules/{{ rule.id }}/toggle"
             hx-target="closest tr"
             hx-swap="outerHTML"
             class="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-100">
