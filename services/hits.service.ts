@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { cacheDel } from '@/lib/redis';
+import { cacheDelByPattern } from '@/lib/redis';
 import { exportToExcel, exportToCSV } from '@/lib/export';
 import type { HitScreenInput } from '@/lib/validation';
 
@@ -44,7 +44,7 @@ export async function screenHits(data: HitScreenInput, screenedBy: string) {
     },
   });
 
-  await cacheDel('hits:notifications:*');
+  await cacheDelByPattern('hits:notifications:*');
   return result;
 }
 

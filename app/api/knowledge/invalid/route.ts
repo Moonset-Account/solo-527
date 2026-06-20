@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { cacheDel } from '@/lib/redis';
+import { cacheDel, cacheDelByPattern } from '@/lib/redis';
 import { invalidKnowledgeSchema } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     });
 
     await cacheDel(`knowledge:detail:${data.knowledgeId}`);
-    await cacheDel('knowledge:search:*');
+    await cacheDelByPattern('knowledge:search:*');
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { cacheGet, cacheSet, cacheDel } from '@/lib/redis';
+import { cacheGet, cacheSet, cacheDel, cacheDelByPattern } from '@/lib/redis';
 
 export async function GET(
   request: NextRequest,
@@ -87,7 +87,7 @@ export async function PUT(
     });
 
     await cacheDel(`knowledge:detail:${id}`);
-    await cacheDel('knowledge:search:*');
+    await cacheDelByPattern('knowledge:search:*');
 
     return NextResponse.json({
       success: true,
@@ -117,7 +117,7 @@ export async function DELETE(
     });
 
     await cacheDel(`knowledge:detail:${id}`);
-    await cacheDel('knowledge:search:*');
+    await cacheDelByPattern('knowledge:search:*');
 
     return NextResponse.json({
       success: true,

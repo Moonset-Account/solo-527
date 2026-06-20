@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { cacheGet, cacheSet, cacheDel } from '@/lib/redis';
+import { cacheGet, cacheSet, cacheDel, cacheDelByPattern } from '@/lib/redis';
 import { satisfactionSchema } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
@@ -93,8 +93,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await cacheDel(`satisfaction:stats:${data.knowledgeId}:*`);
-    await cacheDel(`satisfaction:stats:*:${data.ticketId}`);
+    await cacheDelByPattern(`satisfaction:stats:${data.knowledgeId}:*`);
+    await cacheDelByPattern(`satisfaction:stats:*:${data.ticketId}`);
 
     return NextResponse.json({
       success: true,

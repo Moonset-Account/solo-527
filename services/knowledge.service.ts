@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { cacheGet, cacheSet, cacheDel } from '@/lib/redis';
+import { cacheGet, cacheSet, cacheDel, cacheDelByPattern } from '@/lib/redis';
 import type { Knowledge } from '@prisma/client';
 
 export async function getKnowledgeById(id: string) {
@@ -41,7 +41,7 @@ export async function createKnowledge(data: {
   createdBy: string;
 }) {
   const knowledge = await prisma.knowledge.create({ data });
-  await cacheDel('knowledge:hot:*');
+  await cacheDelByPattern('knowledge:hot:*');
   return knowledge;
 }
 
@@ -54,7 +54,7 @@ export async function updateKnowledge(
     data: { ...data, version: { increment: 1 } },
   });
   await cacheDel(`knowledge:hot:${id}`);
-  await cacheDel('knowledge:hot:*');
+  await cacheDelByPattern('knowledge:hot:*');
   return knowledge;
 }
 
@@ -81,7 +81,7 @@ export async function markInvalid(
     },
   });
   await cacheDel(`knowledge:hot:${id}`);
-  await cacheDel('knowledge:hot:*');
+  await cacheDelByPattern('knowledge:hot:*');
   return knowledge;
 }
 

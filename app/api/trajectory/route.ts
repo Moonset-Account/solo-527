@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { cacheGet, cacheSet, cacheDel } from '@/lib/redis';
+import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { trajectorySchema } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await cacheDel(`trajectory:list:${data.ticketId}:*`);
+    await cacheDelByPattern(`trajectory:list:${data.ticketId}:*`);
 
     return NextResponse.json({
       success: true,

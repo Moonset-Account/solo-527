@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { cacheDel } from '@/lib/redis';
+import { cacheDel, cacheDelByPattern } from '@/lib/redis';
 import { hitScreenSchema } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await cacheDel('hits:list:*');
+    await cacheDelByPattern('hits:list:*');
 
     return NextResponse.json({
       success: true,

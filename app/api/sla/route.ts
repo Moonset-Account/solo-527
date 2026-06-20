@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { cacheGet, cacheSet, cacheDel } from '@/lib/redis';
+import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { createSLARuleSchema, updateSLARuleSchema } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await cacheDel('sla:list:*');
+    await cacheDelByPattern('sla:list:*');
 
     return NextResponse.json({
       success: true,

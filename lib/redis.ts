@@ -41,3 +41,20 @@ export async function cacheDel(key: string): Promise<void> {
     // Silently fail for cache operations
   }
 }
+
+export async function cacheDelByPattern(pattern: string): Promise<void> {
+  try {
+    const stream = redis.scanStream({ match: pattern, count: 100 });
+    return new Promise((resolve, reject) => {
+      stream.on('data', (keys: string[]) => {
+        if (keys.length > 0) {
+          redis.del(...keys).catch(() => {});
+        }
+      });
+      stream.on('end', resolve);
+      stream.on('error', reject);
+    });
+  } catch {
+    // Silently fail for cache operations
+  }
+}
