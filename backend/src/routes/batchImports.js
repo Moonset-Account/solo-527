@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const batchImportController = require('../controllers/batchImportController');
-const { auth } = require('../middleware/auth');
+const auth = require('../middleware/auth');
 
 router.use(auth);
 

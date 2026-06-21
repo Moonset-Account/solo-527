@@ -1,13 +1,15 @@
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, Table, Button, Space, Switch, Modal, Form, Input, Select, Tag, message, InputNumber } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
-import { reminderRuleList, treatmentOptions } from './mockData'
+import { getReminderRules, createReminderRule, updateReminderRule, deleteReminderRule, toggleReminderRule } from '../../api/reminderRules'
+import { getTreatments } from '../../api/treatments'
 
 const { Option } = Select
 
 const ReminderRuleManagement = () => {
-  const [data, setData] = useState(reminderRuleList)
+  const [data, setData] = useState([])
+  const [treatmentOptions, setTreatmentOptions] = useState([])
   const [modalVisible, setModalVisible] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
   const [form] = Form.useForm()
@@ -17,6 +19,27 @@ const ReminderRuleManagement = () => {
     warning: { text: '警告', color: 'orange' },
     normal: { text: '普通', color: 'blue' },
   }
+
+  const loadData = () => {
+    getReminderRules({ pageSize: 50 }).then(res => {
+      if (res.success === true) {
+        setData(res.data?.list || [])
+      }
+    })
+  }
+
+  const loadTreatments = () => {
+    getTreatments({ pageSize: 100 }).then(res => {
+      if (res.success === true) {
+        setTreatmentOptions(res.data?.list || [])
+      }
+    })
+  }
+
+  useEffect(() => {
+    loadData()
+    loadTreatments()
+  }, [])
 
   const handleAdd = () => {
     setEditingItem(null)
@@ -35,32 +58,53 @@ const ReminderRuleManagement = () => {
       title: '确认删除',
       content: '确定要删除该提醒规则吗？',
       onOk: () => {
-        setData(data.filter(item => item.id !== id))
-        message.success('删除成功')
+        deleteReminderRule(id).then(res => {
+          if (res.success === true) {
+            message.success('删除成功')
+            loadData()
+          } else {
+            message.error(res.message || '删除失败')
+          }
+        })
       },
     })
   }
 
   const handleToggle = (record, checked) => {
-    setData(data.map(item => item.id === record.id ? { ...item, enabled: checked } : item))
-    message.success(checked ? '已启用' : '已禁用')
+    toggleReminderRule(record.id).then(res => {
+      if (res.success === true) {
+        message.success(checked ? '已启用' : '已禁用')
+        loadData()
+      } else {
+        message.error(res.message || '操作失败')
+        loadData()
+      }
+    })
   }
 
   const handleModalOk = () => {
     form.validateFields().then(values => {
       if (editingItem) {
-        setData(data.map(item => item.id === editingItem.id ? { ...item, ...values } : item))
-        message.success('修改成功')
+        updateReminderRule(editingItem.id, values).then(res => {
+          if (res.success === true) {
+            message.success('修改成功')
+            setModalVisible(false)
+            loadData()
+          } else {
+            message.error(res.message || '修改失败')
+          }
+        })
       } else {
-        const newItem = {
-          ...values,
-          id: Math.max(...data.map(d => d.id)) + 1,
-          enabled: true,
-        }
-        setData([...data, newItem])
-        message.success('添加成功')
+        createReminderRule(values).then(res => {
+          if (res.success === true) {
+            message.success('添加成功')
+            setModalVisible(false)
+            loadData()
+          } else {
+            message.error(res.message || '添加失败')
+          }
+        })
       }
-      setModalVisible(false)
     })
   }
 
@@ -138,7 +182,7 @@ const ReminderRuleManagement = () => {
           <Form.Item name="treatment" label="关联疗程" rules={[{ required: true, message: '请选择疗程' }]}>
             <Select>
               <Option value="全部">全部</Option>
-              {treatmentOptions.map(t => <Option key={t} value={t}>{t}</Option>)}
+              {treatmentOptions.map(t => <Option key={t.id} value={t.name}>{t.name}</Option>)}
             </Select>
           </Form.Item>
           <Form.Item name="daysBefore" label="提醒天数" rules={[{ required: true, message: '请输入提醒天数' }]}>

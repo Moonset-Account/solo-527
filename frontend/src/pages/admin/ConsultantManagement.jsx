@@ -1,23 +1,35 @@
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, Table, Button, Space, Avatar, Modal, Form, Input, Select, Tag, message, InputNumber, Drawer, List } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, MoneyCollectOutlined } from '@ant-design/icons'
-import { consultantList, commissionList } from './mockData'
+import { getConsultants, createConsultant, updateConsultant, deleteConsultant, getConsultantCommissions } from '../../api/consultants'
 
 const { Option } = Select
 
 const ConsultantManagement = () => {
-  const [data, setData] = useState(consultantList)
+  const [data, setData] = useState([])
   const [modalVisible, setModalVisible] = useState(false)
   const [commissionDrawerVisible, setCommissionDrawerVisible] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
   const [currentConsultant, setCurrentConsultant] = useState(null)
+  const [consultantCommissions, setConsultantCommissions] = useState([])
   const [form] = Form.useForm()
 
   const statusMap = {
     active: { text: '在职', color: 'green' },
     inactive: { text: '离职', color: 'red' },
   }
+
+  const loadData = async () => {
+    const res = await getConsultants({ pageSize: 100 })
+    if (res.success) {
+      setData(res.data.list || [])
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
 
   const handleAdd = () => {
     setEditingItem(null)
@@ -35,41 +47,44 @@ const ConsultantManagement = () => {
     Modal.confirm({
       title: '确认删除',
       content: '确定要删除该顾问吗？',
-      onOk: () => {
-        setData(data.filter(item => item.id !== id))
-        message.success('删除成功')
+      onOk: async () => {
+        const res = await deleteConsultant(id)
+        if (res.success) {
+          message.success('删除成功')
+          loadData()
+        }
       },
     })
   }
 
-  const handleViewCommission = (record) => {
+  const handleViewCommission = async (record) => {
     setCurrentConsultant(record)
     setCommissionDrawerVisible(true)
+    const res = await getConsultantCommissions(record.id, { pageSize: 50 })
+    if (res.success) {
+      setConsultantCommissions(res.data.list || [])
+    }
   }
 
   const handleModalOk = () => {
-    form.validateFields().then(values => {
+    form.validateFields().then(async (values) => {
       if (editingItem) {
-        setData(data.map(item => item.id === editingItem.id ? { ...item, ...values } : item))
-        message.success('修改成功')
-      } else {
-        const newItem = {
-          ...values,
-          id: Math.max(...data.map(d => d.id)) + 1,
-          avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=professional%20portrait&image_size=square',
-          totalSales: 0,
-          customerCount: 0,
+        const res = await updateConsultant(editingItem.id, values)
+        if (res.success) {
+          message.success('修改成功')
+          setModalVisible(false)
+          loadData()
         }
-        setData([...data, newItem])
-        message.success('添加成功')
+      } else {
+        const res = await createConsultant(values)
+        if (res.success) {
+          message.success('添加成功')
+          setModalVisible(false)
+          loadData()
+        }
       }
-      setModalVisible(false)
     })
   }
-
-  const consultantCommissions = currentConsultant
-    ? commissionList.filter(c => c.consultantName === currentConsultant.name)
-    : []
 
   const columns = [
     {

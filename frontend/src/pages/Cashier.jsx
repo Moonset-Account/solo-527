@@ -31,9 +31,10 @@ import {
   CheckCircleOutlined,
   UserAddOutlined,
 } from '@ant-design/icons'
-import { searchMembers } from '../api/member'
-import { getTreatmentList } from '../api/treatment'
-import { getAdvisors, createAppointment } from '../api/appointment'
+import { getMembers } from '../api/members'
+import { getTreatments } from '../api/treatments'
+import { getConsultants } from '../api/consultants'
+import { createAppointment } from '../api/appointments'
 import dayjs from 'dayjs'
 
 const { Search } = Input
@@ -59,16 +60,16 @@ const Cashier = () => {
   }, [])
 
   const loadTreatments = async () => {
-    const res = await getTreatmentList()
-    if (res.code === 0) {
+    const res = await getTreatments({ pageSize: 100 })
+    if (res.success === true) {
       setTreatments(res.data.list)
     }
   }
 
   const loadAdvisors = async () => {
-    const res = await getAdvisors()
-    if (res.code === 0) {
-      setAdvisors(res.data.data)
+    const res = await getConsultants({ pageSize: 100 })
+    if (res.success) {
+      setAdvisors(res.data.list)
     }
   }
 
@@ -79,9 +80,9 @@ const Cashier = () => {
     }
     setSearching(true)
     try {
-      const res = await searchMembers(value)
-      if (res.code === 0) {
-        setSearchResults(res.data)
+      const res = await getMembers({ keyword: value, pageSize: 20 })
+      if (res.success) {
+        setSearchResults(res.data.list)
         setShowMemberModal(true)
       }
     } finally {
@@ -158,10 +159,17 @@ const Cashier = () => {
     try {
       await createAppointment({
         memberId: selectedMember.id,
-        treatments: cart,
-        advisorId: selectedAdvisor,
-        date: appointmentDate.format('YYYY-MM-DD'),
-        time: appointmentTime.format('HH:mm'),
+        consultantId: selectedAdvisor,
+        appointmentDate: appointmentDate.format('YYYY-MM-DD'),
+        startTime: appointmentTime.format('HH:mm'),
+        endTime: appointmentTime.add(1, 'hour').format('HH:mm'),
+        totalAmount: totalPrice,
+        items: cart.map(c => ({
+          treatmentId: c.id,
+          quantity: c.quantity,
+          unitPrice: c.price,
+          subtotal: c.price * c.quantity,
+        })),
       })
       message.success('预约成功')
       setShowConfirmModal(false)
@@ -244,10 +252,10 @@ const Cashier = () => {
                   <List.Item>
                     <span style={{ color: '#999' }}>
                       <UserOutlined style={{ marginRight: 8 }} />
-                      余额
+                      累计消费
                     </span>
                     <span style={{ color: '#f5222d', fontWeight: 'bold' }}>
-                      ¥{selectedMember.balance}
+                      ¥{selectedMember.totalSpent}
                     </span>
                   </List.Item>
                 </List>
@@ -269,7 +277,7 @@ const Cashier = () => {
               {treatments.map((treatment) => (
                 <Col xs={24} sm={12} md={8} lg={8} xl={6} key={treatment.id}>
                   <Badge.Ribbon
-                    text={`${treatment.totalCount}次`}
+                    text={`${treatment.totalSessions}次`}
                     color="blue"
                   >
                     <Card
@@ -304,16 +312,6 @@ const Cashier = () => {
                               }}
                             >
                               ¥{treatment.price}
-                              <span
-                                style={{
-                                  color: '#999',
-                                  fontSize: 12,
-                                  textDecoration: 'line-through',
-                                  marginLeft: 8,
-                                }}
-                              >
-                                ¥{treatment.originalPrice}
-                              </span>
                             </div>
                             <div style={{ color: '#999', fontSize: 12 }}>
                               {treatment.duration}分钟 · {treatment.category}

@@ -1,18 +1,23 @@
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, Table, Button, Space, Select, Modal, Form, Input, Tag, message, Descriptions } from 'antd'
-import { PlusOutlined, CheckOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons'
-import { damageReportList, productList } from './mockData'
+import { PlusOutlined, CheckOutlined, CloseOutlined, EyeOutlined, SearchOutlined } from '@ant-design/icons'
+import { getDamageReports, createDamageReport, updateDamageReport, approveDamageReport, rejectDamageReport, deleteDamageReport } from '../../api/damageReports'
+import { getProducts } from '../../api/products'
 
 const { Option } = Select
 const { TextArea } = Input
 
 const DamageReportManagement = () => {
-  const [data, setData] = useState(damageReportList)
+  const [data, setData] = useState([])
+  const [productList, setProductList] = useState([])
   const [statusFilter, setStatusFilter] = useState('')
+  const [keyword, setKeyword] = useState('')
   const [modalVisible, setModalVisible] = useState(false)
   const [detailVisible, setDetailVisible] = useState(false)
+  const [rejectVisible, setRejectVisible] = useState(false)
   const [currentItem, setCurrentItem] = useState(null)
+  const [rejectForm] = Form.useForm()
   const [form] = Form.useForm()
 
   const statusMap = {
@@ -21,7 +26,41 @@ const DamageReportManagement = () => {
     rejected: { text: '已驳回', color: 'red' },
   }
 
-  const filteredData = data.filter(item => !statusFilter || item.status === statusFilter)
+  const loadData = () => {
+    const params = { pageSize: 50 }
+    if (statusFilter) params.status = statusFilter
+    if (keyword) params.keyword = keyword
+    getDamageReports(params).then(res => {
+      if (res.success === true) {
+        setData(res.data?.list || [])
+      }
+    })
+  }
+
+  const loadProducts = () => {
+    getProducts({ pageSize: 100 }).then(res => {
+      if (res.success === true) {
+        setProductList(res.data?.list || [])
+      }
+    })
+  }
+
+  useEffect(() => {
+    loadData()
+    loadProducts()
+  }, [])
+
+  const handleSearch = () => {
+    loadData()
+  }
+
+  const handleStatusChange = (value) => {
+    setStatusFilter(value)
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [statusFilter])
 
   const handleAdd = () => {
     form.resetFields()
@@ -38,44 +77,66 @@ const DamageReportManagement = () => {
       title: '确认通过',
       content: `确定要通过报损单 ${record.code} 吗？`,
       onOk: () => {
-        setData(data.map(item =>
-          item.id === record.id
-            ? { ...item, status: 'approved', approver: '管理员', approveTime: new Date().toLocaleString() }
-            : item
-        ))
-        message.success('审批通过')
+        approveDamageReport(record.id).then(res => {
+          if (res.success === true) {
+            message.success('审批通过')
+            loadData()
+          } else {
+            message.error(res.message || '审批失败')
+          }
+        })
       },
     })
   }
 
   const handleReject = (record) => {
+    setCurrentItem(record)
+    rejectForm.resetFields()
+    setRejectVisible(true)
+  }
+
+  const handleRejectOk = () => {
+    rejectForm.validateFields().then(values => {
+      rejectDamageReport(currentItem.id, { remark: values.remark }).then(res => {
+        if (res.success === true) {
+          message.success('已驳回')
+          setRejectVisible(false)
+          loadData()
+        } else {
+          message.error(res.message || '驳回失败')
+        }
+      })
+    })
+  }
+
+  const handleDelete = (record) => {
     Modal.confirm({
-      title: '确认驳回',
-      content: `确定要驳回报损单 ${record.code} 吗？`,
+      title: '确认删除',
+      content: `确定要删除报损单 ${record.code} 吗？`,
       onOk: () => {
-        setData(data.map(item =>
-          item.id === record.id
-            ? { ...item, status: 'rejected', approver: '管理员', approveTime: new Date().toLocaleString(), rejectReason: '审核未通过' }
-            : item
-        ))
-        message.success('已驳回')
+        deleteDamageReport(record.id).then(res => {
+          if (res.success === true) {
+            message.success('删除成功')
+            loadData()
+          } else {
+            message.error(res.message || '删除失败')
+          }
+        })
       },
     })
   }
 
   const handleModalOk = () => {
     form.validateFields().then(values => {
-      const newItem = {
-        ...values,
-        id: Math.max(...data.map(d => d.id)) + 1,
-        code: `BS-${Date.now()}`,
-        applicant: '管理员',
-        status: 'pending',
-        createTime: new Date().toLocaleString(),
-      }
-      setData([newItem, ...data])
-      message.success('创建成功')
-      setModalVisible(false)
+      createDamageReport(values).then(res => {
+        if (res.success === true) {
+          message.success('创建成功')
+          setModalVisible(false)
+          loadData()
+        } else {
+          message.error(res.message || '创建失败')
+        }
+      })
     })
   }
 
@@ -95,7 +156,7 @@ const DamageReportManagement = () => {
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 280,
       render: (_, record) => (
         <Space size="small">
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleDetail(record)}>详情</Button>
@@ -105,6 +166,7 @@ const DamageReportManagement = () => {
               <Button type="link" size="small" danger icon={<CloseOutlined />} onClick={() => handleReject(record)}>驳回</Button>
             </>
           )}
+          <Button type="link" size="small" danger onClick={() => handleDelete(record)}>删除</Button>
         </Space>
       ),
     },
@@ -117,10 +179,19 @@ const DamageReportManagement = () => {
       <Card>
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
           <Space>
+            <Input
+              placeholder="搜索关键词"
+              prefix={<SearchOutlined />}
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onPressEnter={handleSearch}
+              style={{ width: 200 }}
+              allowClear
+            />
             <Select
               placeholder="状态筛选"
               value={statusFilter || undefined}
-              onChange={setStatusFilter}
+              onChange={handleStatusChange}
               allowClear
               style={{ width: 150 }}
             >
@@ -128,6 +199,7 @@ const DamageReportManagement = () => {
               <Option value="approved">已通过</Option>
               <Option value="rejected">已驳回</Option>
             </Select>
+            <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>搜索</Button>
           </Space>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
             创建报损
@@ -136,7 +208,7 @@ const DamageReportManagement = () => {
 
         <Table
           columns={columns}
-          dataSource={filteredData}
+          dataSource={data}
           rowKey="id"
           pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
         />
@@ -159,6 +231,20 @@ const DamageReportManagement = () => {
             <Input type="number" min={1} />
           </Form.Item>
           <Form.Item name="reason" label="报损原因" rules={[{ required: true, message: '请输入报损原因' }]}>
+            <TextArea rows={4} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="驳回报损"
+        open={rejectVisible}
+        onOk={handleRejectOk}
+        onCancel={() => setRejectVisible(false)}
+        width={500}
+      >
+        <Form form={rejectForm} layout="vertical">
+          <Form.Item name="remark" label="驳回原因" rules={[{ required: true, message: '请输入驳回原因' }]}>
             <TextArea rows={4} />
           </Form.Item>
         </Form>

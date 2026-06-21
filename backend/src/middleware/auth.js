@@ -59,7 +59,6 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = {
-  auth,
-  requireRole,
-};
+auth.requireRole = requireRole;
+
+module.exports = auth;

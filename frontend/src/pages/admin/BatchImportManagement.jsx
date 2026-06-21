@@ -1,13 +1,13 @@
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, Table, Button, Space, Select, Modal, Tag, message, Upload, Progress, List, Descriptions } from 'antd'
-import { UploadOutlined, DownloadOutlined, ReloadOutlined, EyeOutlined, FileTextOutlined } from '@ant-design/icons'
-import { batchImportList } from './mockData'
+import { UploadOutlined, DownloadOutlined, ReloadOutlined, EyeOutlined, FileTextOutlined, DeleteOutlined } from '@ant-design/icons'
+import { getBatchImports, uploadBatchImport, downloadErrors, retryBatchImport, deleteBatchImport } from '../../api/batchImports'
 
 const { Option } = Select
 
 const BatchImportManagement = () => {
-  const [data, setData] = useState(batchImportList)
+  const [data, setData] = useState([])
   const [typeFilter, setTypeFilter] = useState('')
   const [detailVisible, setDetailVisible] = useState(false)
   const [currentItem, setCurrentItem] = useState(null)
@@ -15,6 +15,7 @@ const BatchImportManagement = () => {
   const [importType, setImportType] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploading, setUploading] = useState(false)
+  const [uploadFile, setUploadFile] = useState(null)
 
   const statusMap = {
     completed: { text: '已完成', color: 'green' },
@@ -22,7 +23,24 @@ const BatchImportManagement = () => {
     failed: { text: '失败', color: 'red' },
   }
 
-  const filteredData = data.filter(item => !typeFilter || item.type === typeFilter)
+  const loadData = async () => {
+    const params = { pageSize: 50 }
+    if (typeFilter) {
+      params.type = typeFilter
+    }
+    const res = await getBatchImports(params)
+    if (res.success) {
+      setData(res.data.list || [])
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  useEffect(() => {
+    loadData()
+  }, [typeFilter])
 
   const handleDetail = (record) => {
     setCurrentItem(record)
@@ -33,48 +51,77 @@ const BatchImportManagement = () => {
     Modal.confirm({
       title: '确认重试',
       content: `确定要重试导入记录 ${record.fileName} 吗？`,
-      onOk: () => {
-        message.success('已开始重试')
+      onOk: async () => {
+        const res = await retryBatchImport(record.id)
+        if (res.success) {
+          message.success('已开始重试')
+          loadData()
+        }
       },
     })
   }
 
-  const handleDownloadError = (record) => {
-    message.success('错误记录下载中...')
+  const handleDelete = (record) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除导入记录 ${record.fileName} 吗？`,
+      onOk: async () => {
+        const res = await deleteBatchImport(record.id)
+        if (res.success) {
+          message.success('删除成功')
+          loadData()
+        }
+      },
+    })
   }
 
-  const handleUpload = () => {
+  const handleDownloadError = async (record) => {
+    try {
+      const res = await downloadErrors(record.id)
+      const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `error_${record.fileName || record.id}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      message.success('下载成功')
+    } catch (error) {
+      message.error('下载失败')
+    }
+  }
+
+  const handleUpload = async () => {
     if (!importType) {
       message.error('请选择导入类型')
       return
     }
+    if (!uploadFile) {
+      message.error('请选择上传文件')
+      return
+    }
     setUploading(true)
     setUploadProgress(0)
-    
-    const timer = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(timer)
+
+    try {
+      const res = await uploadBatchImport(uploadFile, importType)
+      if (res.success) {
+        setUploadProgress(100)
+        setTimeout(() => {
           setUploading(false)
           setUploadVisible(false)
-          const newRecord = {
-            id: Math.max(...data.map(d => d.id)) + 1,
-            type: importType,
-            fileName: `${importType}_${Date.now()}.xlsx`,
-            totalCount: 50,
-            successCount: 48,
-            failCount: 2,
-            status: 'completed',
-            operator: '管理员',
-            createTime: new Date().toLocaleString(),
-          }
-          setData([newRecord, ...data])
+          setUploadFile(null)
+          setUploadProgress(0)
           message.success('导入完成')
-          return 100
-        }
-        return prev + 10
-      })
-    }, 200)
+          loadData()
+        }, 500)
+      }
+    } catch (error) {
+      setUploading(false)
+      message.error('上传失败')
+    }
   }
 
   const columns = [
@@ -108,7 +155,7 @@ const BatchImportManagement = () => {
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 240,
       render: (_, record) => (
         <Space size="small">
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleDetail(record)}>详情</Button>
@@ -118,14 +165,21 @@ const BatchImportManagement = () => {
           {record.status === 'failed' && (
             <Button type="link" size="small" icon={<ReloadOutlined />} onClick={() => handleRetry(record)}>重试</Button>
           )}
+          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>删除</Button>
         </Space>
       ),
     },
   ]
 
   const uploadProps = {
-    beforeUpload: () => false,
+    beforeUpload: (file) => {
+      setUploadFile(file)
+      return false
+    },
     maxCount: 1,
+    onRemove: () => {
+      setUploadFile(null)
+    },
   }
 
   return (
@@ -154,7 +208,7 @@ const BatchImportManagement = () => {
 
         <Table
           columns={columns}
-          dataSource={filteredData}
+          dataSource={data}
           rowKey="id"
           pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
         />
@@ -168,6 +222,7 @@ const BatchImportManagement = () => {
           setUploadVisible(false)
           setUploadProgress(0)
           setUploading(false)
+          setUploadFile(null)
         }}
         width={500}
         confirmLoading={uploading}

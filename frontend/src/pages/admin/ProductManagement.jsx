@@ -1,13 +1,14 @@
-
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, Table, Button, Space, Input, Select, Modal, Form, InputNumber, Image, Tag, message, Row, Col, Statistic } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, InboxOutlined, ExportOutlined } from '@ant-design/icons'
-import { productList } from './mockData'
+import { getProducts, createProduct, updateProduct, deleteProduct, getStockSummary, adjustStock } from '../../api/products'
 
 const { Option } = Select
 
 const ProductManagement = () => {
-  const [data, setData] = useState(productList)
+  const [data, setData] = useState([])
+  const [total, setTotal] = useState(0)
+  const [stockSummary, setStockSummary] = useState({})
   const [searchText, setSearchText] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -19,14 +20,35 @@ const ProductManagement = () => {
   const [form] = Form.useForm()
   const [stockForm] = Form.useForm()
 
+  useEffect(() => {
+    loadData()
+    loadStockSummary()
+  }, [])
+
+  const loadData = async () => {
+    const params = {}
+    if (searchText) params.keyword = searchText
+    if (categoryFilter) params.category = categoryFilter
+    if (statusFilter) params.status = statusFilter
+    const res = await getProducts(params)
+    if (res.success) {
+      setData(res.data.list)
+      setTotal(res.data.total)
+    }
+  }
+
+  const loadStockSummary = async () => {
+    const res = await getStockSummary()
+    if (res.success) {
+      setStockSummary(res.data)
+    }
+  }
+
   const categories = ['精华类', '耗材类', '面膜类', '防晒类', '护肤类', '洁面类', '功效类']
 
-  const filteredData = data.filter(item => {
-    const matchSearch = !searchText || item.name.includes(searchText) || item.sku.includes(searchText)
-    const matchCategory = !categoryFilter || item.category === categoryFilter
-    const matchStatus = !statusFilter || item.status === statusFilter
-    return matchSearch && matchCategory && matchStatus
-  })
+  useEffect(() => {
+    loadData()
+  }, [searchText, categoryFilter, statusFilter])
 
   const handleAdd = () => {
     setEditingItem(null)
@@ -44,30 +66,42 @@ const ProductManagement = () => {
     Modal.confirm({
       title: '确认删除',
       content: '确定要删除该产品吗？',
-      onOk: () => {
-        setData(data.filter(item => item.id !== id))
-        message.success('删除成功')
+      onOk: async () => {
+        const res = await deleteProduct(id)
+        if (res.success) {
+          message.success('删除成功')
+          loadData()
+          loadStockSummary()
+        } else {
+          message.error('删除失败')
+        }
       },
     })
   }
 
-  const handleModalOk = () => {
-    form.validateFields().then(values => {
+  const handleModalOk = async () => {
+    try {
+      const values = await form.validateFields()
       if (editingItem) {
-        setData(data.map(item => item.id === editingItem.id ? { ...item, ...values } : item))
-        message.success('修改成功')
-      } else {
-        const newItem = {
-          ...values,
-          id: Math.max(...data.map(d => d.id)) + 1,
-          status: values.stock < 20 ? 'warning' : 'normal',
-          image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=skincare%20product%20bottle&image_size=square',
+        const res = await updateProduct(editingItem.id, values)
+        if (res.success) {
+          message.success('修改成功')
+          setModalVisible(false)
+          loadData()
+          loadStockSummary()
         }
-        setData([...data, newItem])
-        message.success('添加成功')
+      } else {
+        const res = await createProduct(values)
+        if (res.success) {
+          message.success('添加成功')
+          setModalVisible(false)
+          loadData()
+          loadStockSummary()
+        }
       }
-      setModalVisible(false)
-    })
+    } catch (err) {
+      message.error('操作失败')
+    }
   }
 
   const handleStockAdjust = (record, type) => {
@@ -77,22 +111,25 @@ const ProductManagement = () => {
     setStockModalVisible(true)
   }
 
-  const handleStockOk = () => {
-    stockForm.validateFields().then(values => {
-      const quantity = values.quantity
-      const newStock = stockType === 'in' ? stockItem.stock + quantity : stockItem.stock - quantity
-      if (newStock < 0) {
-        message.error('库存不足')
-        return
+  const handleStockOk = async () => {
+    try {
+      const values = await stockForm.validateFields()
+      const res = await adjustStock(stockItem.id, {
+        type: stockType,
+        quantity: values.quantity,
+        reason: values.remark || '',
+      })
+      if (res.success) {
+        message.success(stockType === 'in' ? '入库成功' : '出库成功')
+        setStockModalVisible(false)
+        loadData()
+        loadStockSummary()
+      } else {
+        message.error(res.message || '操作失败')
       }
-      setData(data.map(item =>
-        item.id === stockItem.id
-          ? { ...item, stock: newStock, status: newStock < 20 ? 'warning' : 'normal' }
-          : item
-      ))
-      message.success(stockType === 'in' ? '入库成功' : '出库成功')
-      setStockModalVisible(false)
-    })
+    } catch (err) {
+      message.error('操作失败')
+    }
   }
 
   const columns = [
@@ -141,10 +178,6 @@ const ProductManagement = () => {
     },
   ]
 
-  const totalStock = data.reduce((sum, item) => sum + item.stock, 0)
-  const totalValue = data.reduce((sum, item) => sum + item.stock * item.price, 0)
-  const warningCount = data.filter(item => item.status === 'warning').length
-
   return (
     <div>
       <h2 style={{ marginTop: 0, marginBottom: 20 }}>产品库存管理</h2>
@@ -152,17 +185,17 @@ const ProductManagement = () => {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={8}>
           <Card>
-            <Statistic title="产品总数" value={data.length} />
+            <Statistic title="产品总数" value={stockSummary.totalProducts || 0} />
           </Card>
         </Col>
         <Col span={8}>
           <Card>
-            <Statistic title="总库存" value={totalStock} />
+            <Statistic title="总库存" value={stockSummary.totalStock || 0} />
           </Card>
         </Col>
         <Col span={8}>
           <Card>
-            <Statistic title="库存预警" value={warningCount} valueStyle={{ color: '#faad14' }} />
+            <Statistic title="库存预警" value={stockSummary.warningCount || 0} valueStyle={{ color: '#faad14' }} />
           </Card>
         </Col>
       </Row>
@@ -204,9 +237,9 @@ const ProductManagement = () => {
 
         <Table
           columns={columns}
-          dataSource={filteredData}
+          dataSource={data}
           rowKey="id"
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
+          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: () => `共 ${total} 条`, total }}
         />
       </Card>
 

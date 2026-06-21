@@ -1,15 +1,17 @@
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, Table, Button, Space, Select, Modal, Form, Input, DatePicker, Tag, message, InputNumber } from 'antd'
 import { PlusOutlined, CheckCircleOutlined, SearchOutlined } from '@ant-design/icons'
-import { commissionList, consultantList } from './mockData'
+import { getCommissions, createCommission, settleCommission } from '../../api/commissions'
+import { getConsultants } from '../../api/consultants'
 import dayjs from 'dayjs'
 
 const { Option } = Select
 const { RangePicker } = DatePicker
 
 const CommissionManagement = () => {
-  const [data, setData] = useState(commissionList)
+  const [data, setData] = useState([])
+  const [consultantList, setConsultantList] = useState([])
   const [consultantFilter, setConsultantFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [modalVisible, setModalVisible] = useState(false)
@@ -20,11 +22,35 @@ const CommissionManagement = () => {
     settled: { text: '已结算', color: 'green' },
   }
 
-  const filteredData = data.filter(item => {
-    const matchConsultant = !consultantFilter || item.consultantName === consultantFilter
-    const matchStatus = !statusFilter || item.status === statusFilter
-    return matchConsultant && matchStatus
-  })
+  const loadCommissions = async () => {
+    const params = { pageSize: 100 }
+    if (consultantFilter) {
+      params.consultantId = consultantFilter
+    }
+    if (statusFilter) {
+      params.status = statusFilter
+    }
+    const res = await getCommissions(params)
+    if (res.success) {
+      setData(res.data.list || [])
+    }
+  }
+
+  const loadConsultants = async () => {
+    const res = await getConsultants({ pageSize: 100 })
+    if (res.success) {
+      setConsultantList(res.data.list || [])
+    }
+  }
+
+  useEffect(() => {
+    loadCommissions()
+    loadConsultants()
+  }, [])
+
+  useEffect(() => {
+    loadCommissions()
+  }, [consultantFilter, statusFilter])
 
   const handleAdd = () => {
     form.resetFields()
@@ -35,30 +61,24 @@ const CommissionManagement = () => {
     Modal.confirm({
       title: '确认结算',
       content: `确定要结算 ${record.consultantName} 的 ¥${record.amount} 提成吗？`,
-      onOk: () => {
-        setData(data.map(item =>
-          item.id === record.id
-            ? { ...item, status: 'settled', settleTime: new Date().toLocaleString() }
-            : item
-        ))
-        message.success('结算成功')
+      onOk: async () => {
+        const res = await settleCommission(record.id)
+        if (res.success) {
+          message.success('结算成功')
+          loadCommissions()
+        }
       },
     })
   }
 
   const handleModalOk = () => {
-    form.validateFields().then(values => {
-      const newItem = {
-        ...values,
-        id: Math.max(...data.map(d => d.id)) + 1,
-        orderNo: `ORD-${Date.now()}`,
-        status: 'pending',
-        createTime: new Date().toLocaleString(),
-        settleTime: null,
+    form.validateFields().then(async (values) => {
+      const res = await createCommission(values)
+      if (res.success) {
+        message.success('创建成功')
+        setModalVisible(false)
+        loadCommissions()
       }
-      setData([newItem, ...data])
-      message.success('创建成功')
-      setModalVisible(false)
     })
   }
 
@@ -119,7 +139,7 @@ const CommissionManagement = () => {
               allowClear
               style={{ width: 150 }}
             >
-              {consultantList.map(c => <Option key={c.id} value={c.name}>{c.name}</Option>)}
+              {consultantList.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}
             </Select>
             <Select
               placeholder="状态筛选"
@@ -140,7 +160,7 @@ const CommissionManagement = () => {
 
         <Table
           columns={columns}
-          dataSource={filteredData}
+          dataSource={data}
           rowKey="id"
           pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
         />
@@ -154,10 +174,10 @@ const CommissionManagement = () => {
         width={500}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="consultantName" label="顾问姓名" rules={[{ required: true, message: '请选择顾问' }]}>
+          <Form.Item name="consultantId" label="顾问姓名" rules={[{ required: true, message: '请选择顾问' }]}>
             <Select>
               {consultantList.filter(c => c.status === 'active').map(c => (
-                <Option key={c.id} value={c.name}>{c.name}</Option>
+                <Option key={c.id} value={c.id}>{c.name}</Option>
               ))}
             </Select>
           </Form.Item>
