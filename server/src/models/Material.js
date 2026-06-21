@@ -9,7 +9,6 @@ const materialSchema = new mongoose.Schema({
   description: String,
   type: {
     type: String,
-    enum: ['image', 'video', 'audio', 'document', 'other'],
     default: 'image',
   },
   fileUrl: {

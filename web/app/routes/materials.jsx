@@ -207,10 +207,11 @@ export default function Materials() {
 }
 
 function UploadModal({ onClose, onSuccess }) {
+  const { options: typeOptions } = useDictionary("material_type");
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    type: "image",
+    type: "",
     tags: "",
     category: "",
     source: "",
