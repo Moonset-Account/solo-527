@@ -1,0 +1,280 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  role          Role
+  avatar        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  createdOrders       Order[]             @relation("OrderCreator")
+  technicianOrders    Order[]             @relation("OrderTechnician")
+  technicianProcesses OrderProcess[]      @relation("ProcessTechnician")
+  stockRecords        StockRecord[]
+  qualityChecks       QualityCheck[]      @relation("QualityInspector")
+  responsibleItems    QualityFailedItem[] @relation("FailedItemResponsible")
+}
+
+enum Role {
+  admin
+  reception
+  technician
+  storekeeper
+  accountant
+}
+
+model Customer {
+  id          String       @id @default(cuid())
+  name        String
+  phone       String
+  type        CustomerType
+  priceLevel  Int
+  createdAt   DateTime     @default(now())
+
+  vehicles  Vehicle[]
+  orders    Order[]
+}
+
+enum CustomerType {
+  retail
+  enterprise
+  vip
+}
+
+model Vehicle {
+  id          String   @id @default(cuid())
+  plateNumber String
+  brand       String
+  model       String
+  vin         String
+  mileage     Int
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+  createdAt   DateTime @default(now())
+
+  orders  Order[]
+}
+
+model Order {
+  id                String        @id @default(cuid())
+  orderNo           String        @unique
+  customerId        String
+  vehicleId         String
+  status            OrderStatus
+  repairType        String
+  faultDescription  String
+  estimatedDelivery DateTime
+  actualDelivery    DateTime?
+  totalAmount       Decimal       @db.Decimal(10, 2)
+  technicianId      String?
+  createdBy         String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  customer    Customer          @relation(fields: [customerId], references: [id])
+  vehicle     Vehicle           @relation(fields: [vehicleId], references: [id])
+  technician  User?             @relation("OrderTechnician", fields: [technicianId], references: [id])
+  creator     User              @relation("OrderCreator", fields: [createdBy], references: [id])
+  items       OrderItem[]
+  processes   OrderProcess[]
+  qualityChecks QualityCheck[]
+  stockRecords StockRecord[]    @relation("StockRecordOrder")
+}
+
+enum OrderStatus {
+  pending
+  in_progress
+  quality_check
+  completed
+  cancelled
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  type      ItemType
+  name      String
+  partId    String?
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  amount    Decimal @db.Decimal(10, 2)
+
+  order  Order @relation(fields: [orderId], references: [id])
+  part   Part? @relation(fields: [partId], references: [id])
+}
+
+enum ItemType {
+  part
+  service
+}
+
+model OrderProcess {
+  id           String        @id @default(cuid())
+  orderId      String
+  step         Int
+  name         String
+  description  String?
+  status       ProcessStatus
+  technicianId String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  order       Order @relation(fields: [orderId], references: [id])
+  technician  User? @relation("ProcessTechnician", fields: [technicianId], references: [id])
+}
+
+enum ProcessStatus {
+  pending
+  in_progress
+  completed
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  contact   String
+  phone     String
+  address   String?
+  createdAt DateTime @default(now())
+
+  parts  Part[]
+}
+
+model Part {
+  id         String   @id @default(cuid())
+  sku        String   @unique
+  name       String
+  category   String
+  brand      String
+  spec       String
+  unit       String
+  costPrice  Decimal  @db.Decimal(10, 2)
+  salePrice  Decimal  @db.Decimal(10, 2)
+  stock      Int
+  minStock   Int
+  maxStock   Int
+  supplierId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  supplier      Supplier      @relation(fields: [supplierId], references: [id])
+  orderItems    OrderItem[]
+  stockRecords  StockRecord[]
+  priceList     PriceList[]
+}
+
+model StockRecord {
+  id          String    @id @default(cuid())
+  partId      String
+  type        StockType
+  quantity    Int
+  beforeStock Int
+  afterStock  Int
+  orderId     String?
+  remark      String?
+  operatorId  String
+  createdAt   DateTime  @default(now())
+
+  part      Part   @relation(fields: [partId], references: [id])
+  order     Order? @relation("StockRecordOrder", fields: [orderId], references: [id])
+  operator  User   @relation(fields: [operatorId], references: [id])
+}
+
+enum StockType {
+  in
+  out
+  adjust
+  check
+}
+
+model PriceList {
+  id            String   @id @default(cuid())
+  partId        String?
+  serviceName   String?
+  priceLevel    Int
+  price         Decimal  @db.Decimal(10, 2)
+  effectiveDate DateTime
+  createdAt     DateTime @default(now())
+
+  part  Part? @relation(fields: [partId], references: [id])
+}
+
+model QualityCheck {
+  id         String              @id @default(cuid())
+  orderId    String
+  result     CheckResult
+  checkedBy  String
+  checkedAt  DateTime            @default(now())
+  remark     String?
+
+  order       Order               @relation(fields: [orderId], references: [id])
+  inspector   User                @relation("QualityInspector", fields: [checkedBy], references: [id])
+  failedItems QualityFailedItem[]
+}
+
+enum CheckResult {
+  passed
+  failed
+}
+
+model QualityFailedItem {
+  id              String           @id @default(cuid())
+  qualityCheckId  String
+  name            String
+  description     String
+  impactScope     String
+  severity        SeverityLevel
+  action          String
+  nextStep        String
+  responsibleId   String
+  deadline        DateTime
+  status          FailedItemStatus
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  qualityCheck  QualityCheck @relation(fields: [qualityCheckId], references: [id])
+  responsible   User         @relation("FailedItemResponsible", fields: [responsibleId], references: [id])
+}
+
+enum SeverityLevel {
+  low
+  medium
+  high
+}
+
+enum FailedItemStatus {
+  pending
+  processing
+  resolved
+}
+
+model MetricConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  formula     String
+  unit        String
+  category    String
+  updatedAt   DateTime @updatedAt
+}
+
+model RolePermission {
+  id        String   @id @default(cuid())
+  role      Role
+  resource  String
+  action    String
+  createdAt DateTime @default(now())
+
+  @@unique([role, resource, action])
+}
