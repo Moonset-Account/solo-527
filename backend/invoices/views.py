@@ -9,7 +9,7 @@ from .models import Invoice, InvoiceItem, InvoiceStatusLog
 from .serializers import (
     InvoiceSerializer, InvoiceCreateSerializer, InvoiceItemSerializer, InvoiceStatusLogSerializer
 )
-from users.permissions import IsFinanceOrReadOnly, IsFinance
+from users.permissions import IsFinanceOrReadOnly, IsFinance, IsProcurementOrFinanceOrAdmin, IsApproverOrAdmin
 
 
 class InvoiceViewSet(viewsets.ModelViewSet):
@@ -23,13 +23,20 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     search_fields = ['invoice_number', 'invoice_code', 'supplier__name', 'remarks']
     ordering_fields = ['invoice_date', 'total_amount', 'due_date', 'created_at']
 
+    def get_permissions(self):
+        if self.action in ['review', 'pay']:
+            return [IsAuthenticated(), IsFinance()]
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsProcurementOrFinanceOrAdmin()]
+        return [IsAuthenticated()]
+
     def get_serializer_class(self):
         if self.action == 'create':
             return InvoiceCreateSerializer
         return InvoiceSerializer
 
     def perform_create(self, serializer):
-        serializer.save()
+        serializer.save(created_by=self.request.user)
 
     @action(detail=False, methods=['get'])
     def status_summary(self, request):
@@ -65,19 +72,21 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def review(self, request, pk=None):
         invoice = self.get_object()
-        action = request.data.get('action')
+        action_val = request.data.get('action')
         remark = request.data.get('remark', '')
         old_status = invoice.status
-        if action == 'approve' and invoice.status == 'pending_review':
+        if action_val == 'approve' and invoice.status == 'pending_review':
             invoice.status = 'reviewed'
             invoice.reviewed_by = request.user
-        elif action == 'reject' and invoice.status == 'pending_review':
+        elif action_val == 'reject' and invoice.status == 'pending_review':
             invoice.status = 'rejected'
             invoice.reviewed_by = request.user
+        else:
+            return Response({'error': f'当前状态{invoice.status}不支持该操作'}, status=status.HTTP_400_BAD_REQUEST)
         invoice.save()
         InvoiceStatusLog.objects.create(
             invoice=invoice, from_status=old_status, to_status=invoice.status,
-            remark=remark or ('审核通过' if action == 'approve' else '审核驳回'),
+            remark=remark or ('审核通过' if action_val == 'approve' else '审核驳回'),
             operated_by=request.user
         )
         return Response(self.get_serializer(invoice).data)
@@ -85,6 +94,8 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def pay(self, request, pk=None):
         invoice = self.get_object()
+        if invoice.status not in ['reviewed', 'pending_payment']:
+            return Response({'error': f'当前状态{invoice.status}不能执行付款'}, status=status.HTTP_400_BAD_REQUEST)
         old_status = invoice.status
         payment_method = request.data.get('payment_method', invoice.payment_method)
         invoice.status = 'paid'

@@ -10,7 +10,7 @@ from .serializers import (
     FrameworkContractSerializer, ContractPriceSerializer,
     PriceHistorySerializer, ContractRenewalSerializer
 )
-from users.permissions import IsProcurementManagerOrReadOnly
+from users.permissions import IsProcurementManagerOrReadOnly, IsProjectManagerOrAdmin, IsProcurementOrFinanceOrAdmin
 
 
 class FrameworkContractViewSet(viewsets.ModelViewSet):
@@ -48,7 +48,7 @@ class FrameworkContractViewSet(viewsets.ModelViewSet):
         )
         return Response(summary)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProcurementOrFinanceOrAdmin])
     def submit_for_approval(self, request, pk=None):
         contract = self.get_object()
         contract.status = 'pending_approval'
@@ -70,11 +70,25 @@ class ContractPriceViewSet(viewsets.ModelViewSet):
             specification=instance.specification,
             contract=instance.contract,
             unit_price=instance.unit_price,
-            price_date=instance.effective_date,
+            price_date=instance.effective_date or date.today(),
             source='contract',
             change_reason='合同定价',
             recorded_by=self.request.user
         )
+
+    def perform_update(self, serializer):
+        old_price = self.get_object().unit_price
+        instance = serializer.save()
+        if old_price != instance.unit_price:
+            PriceHistory.objects.create(
+                specification=instance.specification,
+                contract=instance.contract,
+                unit_price=instance.unit_price,
+                price_date=date.today(),
+                source='contract',
+                change_reason=f'价格调整: 原 {old_price} → {instance.unit_price}',
+                recorded_by=self.request.user
+            )
 
 
 class PriceHistoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -112,6 +126,11 @@ class ContractRenewalViewSet(viewsets.ModelViewSet):
     filterset_fields = ['original_contract', 'decision']
     ordering_fields = ['created_at', 'handled_date']
 
+    def get_permissions(self):
+        if self.action == 'handle':
+            return [IsAuthenticated(), IsProjectManagerOrAdmin()]
+        return [IsAuthenticated()]
+
     @action(detail=True, methods=['post'])
     def handle(self, request, pk=None):
         renewal = self.get_object()
@@ -122,14 +141,37 @@ class ContractRenewalViewSet(viewsets.ModelViewSet):
         renewal.decision_reason = reason
         renewal.handled_by = request.user
         renewal.handled_date = date.today()
+
+        if decision not in ['renewed', 'not_renewed', 'pending']:
+            return Response({'error': '无效的决策类型'}, status=status.HTTP_400_BAD_REQUEST)
+
         if new_contract_id:
             renewal.new_contract_id = new_contract_id
             renewal.original_contract.status = 'expired'
             renewal.original_contract.save()
+            if decision == 'renewed':
+                new_contract = FrameworkContract.objects.filter(id=new_contract_id).first()
+                if new_contract:
+                    for price in new_contract.prices.all():
+                        PriceHistory.objects.get_or_create(
+                            specification=price.specification,
+                            contract=new_contract,
+                            unit_price=price.unit_price,
+                            price_date=new_contract.start_date or date.today(),
+                            defaults={
+                                'source': 'contract',
+                                'change_reason': f'续签合同: {new_contract.contract_number}',
+                                'recorded_by': request.user
+                            }
+                        )
         elif decision == 'not_renewed':
             renewal.original_contract.status = 'expired'
             renewal.original_contract.save()
         renewal.save()
-        from dashboard.tasks import sync_contract_renewal_to_dashboard
-        sync_contract_renewal_to_dashboard.delay(renewal.id)
+
+        try:
+            from dashboard.tasks import sync_contract_renewal_to_dashboard
+            sync_contract_renewal_to_dashboard.delay(renewal.id)
+        except Exception:
+            pass
         return Response(self.get_serializer(renewal).data)

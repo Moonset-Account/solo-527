@@ -1,13 +1,22 @@
 from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from rest_framework.routers import SimpleRouter
 from . import views
 
-router = DefaultRouter()
-router.register(r'', views.FrameworkContractViewSet, basename='contract')
-router.register(r'prices', views.ContractPriceViewSet, basename='contract-price')
-router.register(r'price-histories', views.PriceHistoryViewSet, basename='price-history')
-router.register(r'renewals', views.ContractRenewalViewSet, basename='contract-renewal')
+contract_router = SimpleRouter()
+contract_router.register(r'', views.FrameworkContractViewSet, basename='contract')
+
+price_router = SimpleRouter()
+price_router.register(r'', views.ContractPriceViewSet, basename='contract-price')
+
+history_router = SimpleRouter()
+history_router.register(r'', views.PriceHistoryViewSet, basename='price-history')
+
+renewal_router = SimpleRouter()
+renewal_router.register(r'', views.ContractRenewalViewSet, basename='contract-renewal')
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('prices/', include(price_router.urls)),
+    path('price-histories/', include(history_router.urls)),
+    path('renewals/', include(renewal_router.urls)),
+    path('', include(contract_router.urls)),
 ]

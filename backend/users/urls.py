@@ -1,11 +1,14 @@
 from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from rest_framework.routers import SimpleRouter
 from . import views
 
-router = DefaultRouter()
-router.register(r'', views.UserViewSet, basename='user')
-router.register(r'saved-filters', views.SavedFilterViewSet, basename='saved-filter')
+user_router = SimpleRouter()
+user_router.register(r'', views.UserViewSet, basename='user')
+
+filter_router = SimpleRouter()
+filter_router.register(r'', views.SavedFilterViewSet, basename='saved-filter')
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('saved-filters/', include(filter_router.urls)),
+    path('', include(user_router.urls)),
 ]

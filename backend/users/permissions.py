@@ -27,6 +27,11 @@ class IsDutyOfficer(BasePermission):
         return request.user.is_authenticated and request.user.role == UserRole.DUTY_OFFICER
 
 
+class IsAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == UserRole.ADMIN
+
+
 class IsProcurementManagerOrReadOnly(BasePermission):
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:
@@ -42,4 +47,33 @@ class IsFinanceOrReadOnly(BasePermission):
             return request.user.is_authenticated
         return request.user.is_authenticated and request.user.role in [
             UserRole.FINANCE, UserRole.ADMIN
+        ]
+
+
+class IsOwnerOrAdmin(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.user.role == UserRole.ADMIN:
+            return True
+        owner_field = getattr(view, 'owner_field', 'user')
+        return getattr(obj, owner_field, None) == request.user
+
+
+class IsProcurementOrFinanceOrAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role in [
+            UserRole.PROCUREMENT_MANAGER, UserRole.FINANCE, UserRole.ADMIN
+        ]
+
+
+class IsApproverOrAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role in [
+            UserRole.APPROVER, UserRole.ADMIN
+        ]
+
+
+class IsProjectManagerOrAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role in [
+            UserRole.PROJECT_MANAGER, UserRole.ADMIN
         ]

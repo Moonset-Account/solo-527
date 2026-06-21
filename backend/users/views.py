@@ -2,14 +2,14 @@ from django.db import models
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, SAFE_METHODS
 from django.contrib.auth import get_user_model
 from .models import SavedFilter, UserRole
 from .serializers import (
     UserSerializer, UserCreateSerializer, UserUpdateSerializer,
     PasswordChangeSerializer, SavedFilterSerializer
 )
-from .permissions import IsProcurementManager, IsProjectManager
+from .permissions import IsProcurementManager, IsProjectManager, IsOwnerOrAdmin
 
 User = get_user_model()
 
@@ -57,6 +57,12 @@ class UserViewSet(viewsets.ModelViewSet):
 class SavedFilterViewSet(viewsets.ModelViewSet):
     serializer_class = SavedFilterSerializer
     permission_classes = [IsAuthenticated]
+    owner_field = 'user'
+
+    def get_permissions(self):
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsOwnerOrAdmin()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         user = self.request.user
