@@ -170,7 +170,7 @@ def create_contracts(suppliers, specs, admin_user, project_user, procurement_use
         },
     ]
 
-    price_list = [25.00, 45.00, 580.00, 1680.00, 2.50]
+    price_map = {spec.id: spec.unit_price for spec in specs}
 
     for data in contracts_data:
         cats = data.pop('categories', [])
@@ -183,18 +183,19 @@ def create_contracts(suppliers, specs, admin_user, project_user, procurement_use
             contract.categories.set(cats)
             contract.specifications.set(specs_list)
 
-            for idx, spec in enumerate(specs_list):
+            for spec in specs_list:
+                unit_price = price_map.get(spec.id, spec.unit_price)
                 ContractPrice.objects.create(
                     contract=contract,
                     specification=spec,
-                    unit_price=price_list[idx % len(price_list)],
+                    unit_price=unit_price,
                     effective_date=contract.start_date,
                     created_by=procurement_user
                 )
                 PriceHistory.objects.create(
                     specification=spec,
                     contract=contract,
-                    unit_price=price_list[idx % len(price_list)],
+                    unit_price=unit_price,
                     price_date=contract.start_date,
                     source='contract',
                     change_reason='合同签订',
