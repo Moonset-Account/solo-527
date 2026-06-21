@@ -42,34 +42,44 @@ export class SeedService implements OnModuleInit {
 
   private async seedAll() {
     const contractCount = await this.contractRepo.count();
+    const approvalCount = await this.approvalRepo.count();
+    const attachmentCount = await this.attachmentRepo.count();
+    const notificationCount = await this.notificationRepo.count();
     const conflictCount = await this.conflictRepo.count();
     const callbackCount = await this.callbackRepo.count();
     
-    if (contractCount > 0 && conflictCount > 0 && callbackCount > 0) {
-      console.log('✅ 种子数据已存在，跳过初始化');
+    const allExist = contractCount > 0 && approvalCount > 0 && attachmentCount > 0 
+                  && notificationCount > 0 && conflictCount > 0 && callbackCount > 0;
+    
+    if (allExist) {
+      console.log('✅ 所有种子数据已存在，跳过初始化');
       return;
     }
 
-    console.log('🌱 开始初始化测试数据...');
+    console.log('🌱 开始初始化/补充测试数据...');
 
-    if (contractCount === 0) {
-      await this.createTestUsers();
-      await this.createTestContracts();
-      await this.createTestApprovals();
-      await this.createTestAttachments();
-      await this.createTestNotifications();
-      await this.createTestNumberPool();
-    } else {
-      const admin = await this.userRepo.findOne({ where: { username: 'admin' } });
-      if (admin) this.adminUser = admin;
-      this.testContracts = await this.contractRepo.find({ take: 10 });
-      this.testUsers = await this.userRepo.find({ where: { username: Not('admin') } });
-    }
+    const admin = await this.userRepo.findOne({ where: { username: 'admin' } });
+    if (admin) this.adminUser = admin;
     
+    if (this.testUsers.length === 0) {
+      this.testUsers = await this.userRepo.find({ where: { username: Not('admin') }, take: 10 });
+    }
+    if (this.testContracts.length === 0) {
+      this.testContracts = await this.contractRepo.find({ take: 10 });
+    }
+
+    if (approvalCount === 0 && this.testContracts.length > 0) {
+      await this.createTestApprovals();
+    }
+    if (attachmentCount === 0 && this.testContracts.length > 0) {
+      await this.createTestAttachments();
+    }
+    if (notificationCount === 0) {
+      await this.createTestNotifications();
+    }
     if (conflictCount === 0) {
       await this.createTestConflicts();
     }
-    
     if (callbackCount === 0) {
       await this.createTestCallbacks();
     }
@@ -77,6 +87,11 @@ export class SeedService implements OnModuleInit {
     console.log('✅ 种子数据初始化完成');
     console.log(`   - 测试用户: ${this.testUsers.length + 1} 人`);
     console.log(`   - 测试合同: ${this.testContracts.length} 份`);
+    console.log(`   - 审批流程: ${approvalCount > 0 ? '已存在' : '已补充'}`);
+    console.log(`   - 合同附件: ${attachmentCount > 0 ? '已存在' : '已补充'}`);
+    console.log(`   - 系统通知: ${notificationCount > 0 ? '已存在' : '已补充'}`);
+    console.log(`   - 冲突记录: ${conflictCount > 0 ? '已存在' : '已补充'}`);
+    console.log(`   - 回调日志: ${callbackCount > 0 ? '已存在' : '已补充'}`);
     console.log('   📱 手机快速查看审批: /m/progress/:contractId');
     console.log('   🔍 材料筛选: 材料完整/不完整/含退回原因');
   }
@@ -303,7 +318,7 @@ export class SeedService implements OnModuleInit {
             approvedAt: status === ApprovalStatus.APPROVED ? new Date() : null,
             opinion: status === ApprovalStatus.APPROVED ? '已审核，材料完整' : null,
             signature: status === ApprovalStatus.APPROVED ? { sign: `SIGN_${contract.id}_${approver.id}` } : null,
-            durationHours: status === ApprovalStatus.APPROVED ? Math.floor(Math.random() * 24 + 2) : null,
+            durationHours: status === ApprovalStatus.APPROVED ? Math.floor(Math.random() * 24 + 2) : 0,
           });
           await this.approvalRepo.save(approval);
         }
@@ -316,7 +331,7 @@ export class SeedService implements OnModuleInit {
           stepOrder: 2,
           status: ApprovalStatus.REJECTED,
           rejectionReason: contract.rejectionReason,
-          durationHours: 5.5,
+          durationHours: 5,
           signature: null,
         });
         await this.approvalRepo.save(approval);
@@ -349,7 +364,7 @@ export class SeedService implements OnModuleInit {
             status: ApprovalStatus.APPROVED,
             approvedAt: new Date(Date.now() - (approvers.length - i) * 86400000),
             opinion: ['合同内容审核通过', '预算内，同意', '终审通过'][i],
-            durationHours: Math.random() * 12 + 1,
+            durationHours: Math.floor(Math.random() * 12 + 1),
             signature: { sign: `SIGN_${contract.id}_${approver.id}` },
           });
           await this.approvalRepo.save(approval);

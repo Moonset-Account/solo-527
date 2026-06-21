@@ -35,7 +35,7 @@ export class ContractAttachment {
   @Column({ type: 'varchar', length: 500, comment: '保存路径' })
   filePath: string;
 
-  @Column({ type: 'varchar', length: 50, comment: '文件类型' })
+  @Column({ type: 'varchar', length: 120, comment: '文件类型' })
   mimeType: string;
 
   @Column({ type: 'bigint', comment: '文件大小(字节)' })
