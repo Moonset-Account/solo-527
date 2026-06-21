@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import EmailGenerationService from '#services/email_generation_service'
-import { generateEmailSchema, emailListSchema, submitReviewSchema } from '#validators/index'
+import { generateEmailSchema, emailListSchema, submitReviewSchema, updateEmailSchema } from '#validators/index'
 import { successResponse } from '../utils/helpers.js'
 
 export default class EmailsController {
@@ -173,6 +173,35 @@ export default class EmailsController {
           submittedAt: draft.submittedAt,
         },
         '已提交复核',
+      ),
+    )
+  }
+
+  async update({ params, request, auth, response }: HttpContext) {
+    const id = Number(params.id)
+    const payload = await request.validateUsing(updateEmailSchema)
+    const userId = auth.user!.id
+
+    const draft = await this.emailService.updateDraft(id, userId, {
+      subject: payload.subject,
+      body: payload.body,
+      recipientEmail: payload.recipientEmail,
+      recipientName: payload.recipientName,
+    })
+
+    return response.json(
+      successResponse(
+        {
+          id: draft.id,
+          subject: draft.subject,
+          body: draft.body,
+          recipientEmail: draft.recipientEmail,
+          recipientName: draft.recipientName,
+          status: draft.status,
+          riskLevel: draft.riskLevel,
+          updatedAt: draft.updatedAt,
+        },
+        '草稿已更新',
       ),
     )
   }

@@ -36,6 +36,7 @@ router
             router.post('/generate', '#controllers/emails_controller.generate')
             router.get('/', '#controllers/emails_controller.index')
             router.get('/:id', '#controllers/emails_controller.show')
+            router.put('/:id', '#controllers/emails_controller.update')
             router.post('/:id/submit-review', '#controllers/emails_controller.submitReview')
           })
           .prefix('/emails')

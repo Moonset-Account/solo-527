@@ -1,4 +1,4 @@
-import { get, post } from '../http'
+import { get, post, put } from '../http'
 import type { EmailDraft, PaginationParams, PaginationResponse, EmailStatus, ReviewResult } from '@/types'
 
 type BackendEmailStatus = 'draft' | 'reviewing' | 'approved' | 'rejected' | 'sent' | 'archived'
@@ -168,28 +168,14 @@ export async function createEmailDraftApi(data: Partial<EmailDraft>): Promise<Em
   } as EmailDraft
 }
 
-export async function updateEmailApi(id: string, _data: Partial<EmailDraft>): Promise<EmailDraft> {
-  try {
-    return await getEmailDetailApi(id)
-  } catch {
-    return {
-      id,
-      subject: _data.subject || '',
-      recipient: _data.recipient || '',
-      recipientName: _data.recipientName,
-      content: _data.content || '',
-      status: (_data.status as EmailStatus) || 'draft',
-      priority: (_data.priority as any) || 'normal',
-      category: _data.category || 'general',
-      templateId: _data.templateId,
-      promptId: _data.promptId,
-      knowledgeIds: _data.knowledgeIds,
-      riskLevel: (_data.riskLevel as any) || 'none',
-      riskItems: _data.riskItems,
-      createdAt: _data.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    } as EmailDraft
-  }
+export async function updateEmailApi(id: string, data: Partial<EmailDraft>): Promise<EmailDraft> {
+  const payload: any = {}
+  if (data.subject !== undefined) payload.subject = data.subject
+  if (data.content !== undefined) payload.body = data.content
+  if (data.recipient !== undefined) payload.recipientEmail = data.recipient
+  if (data.recipientName !== undefined) payload.recipientName = data.recipientName
+  const resp = await put<any>(`/emails/${id}`, payload)
+  return mapEmailFromBackend(resp)
 }
 
 export async function reviewEmailApi(id: string, params: {

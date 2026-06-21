@@ -90,6 +90,7 @@ export function useAnalytics() {
       description: '对比上一周期',
       icon: '⚡',
       color: '#2563eb',
+      iconBgClass: 'bg-blue-50',
     },
     {
       key: 'hitRate',
@@ -101,6 +102,7 @@ export function useAnalytics() {
       description: '通过率对比',
       icon: '🎯',
       color: '#059669',
+      iconBgClass: 'bg-emerald-50',
     },
     {
       key: 'avgCost',
@@ -112,6 +114,7 @@ export function useAnalytics() {
       description: '平均费用',
       icon: '💸',
       color: '#d97706',
+      iconBgClass: 'bg-amber-50',
     },
     {
       key: 'rejectRate',
@@ -123,6 +126,7 @@ export function useAnalytics() {
       description: '需要持续优化',
       icon: '⚠️',
       color: '#dc2626',
+      iconBgClass: 'bg-red-50',
     },
     {
       key: 'totalCost',
@@ -134,6 +138,7 @@ export function useAnalytics() {
       description: '周期累计费用',
       icon: '💰',
       color: '#7c3aed',
+      iconBgClass: 'bg-purple-50',
     },
   ])
 

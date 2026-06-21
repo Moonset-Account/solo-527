@@ -43,6 +43,15 @@ export const submitReviewSchema = vine.compile(
   })
 )
 
+export const updateEmailSchema = vine.compile(
+  vine.object({
+    subject: vine.string().trim().minLength(1).maxLength(200).optional(),
+    body: vine.string().trim().minLength(1).optional(),
+    recipientEmail: vine.string().email().optional(),
+    recipientName: vine.string().trim().optional(),
+  })
+)
+
 export const knowledgeIndexSchema = vine.compile(
   vine.object({
     page: vine.number().positive().optional(),

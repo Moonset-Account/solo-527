@@ -192,6 +192,7 @@ import DiffViewer from '@/components/business/DiffViewer.vue'
 import RejectReasonSelector from '@/components/business/RejectReasonSelector.vue'
 import { usePageTitle } from '@/composables/usePageTitle'
 import { getPendingReviewListApi, approveReviewApi, rejectReviewApi } from '@/api/modules/reviews'
+import { getEmailDetailApi } from '@/api/modules/emails'
 import type { EmailDraft } from '@/types'
 
 usePageTitle('复核工作台')
@@ -204,15 +205,36 @@ const approvedEmails = ref<EmailDraft[]>([])
 const rejectedEmails = ref<EmailDraft[]>([])
 const activeTab = ref<'pending' | 'approved' | 'rejected'>('pending')
 const selectedId = ref<string | null>(null)
+const selected = ref<EmailDraft | null>(null)
+const loadingSelected = ref(false)
 const modifiedContent = ref('')
 const rejectModalVisible = ref(false)
 const rejectReason = ref<string | null>(null)
 const rejectData = reactive({ reasons: [] as string[], remark: '' })
 
-watch(selectedId, (id) => {
-  const allList = [...pendingEmails.value, ...approvedEmails.value, ...rejectedEmails.value]
-  const s = allList.find(e => e.id === id)
-  if (s) modifiedContent.value = s.content
+watch(selectedId, async (id) => {
+  if (!id) {
+    selected.value = null
+    modifiedContent.value = ''
+    return
+  }
+  try {
+    loadingSelected.value = true
+    const detail = await getEmailDetailApi(id)
+    selected.value = detail
+    modifiedContent.value = detail.content
+  } catch (e) {
+    const err = e as Error
+    message.error(err.message || '加载邮件详情失败')
+    const allList = [...pendingEmails.value, ...approvedEmails.value, ...rejectedEmails.value]
+    const s = allList.find(e => e.id === id)
+    if (s) {
+      selected.value = s
+      modifiedContent.value = s.content
+    }
+  } finally {
+    loadingSelected.value = false
+  }
 })
 
 const pendingList = computed(() => pendingEmails.value)
@@ -231,11 +253,6 @@ const currentList = computed(() => {
   if (activeTab.value === 'pending') return pendingEmails.value
   if (activeTab.value === 'approved') return approvedEmails.value
   return rejectedEmails.value
-})
-
-const selected = computed(() => {
-  const allList = [...pendingEmails.value, ...approvedEmails.value, ...rejectedEmails.value]
-  return allList.find(e => e.id === selectedId.value) || null
 })
 
 async function fetchLists() {

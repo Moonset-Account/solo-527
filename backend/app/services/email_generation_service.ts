@@ -376,6 +376,42 @@ ${JSON.stringify(bg, null, 2)}
     return draft.refresh()
   }
 
+  async updateDraft(
+    id: number,
+    userId: number,
+    updates: {
+      subject?: string
+      body?: string
+      recipientEmail?: string
+      recipientName?: string
+    }
+  ): Promise<EmailDraft> {
+    const draft = await EmailDraft.find(id)
+
+    if (!draft) {
+      throw new BusinessException('邮件草稿不存在', 4004, 404)
+    }
+
+    if (draft.salesId !== userId) {
+      throw new BusinessException('只能修改自己创建的邮件草稿', 4003, 403)
+    }
+
+    if (draft.status !== 'draft') {
+      throw new BusinessException('当前状态不允许编辑，请先撤回或新建草稿', 4000)
+    }
+
+    if (updates.subject !== undefined) draft.subject = updates.subject
+    if (updates.body !== undefined) {
+      draft.body = updates.body
+      draft.riskLevel = this.assessRisk(updates.body)
+    }
+    if (updates.recipientEmail !== undefined) draft.recipientEmail = updates.recipientEmail
+    if (updates.recipientName !== undefined) draft.recipientName = updates.recipientName
+
+    await draft.save()
+    return draft.refresh()
+  }
+
   async listDrafts(
     params: {
       page?: number
