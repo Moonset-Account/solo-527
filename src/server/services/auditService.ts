@@ -66,11 +66,17 @@ export async function getChangeHistory(
   entityType: TrackedEntity,
   entityId: string
 ) {
-  return db.changeRecord.findMany({
+  const records = await db.changeRecord.findMany({
     where: { entityType, entityId },
     include: { operator: { select: { name: true, role: true } } },
     orderBy: { changedAt: "desc" },
   });
+
+  return records.map((r) => ({
+    ...r,
+    operatorName: r.operator?.name || "未知",
+    operatorRole: r.operator?.role || "ADMIN",
+  }));
 }
 
 export interface AuditSearchParams {
@@ -111,7 +117,7 @@ export async function searchChangeRecords(params: AuditSearchParams) {
   if (oldValue) where.oldValue = { contains: oldValue, mode: "insensitive" };
   if (newValue) where.newValue = { contains: newValue, mode: "insensitive" };
 
-  const [total, records] = await Promise.all([
+  const [total, rawRecords] = await Promise.all([
     db.changeRecord.count({ where }),
     db.changeRecord.findMany({
       where,
@@ -121,6 +127,12 @@ export async function searchChangeRecords(params: AuditSearchParams) {
       take: pageSize,
     }),
   ]);
+
+  const records = rawRecords.map((r) => ({
+    ...r,
+    operatorName: r.operator?.name || "未知",
+    operatorRole: r.operator?.role || "ADMIN",
+  }));
 
   return { total, records, page, pageSize, totalPages: Math.ceil(total / pageSize) };
 }

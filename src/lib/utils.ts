@@ -114,6 +114,11 @@ export function getStatusLabel(status: string): string {
     REPAIR: "维修",
     VISIT: "回访",
     COMPLAINT: "投诉",
+    LEASE: "租约",
+    BILL: "账单",
+    ASSIGNMENT: "派工",
+    SETTLEMENT: "结算",
+    CONTRACT: "合同",
   };
   return labels[status] || status;
 }
