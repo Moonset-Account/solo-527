@@ -86,6 +86,8 @@ export async function getMedicalRecords(
     ...r,
     patient: mockPatients.find((p) => p.id === r.patient_id),
     doctor: mockUsers.find((u) => u.id === r.doctor_id),
+    follow_up_plans: mockFollowUpPlans.filter((p) => p.record_id === r.id),
+    charge_items: mockChargeItems.filter((c) => c.record_id === r.id),
   })) as MedicalRecord[];
   return mockFetch(records.sort((a, b) => b.visit_date.localeCompare(a.visit_date)));
 }
