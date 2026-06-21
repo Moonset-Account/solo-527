@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -13,8 +13,7 @@ import {
   Trash2,
   Save,
   Clock,
-  ChevronDown,
-  ChevronUp,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -24,45 +23,41 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import AppLayout from '@/components/layout/AppLayout';
 
-const customers = [
-  { value: '1', label: '张三 - 13800138001' },
-  { value: '2', label: '李四 - 13800138002' },
-  { value: '3', label: '王五 - 13800138003' },
-];
-
-const vehicles = [
-  { value: '1', label: '京A12345 宝马530Li' },
-  { value: '2', label: '京B67890 奔驰E300L' },
-  { value: '3', label: '京C11111 奥迪A6L' },
-];
-
-const parts = [
-  { id: '1', name: '机油滤清器', sku: 'OF-001', price: 85, stock: 50 },
-  { id: '2', name: '空气滤芯', sku: 'AF-001', price: 120, stock: 30 },
-  { id: '3', name: '空调滤芯', sku: 'CF-001', price: 95, stock: 45 },
-  { id: '4', name: '火花塞', sku: 'SP-001', price: 180, stock: 20 },
-  { id: '5', name: '刹车片(前)', sku: 'BP-F-001', price: 680, stock: 15 },
-];
-
-const services = [
-  { id: '1', name: '更换机油工时', price: 150 },
-  { id: '2', name: '更换刹车片工时', price: 200 },
-  { id: '3', name: '常规检查', price: 80 },
-  { id: '4', name: '空调清洗', price: 180 },
-];
-
 const defaultProcesses = [
-  { step: 1, name: '车辆预检', description: '车辆外观、里程、油液检查', status: 'pending' },
-  { step: 2, name: '配件准备', description: '根据工单准备所需配件', status: 'pending' },
-  { step: 3, name: '维修施工', description: '按工艺要求进行维修作业', status: 'pending' },
-  { step: 4, name: '内部质检', description: '维修项目自检互检', status: 'pending' },
-  { step: 5, name: '终检交付', description: '最终质检合格后交付客户', status: 'pending' },
+  { step: 1, name: '车辆预检', description: '车辆外观、里程、油液检查' },
+  { step: 2, name: '配件准备', description: '根据工单准备所需配件' },
+  { step: 3, name: '维修施工', description: '按工艺要求进行维修作业' },
+  { step: 4, name: '内部质检', description: '维修项目自检互检' },
+  { step: 5, name: '终检交付', description: '最终质检合格后交付客户' },
 ];
+
+const defaultServices = [
+  { id: 's1', name: '更换机油工时', price: 150 },
+  { id: 's2', name: '更换刹车片工时', price: 200 },
+  { id: 's3', name: '常规检查', price: 80 },
+  { id: 's4', name: '空调清洗', price: 180 },
+];
+
+interface CustomerOption {
+  id: string;
+  name: string;
+  phone: string;
+  vehicles: { id: string; plateNumber: string; brand: string; model: string }[];
+}
+
+interface PartOption {
+  id: string;
+  name: string;
+  sku: string;
+  salePrice: number;
+  stock: number;
+}
 
 interface OrderItem {
   id: string;
   type: 'part' | 'service';
   name: string;
+  partId?: string;
   quantity: number;
   unitPrice: number;
 }
@@ -75,39 +70,76 @@ export default function NewOrderPage() {
   const [faultDescription, setFaultDescription] = useState('');
   const [estimatedDelivery, setEstimatedDelivery] = useState('');
   const [items, setItems] = useState<OrderItem[]>([]);
-  const [processes] = useState(defaultProcesses);
   const [showPartPicker, setShowPartPicker] = useState(false);
   const [showServicePicker, setShowServicePicker] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [customers, setCustomers] = useState<CustomerOption[]>([]);
+  const [parts, setParts] = useState<PartOption[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [custRes, partRes] = await Promise.all([
+          fetch('/api/customers'),
+          fetch('/api/parts'),
+        ]);
+        if (custRes.ok) {
+          const custData = await custRes.json();
+          setCustomers(custData);
+        }
+        if (partRes.ok) {
+          const partData = await partRes.json();
+          setParts(partData.parts || partData);
+        }
+      } catch {
+      } finally {
+        setDataLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  const selectedCustomer = customers.find((c) => c.id === customerId);
+  const vehicleOptions = selectedCustomer?.vehicles || [];
+  const customerSelectOptions = [
+    { value: '', label: '请选择客户' },
+    ...customers.map((c) => ({ value: c.id, label: `${c.name} - ${c.phone}` })),
+  ];
+  const vehicleSelectOptions = [
+    { value: '', label: '请选择车辆' },
+    ...vehicleOptions.map((v) => ({ value: v.id, label: `${v.plateNumber} ${v.brand} ${v.model}` })),
+  ];
 
   const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
 
-  const addPart = (part: typeof parts[0]) => {
-    const existing = items.find((i) => i.id === `part-${part.id}`);
+  const addPart = (part: PartOption) => {
+    const key = `part-${part.id}`;
+    const existing = items.find((i) => i.id === key);
     if (existing) {
-      setItems(items.map((i) =>
-        i.id === `part-${part.id}` ? { ...i, quantity: i.quantity + 1 } : i
-      ));
+      setItems(items.map((i) => i.id === key ? { ...i, quantity: i.quantity + 1 } : i));
     } else {
       setItems([...items, {
-        id: `part-${part.id}`,
+        id: key,
         type: 'part',
         name: part.name,
+        partId: part.id,
         quantity: 1,
-        unitPrice: part.price,
+        unitPrice: part.salePrice,
       }]);
     }
     setShowPartPicker(false);
   };
 
-  const addService = (service: typeof services[0]) => {
-    const existing = items.find((i) => i.id === `service-${service.id}`);
+  const addService = (service: typeof defaultServices[0]) => {
+    const key = `service-${service.id}`;
+    const existing = items.find((i) => i.id === key);
     if (existing) {
-      setItems(items.map((i) =>
-        i.id === `service-${service.id}` ? { ...i, quantity: i.quantity + 1 } : i
-      ));
+      setItems(items.map((i) => i.id === key ? { ...i, quantity: i.quantity + 1 } : i));
     } else {
       setItems([...items, {
-        id: `service-${service.id}`,
+        id: key,
         type: 'service',
         name: service.name,
         quantity: 1,
@@ -128,8 +160,6 @@ export default function NewOrderPage() {
   const removeItem = (id: string) => {
     setItems(items.filter((i) => i.id !== id));
   };
-
-  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     if (!customerId || !vehicleId || !repairType || !faultDescription || !estimatedDelivery) {
@@ -155,6 +185,7 @@ export default function NewOrderPage() {
           items: items.map((item) => ({
             type: item.type,
             name: item.name,
+            partId: item.partId || undefined,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
           })),
@@ -179,6 +210,16 @@ export default function NewOrderPage() {
       setSubmitting(false);
     }
   };
+
+  if (dataLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -205,16 +246,23 @@ export default function NewOrderPage() {
                   <Select
                     label="选择客户"
                     value={customerId}
-                    onChange={(e) => setCustomerId(e.target.value)}
-                    options={[{ value: '', label: '请选择客户' }, ...customers]}
+                    onChange={(e) => {
+                      setCustomerId(e.target.value);
+                      setVehicleId('');
+                    }}
+                    options={customerSelectOptions}
                   />
                   <Select
                     label="选择车辆"
                     value={vehicleId}
                     onChange={(e) => setVehicleId(e.target.value)}
-                    options={[{ value: '', label: '请选择车辆' }, ...vehicles]}
+                    options={vehicleSelectOptions}
+                    disabled={!customerId}
                   />
                 </div>
+                {customers.length === 0 && (
+                  <p className="text-sm text-amber-600 mt-2">暂无客户数据，请先在数据库中添加客户</p>
+                )}
               </CardContent>
             </Card>
 
@@ -281,20 +329,24 @@ export default function NewOrderPage() {
                 {showPartPicker && (
                   <div className="mb-4 p-4 bg-metal-50 rounded-lg">
                     <p className="text-sm font-medium text-metal-700 mb-2">选择配件</p>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {parts.map((part) => (
-                        <button
-                          key={part.id}
-                          onClick={() => addPart(part)}
-                          className="p-3 text-left bg-white rounded-lg border border-metal-200 hover:border-primary-500 hover:shadow-sm transition-all"
-                        >
-                          <p className="text-sm font-medium text-metal-900">{part.name}</p>
-                          <p className="text-xs text-metal-500">{part.sku}</p>
-                          <p className="text-sm font-semibold text-primary-600 mt-1">¥{part.price}</p>
-                          <p className="text-xs text-metal-400">库存: {part.stock}</p>
-                        </button>
-                      ))}
-                    </div>
+                    {parts.length === 0 ? (
+                      <p className="text-sm text-metal-400">暂无配件数据</p>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {parts.map((part) => (
+                          <button
+                            key={part.id}
+                            onClick={() => addPart(part)}
+                            className="p-3 text-left bg-white rounded-lg border border-metal-200 hover:border-primary-500 hover:shadow-sm transition-all"
+                          >
+                            <p className="text-sm font-medium text-metal-900">{part.name}</p>
+                            <p className="text-xs text-metal-500">{part.sku}</p>
+                            <p className="text-sm font-semibold text-primary-600 mt-1">¥{part.salePrice}</p>
+                            <p className="text-xs text-metal-400">库存: {part.stock}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -302,7 +354,7 @@ export default function NewOrderPage() {
                   <div className="mb-4 p-4 bg-metal-50 rounded-lg">
                     <p className="text-sm font-medium text-metal-700 mb-2">选择服务</p>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      {services.map((service) => (
+                      {defaultServices.map((service) => (
                         <button
                           key={service.id}
                           onClick={() => addService(service)}
@@ -382,7 +434,7 @@ export default function NewOrderPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {processes.map((process) => (
+                  {defaultProcesses.map((process) => (
                     <div
                       key={process.step}
                       className="flex items-center gap-4 p-3 bg-metal-50 rounded-lg"
@@ -414,7 +466,7 @@ export default function NewOrderPage() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-metal-500">工序数量</span>
-                  <span className="font-medium text-metal-900">{processes.length} 道</span>
+                  <span className="font-medium text-metal-900">{defaultProcesses.length} 道</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-metal-500">预计交付</span>

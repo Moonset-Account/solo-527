@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Settings,
   Users,
@@ -11,6 +11,7 @@ import {
   Trash2,
   Save,
   X,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -27,7 +28,7 @@ import {
 } from '@/components/ui/Table';
 import { Textarea } from '@/components/ui/Textarea';
 import AppLayout from '@/components/layout/AppLayout';
-import { getRoleColor, getStatusText } from '@/lib/utils';
+import { getRoleColor } from '@/lib/utils';
 
 const tabs = [
   { id: 'metrics', label: '指标口径', icon: BarChart3 },
@@ -35,73 +36,221 @@ const tabs = [
   { id: 'users', label: '用户管理', icon: Users },
 ];
 
-const metrics = [
-  {
-    id: '1',
-    key: 'todayRevenue',
-    name: '今日营收',
-    description: '当日已完成订单的总金额',
-    formula: 'SUM(orders.totalAmount) WHERE status = "completed" AND DATE(createdAt) = TODAY',
-    unit: '元',
-    category: '营收',
-  },
-  {
-    id: '2',
-    key: 'todayOrders',
-    name: '今日订单',
-    description: '当日创建的订单数量',
-    formula: 'COUNT(orders) WHERE DATE(createdAt) = TODAY',
-    unit: '单',
-    category: '订单',
-  },
-  {
-    id: '3',
-    key: 'partTurnoverRate',
-    name: '配件周转率',
-    description: '平均每日配件周转次数',
-    formula: 'SUM(stock_out.quantity) / 30 / AVG(parts.stock)',
-    unit: '次/日',
-    category: '库存',
-  },
-  {
-    id: '4',
-    key: 'qualityPassRate',
-    name: '质检合格率',
-    description: '质检通过数量占总质检数的比例',
-    formula: 'COUNT(quality_checks WHERE result = "passed") / COUNT(quality_checks)',
-    unit: '%',
-    category: '质量',
-  },
+const defaultMetrics = [
+  { id: '1', key: 'todayRevenue', name: '今日营收', description: '当日已完成订单的总金额', formula: 'SUM(orders.totalAmount) WHERE status="completed" AND DATE(createdAt)=TODAY', unit: '元', category: '营收' },
+  { id: '2', key: 'todayOrders', name: '今日订单', description: '当日创建的订单数量', formula: 'COUNT(orders) WHERE DATE(createdAt)=TODAY', unit: '单', category: '订单' },
+  { id: '3', key: 'partTurnoverRate', name: '配件周转率', description: '平均每日配件周转次数', formula: 'SUM(stock_out.quantity)/30/AVG(parts.stock)', unit: '次/日', category: '库存' },
+  { id: '4', key: 'qualityPassRate', name: '质检合格率', description: '质检通过数量占总质检数的比例', formula: 'COUNT(quality_checks WHERE result="passed")/COUNT(quality_checks)', unit: '%', category: '质量' },
 ];
 
-const roles = [
-  { id: 'admin', name: '店长', description: '拥有系统全部权限', userCount: 2 },
-  { id: 'reception', name: '前台接待', description: '客户接待、订单创建', userCount: 3 },
-  { id: 'technician', name: '维修技师', description: '维修作业、质检提交', userCount: 5 },
-  { id: 'storekeeper', name: '库管员', description: '配件管理、出入库', userCount: 2 },
-  { id: 'accountant', name: '财务人员', description: '价格管理、数据导出', userCount: 1 },
+const roleList = [
+  { id: 'admin', name: '店长', description: '拥有系统全部权限' },
+  { id: 'reception', name: '前台接待', description: '客户接待、订单创建' },
+  { id: 'technician', name: '维修技师', description: '维修作业、质检提交' },
+  { id: 'storekeeper', name: '库管员', description: '配件管理、出入库' },
+  { id: 'accountant', name: '财务人员', description: '价格管理、数据导出' },
 ];
 
-const users = [
-  { id: '1', name: '张店长', email: 'admin@example.com', role: 'admin', createdAt: '2024-01-15' },
-  { id: '2', name: '李前台', email: 'reception@example.com', role: 'reception', createdAt: '2024-02-01' },
-  { id: '3', name: '王技师', email: 'tech@example.com', role: 'technician', createdAt: '2024-02-15' },
-  { id: '4', name: '赵库管', email: 'store@example.com', role: 'storekeeper', createdAt: '2024-03-01' },
-  { id: '5', name: '陈财务', email: 'finance@example.com', role: 'accountant', createdAt: '2024-03-15' },
+const allResources = [
+  { resource: 'orders', actions: ['view', 'create', 'edit', 'delete'] },
+  { resource: 'customers', actions: ['view', 'create', 'edit'] },
+  { resource: 'vehicles', actions: ['view', 'create', 'edit'] },
+  { resource: 'inventory', actions: ['view', 'edit', 'export'] },
+  { resource: 'quality', actions: ['view', 'create', 'edit'] },
+  { resource: 'config', actions: ['view', 'edit'] },
+  { resource: 'parts', actions: ['view', 'create', 'edit'] },
+  { resource: 'priceList', actions: ['view', 'edit'] },
 ];
 
-const rolePermissions = {
-  admin: ['全部权限'],
-  reception: ['订单管理', '客户管理', '车辆管理', '价目表查看'],
-  technician: ['订单查看', '工艺查看', '质检管理'],
-  storekeeper: ['配件管理', '库存管理', '出入库操作'],
-  accountant: ['价目表管理', '数据导出', '财务报表'],
-};
+interface MetricItem {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  formula: string;
+  unit: string;
+  category: string;
+}
+
+interface PermissionItem {
+  id: string;
+  role: string;
+  resource: string;
+  action: string;
+}
+
+interface UserItem {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+}
 
 export default function ConfigMetricsPage() {
   const [activeTab, setActiveTab] = useState('metrics');
+  const [metrics, setMetrics] = useState<MetricItem[]>(defaultMetrics);
+  const [permissions, setPermissions] = useState<PermissionItem[]>([]);
+  const [users, setUsers] = useState<UserItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editingMetric, setEditingMetric] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', formula: '', unit: '', category: '', description: '' });
+  const [editingRole, setEditingRole] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [showAddUser, setShowAddUser] = useState(false);
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: '' });
+
+  const loadConfig = useCallback(async () => {
+    try {
+      const res = await fetch('/api/config');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.metrics && data.metrics.length > 0) {
+          setMetrics(data.metrics);
+        }
+        if (data.permissions) {
+          setPermissions(data.permissions);
+        }
+        if (data.users) {
+          setUsers(data.users);
+        }
+      }
+    } catch {
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
+
+  const startEditMetric = (metric: MetricItem) => {
+    setEditingMetric(metric.id);
+    setEditForm({
+      name: metric.name,
+      formula: metric.formula,
+      unit: metric.unit,
+      category: metric.category,
+      description: metric.description,
+    });
+  };
+
+  const saveMetric = async (metric: MetricItem) => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'metric',
+          data: {
+            key: metric.key,
+            name: editForm.name,
+            formula: editForm.formula,
+            unit: editForm.unit,
+            category: editForm.category,
+            description: editForm.description,
+          },
+        }),
+      });
+      if (res.ok) {
+        setMetrics(metrics.map((m) =>
+          m.key === metric.key ? { ...m, ...editForm } : m
+        ));
+        setEditingMetric(null);
+      } else {
+        const err = await res.json();
+        alert(err.error || '保存失败');
+      }
+    } catch {
+      alert('网络错误');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const togglePermission = async (role: string, resource: string, action: string) => {
+    const exists = permissions.some(
+      (p) => p.role === role && p.resource === resource && p.action === action
+    );
+    setSaving(true);
+    try {
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'permission',
+          data: { role, resource, action, enabled: !exists },
+        }),
+      });
+      if (res.ok) {
+        if (exists) {
+          setPermissions(permissions.filter(
+            (p) => !(p.role === role && p.resource === resource && p.action === action)
+          ));
+        } else {
+          const result = await res.json();
+          setPermissions([...permissions, result]);
+        }
+      }
+    } catch {
+      alert('网络错误');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddUser = async () => {
+    if (!newUser.name || !newUser.email || !newUser.password || !newUser.role) {
+      alert('请填写完整用户信息');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'user',
+          data: newUser,
+        }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setUsers([created, ...users]);
+        setShowAddUser(false);
+        setNewUser({ name: '', email: '', password: '', role: '' });
+      } else {
+        const err = await res.json();
+        alert(err.error || '创建用户失败');
+      }
+    } catch {
+      alert('网络错误');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const getRoleUserCount = (roleId: string) => {
+    return users.filter((u) => u.role === roleId).length;
+  };
+
+  const isPermissionEnabled = (role: string, resource: string, action: string) => {
+    return permissions.some(
+      (p) => p.role === role && p.resource === resource && p.action === action
+    ) || role === 'admin';
+  };
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -157,17 +306,33 @@ export default function ConfigMetricsPage() {
                         </div>
                         <p className="text-sm text-metal-600 mb-3">{metric.description}</p>
                         {editingMetric === metric.id ? (
-                          <div className="space-y-2">
+                          <div className="space-y-3">
+                            <Input
+                              label="指标名称"
+                              value={editForm.name}
+                              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                            />
+                            <Input
+                              label="单位"
+                              value={editForm.unit}
+                              onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
+                            />
+                            <Input
+                              label="分类"
+                              value={editForm.category}
+                              onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                            />
                             <Textarea
                               label="计算公式"
-                              defaultValue={metric.formula}
+                              value={editForm.formula}
+                              onChange={(e) => setEditForm({ ...editForm, formula: e.target.value })}
                               rows={3}
                               className="font-mono text-sm"
                             />
                             <div className="flex gap-2">
-                              <Button size="sm" onClick={() => setEditingMetric(null)}>
+                              <Button size="sm" onClick={() => saveMetric(metric)} disabled={saving}>
                                 <Save className="w-3 h-3 mr-1" />
-                                保存
+                                {saving ? '保存中...' : '保存'}
                               </Button>
                               <Button size="sm" variant="ghost" onClick={() => setEditingMetric(null)}>
                                 <X className="w-3 h-3 mr-1" />
@@ -185,13 +350,15 @@ export default function ConfigMetricsPage() {
                         )}
                         <p className="text-xs text-metal-400 mt-2">单位: {metric.unit}</p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditingMetric(editingMetric === metric.id ? null : metric.id)}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
+                      {editingMetric !== metric.id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => startEditMetric(metric)}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -207,7 +374,7 @@ export default function ConfigMetricsPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {roles.map((role) => (
+                {roleList.map((role) => (
                   <div
                     key={role.id}
                     className="p-5 bg-metal-50 rounded-xl border border-metal-200 hover:border-primary-300 transition-colors"
@@ -219,22 +386,62 @@ export default function ConfigMetricsPage() {
                         </Badge>
                         <p className="text-sm text-metal-500 mt-2">{role.description}</p>
                       </div>
-                      <span className="text-xs text-metal-400">{role.userCount} 用户</span>
+                      <span className="text-xs text-metal-400">{getRoleUserCount(role.id)} 用户</span>
                     </div>
-                    <div className="mt-3 pt-3 border-t border-metal-200">
-                      <p className="text-xs text-metal-500 mb-2">权限列表</p>
-                      <div className="flex flex-wrap gap-1">
-                        {rolePermissions[role.id as keyof typeof rolePermissions]?.map((perm) => (
-                          <Badge key={perm} variant="secondary" size="sm">
-                            {perm}
-                          </Badge>
+                    {editingRole === role.id ? (
+                      <div className="mt-3 pt-3 border-t border-metal-200 space-y-2">
+                        {allResources.map((res) => (
+                          <div key={res.resource} className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-medium text-metal-600 w-16">{res.resource}</span>
+                            {res.actions.map((action) => (
+                              <label key={action} className="flex items-center gap-1 text-xs">
+                                <input
+                                  type="checkbox"
+                                  checked={isPermissionEnabled(role.id, res.resource, action)}
+                                  onChange={() => togglePermission(role.id, res.resource, action)}
+                                  disabled={role.id === 'admin' || saving}
+                                  className="rounded border-metal-300"
+                                />
+                                {action}
+                              </label>
+                            ))}
+                          </div>
                         ))}
+                        <Button size="sm" variant="ghost" onClick={() => setEditingRole(null)} className="mt-2">
+                          <X className="w-3 h-3 mr-1" />
+                          关闭
+                        </Button>
                       </div>
-                    </div>
-                    <Button variant="outline" size="sm" className="w-full mt-4">
-                      <Edit2 className="w-3 h-3 mr-1" />
-                      编辑权限
-                    </Button>
+                    ) : (
+                      <div className="mt-3 pt-3 border-t border-metal-200">
+                        <p className="text-xs text-metal-500 mb-2">权限列表</p>
+                        <div className="flex flex-wrap gap-1">
+                          {role.id === 'admin' ? (
+                            <Badge variant="secondary" size="sm">全部权限</Badge>
+                          ) : (
+                            allResources
+                              .filter((res) => res.actions.some((a) => isPermissionEnabled(role.id, res.resource, a)))
+                              .map((res) => (
+                                <Badge key={res.resource} variant="secondary" size="sm">
+                                  {res.resource}
+                                </Badge>
+                              ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {editingRole !== role.id && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-4"
+                        onClick={() => setEditingRole(role.id)}
+                        disabled={role.id === 'admin'}
+                      >
+                        <Edit2 className="w-3 h-3 mr-1" />
+                        编辑权限
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -258,11 +465,13 @@ export default function ConfigMetricsPage() {
                 <div className="mb-6 p-4 bg-primary-50 rounded-xl border border-primary-200">
                   <h4 className="font-medium text-primary-900 mb-4">新增用户</h4>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                    <Input label="姓名" placeholder="请输入姓名" />
-                    <Input label="邮箱" type="email" placeholder="请输入邮箱" />
-                    <Input label="密码" type="password" placeholder="请输入密码" />
+                    <Input label="姓名" placeholder="请输入姓名" value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} />
+                    <Input label="邮箱" type="email" placeholder="请输入邮箱" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
+                    <Input label="密码" type="password" placeholder="请输入密码" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} />
                     <Select
                       label="角色"
+                      value={newUser.role}
+                      onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
                       options={[
                         { value: '', label: '请选择角色' },
                         { value: 'reception', label: '前台接待' },
@@ -276,9 +485,9 @@ export default function ConfigMetricsPage() {
                     <Button variant="outline" size="sm" onClick={() => setShowAddUser(false)}>
                       取消
                     </Button>
-                    <Button size="sm" onClick={() => setShowAddUser(false)}>
+                    <Button size="sm" onClick={handleAddUser} disabled={saving}>
                       <Save className="w-3 h-3 mr-1" />
-                      保存
+                      {saving ? '保存中...' : '保存'}
                     </Button>
                   </div>
                 </div>
@@ -292,7 +501,6 @@ export default function ConfigMetricsPage() {
                       <TableHead>邮箱</TableHead>
                       <TableHead>角色</TableHead>
                       <TableHead>创建时间</TableHead>
-                      <TableHead className="text-right">操作</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -304,19 +512,11 @@ export default function ConfigMetricsPage() {
                         <TableCell className="text-metal-600">{user.email}</TableCell>
                         <TableCell>
                           <Badge className={getRoleColor(user.role)}>
-                            {getStatusText(user.role)}
+                            {roleList.find((r) => r.id === user.role)?.name || user.role}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-metal-500 text-sm">{user.createdAt}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                        <TableCell className="text-metal-500 text-sm">
+                          {new Date(user.createdAt).toLocaleDateString('zh-CN')}
                         </TableCell>
                       </TableRow>
                     ))}
