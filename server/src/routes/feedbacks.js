@@ -154,7 +154,11 @@ router.put('/:id/handle', auth, async (req, res, next) => {
     }
 
     if (handlePlan) feedback.handlePlan = handlePlan;
-    if (status) feedback.status = status;
+    if (status) {
+      feedback.status = status;
+    } else if (!['resolved', 'rejected', 'closed'].includes(feedback.status)) {
+      feedback.status = 'handling';
+    }
     feedback.handler = req.user._id;
     feedback.handledAt = new Date();
 

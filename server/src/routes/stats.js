@@ -58,7 +58,7 @@ router.get('/dashboard', auth, async (req, res, next) => {
           $lt: new Date().setHours(23, 59, 59, 999)
         }
       }),
-      Feedback.countDocuments({ status: { $in: ['pending', 'reviewing'] } }),
+      Feedback.countDocuments({ status: { $in: ['pending', 'reviewing', 'handling'] } }),
       Feedback.countDocuments({ priority: { $in: ['high', 'urgent'] }, status: { $ne: 'resolved' } }),
       Donation.countDocuments({ status: 'pending' }),
       Alert.countDocuments({ status: 'active' }),

@@ -33,7 +33,7 @@ const feedbackSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'reviewing', 'resolved', 'rejected'],
+    enum: ['pending', 'reviewing', 'handling', 'resolved', 'rejected'],
     default: 'pending'
   },
   priority: {

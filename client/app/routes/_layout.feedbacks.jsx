@@ -42,6 +42,7 @@ export default function Feedbacks() {
     const map = {
       pending: { text: '待审核', class: 'badge-warning' },
       reviewing: { text: '审核中', class: 'badge-primary' },
+      handling: { text: '处理中', class: 'badge-info' },
       resolved: { text: '已解决', class: 'badge-success' },
       rejected: { text: '已驳回', class: 'badge-danger' }
     };
@@ -93,6 +94,7 @@ export default function Feedbacks() {
             <option value="">全部状态</option>
             <option value="pending">待审核</option>
             <option value="reviewing">审核中</option>
+            <option value="handling">处理中</option>
             <option value="resolved">已解决</option>
             <option value="rejected">已驳回</option>
           </select>

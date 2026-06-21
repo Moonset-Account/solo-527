@@ -191,7 +191,7 @@ export default function Dashboard() {
       <div style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
         <div className="card">
           <div className="card-header">
-            <h3 className="card-title">待审核反馈</h3>
+            <h3 className="card-title">待处理反馈</h3>
             <Link to="/feedbacks?status=pending" className="btn btn-sm btn-secondary">
               查看
             </Link>

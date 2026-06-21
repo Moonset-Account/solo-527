@@ -84,6 +84,7 @@ export default function FeedbackDetail() {
     const map = {
       pending: { text: '待审核', class: 'badge-warning' },
       reviewing: { text: '审核中', class: 'badge-primary' },
+      handling: { text: '处理中', class: 'badge-info' },
       resolved: { text: '已解决', class: 'badge-success' },
       rejected: { text: '已驳回', class: 'badge-danger' }
     };
