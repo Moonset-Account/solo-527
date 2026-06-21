@@ -1,4 +1,5 @@
 using Counseling.Domain.Entities;
+using Counseling.Domain.Enums;
 using Counseling.Domain.Interfaces;
 using Counseling.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -87,6 +88,9 @@ public class AppointmentRepository : Repository<Appointment>, IAppointmentReposi
     public async Task<List<Appointment>> GetByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
         return await _dbSet
+            .Include(a => a.Client)
+            .Include(a => a.Counselor)
+            .Include(a => a.ServiceItem)
             .Where(a => a.AppointmentDate >= startDate.Date && a.AppointmentDate <= endDate.Date)
             .OrderByDescending(a => a.AppointmentDate)
             .ThenByDescending(a => a.StartTime)
@@ -287,12 +291,17 @@ public class RefundRecordRepository : Repository<RefundRecord>, IRefundRecordRep
 
     public async Task<RefundRecord?> GetByAppointmentIdAsync(int appointmentId)
     {
-        return await _dbSet.FirstOrDefaultAsync(r => r.AppointmentId == appointmentId);
+        return await _dbSet
+            .Include(r => r.Appointment)
+            .ThenInclude(a => a!.Client)
+            .FirstOrDefaultAsync(r => r.AppointmentId == appointmentId);
     }
 
     public async Task<List<RefundRecord>> GetByStatusAsync(RefundStatus status)
     {
         return await _dbSet
+            .Include(r => r.Appointment)
+            .ThenInclude(a => a!.Client)
             .Where(r => r.Status == status)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
@@ -301,6 +310,8 @@ public class RefundRecordRepository : Repository<RefundRecord>, IRefundRecordRep
     public async Task<List<RefundRecord>> GetByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
         return await _dbSet
+            .Include(r => r.Appointment)
+            .ThenInclude(a => a!.Client)
             .Where(r => r.CreatedAt >= startDate && r.CreatedAt <= endDate)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();

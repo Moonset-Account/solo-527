@@ -187,7 +187,12 @@ public class RefundService : IRefundService
 
     private async Task<RefundRecordDto> MapToDto(RefundRecord record)
     {
-        var appointment = await _appointmentRepository.GetByIdAsync(record.AppointmentId);
+        Appointment? appointment = record.Appointment;
+        if (appointment == null)
+        {
+            appointment = await _appointmentRepository.GetByIdAsync(record.AppointmentId);
+        }
+
         var clientName = string.Empty;
         if (appointment?.Client != null)
             clientName = appointment.Client.FullName;
