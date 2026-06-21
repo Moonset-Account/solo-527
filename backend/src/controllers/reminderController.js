@@ -410,6 +410,34 @@ async function generateReminders(req, res) {
   }
 }
 
+async function bulkHandleReminders(req, res) {
+  try {
+    const result = await prisma.reminder.updateMany({
+      where: { status: 'pending' },
+      data: {
+        status: 'handled',
+        handledById: req.user?.id,
+        handledAt: new Date(),
+      },
+    });
+
+    await logger.operation(
+      req.user?.id,
+      'bulk_handle',
+      'reminder',
+      null,
+      'reminder',
+      `批量处理提醒: ${result.count}条`,
+      req
+    );
+
+    success(res, { handled: result.count }, '批量处理成功');
+  } catch (err) {
+    logger.error('批量处理提醒失败', { error: err.message });
+    error(res, '批量处理提醒失败', 500);
+  }
+}
+
 module.exports = {
   getReminders,
   getReminderById,
@@ -419,4 +447,5 @@ module.exports = {
   deleteReminder,
   getReminderStats,
   generateReminders,
+  bulkHandleReminders,
 };

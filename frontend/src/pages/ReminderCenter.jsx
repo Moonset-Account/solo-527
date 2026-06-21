@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react'
 import {
   Card,
@@ -14,6 +15,9 @@ import {
   Tabs,
   Avatar,
   Divider,
+  Input,
+  Modal,
+  Form,
 } from 'antd'
 import {
   BellOutlined,
@@ -26,66 +30,105 @@ import {
   ShoppingOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
+  SearchOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons'
-import { getReminderList, markReminderRead, markAllRead } from '../api/reminder'
+import { getReminders, getReminderStats, handleReminder, handleAllReminders, generateReminders } from '../api/reminders'
+import dayjs from 'dayjs'
+
+const { TextArea } = Input
 
 const ReminderCenter = () => {
   const [loading, setLoading] = useState(false)
   const [reminders, setReminders] = useState([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [stats, setStats] = useState({
-    urgent: 0,
-    normal: 0,
-    low: 0,
+    byUrgency: { urgent: 0, normal: 0, low: 0 },
+    byStatus: { pending: 0, handled: 0, ignored: 0 },
     total: 0,
-    unread: 0,
   })
   const [activeTab, setActiveTab] = useState('all')
+  const [keyword, setKeyword] = useState('')
+  const [handleModalVisible, setHandleModalVisible] = useState(false)
+  const [handlingId, setHandlingId] = useState(null)
+  const [form] = Form.useForm()
 
   useEffect(() => {
-    loadReminders()
-  }, [])
+    loadAll()
+  }, [page, activeTab, keyword])
 
-  const loadReminders = async () => {
+  const loadAll = async () => {
     setLoading(true)
     try {
-      const res = await getReminderList()
-      if (res.code === 0) {
-        setReminders(res.data.list)
-        setStats(res.data.stats)
+      const params = { page, pageSize: 20 }
+      if (activeTab === 'pending') {
+        params.status = 'pending'
+      } else if (activeTab === 'urgent' || activeTab === 'normal' || activeTab === 'low') {
+        params.urgencyLevel = activeTab
+      }
+      if (keyword) {
+        params.keyword = keyword
+      }
+      const [listRes, statsRes] = await Promise.all([
+        getReminders(params),
+        getReminderStats(),
+      ])
+      if (listRes.success) {
+        setReminders(listRes.data.list || [])
+        setTotal(listRes.data.total || 0)
+      }
+      if (statsRes.success) {
+        setStats(statsRes.data)
       }
     } finally {
       setLoading(false)
     }
   }
 
-  const handleMarkRead = async (id) => {
-    const res = await markReminderRead(id)
-    if (res.code === 0) {
-      message.success('已标记为已处理')
-      setReminders((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, status: 'read' } : item
-        )
-      )
-      setStats((prev) => ({
-        ...prev,
-        unread: Math.max(0, prev.unread - 1),
-      }))
+  const handleHandleClick = (id) => {
+    setHandlingId(id)
+    form.resetFields()
+    setHandleModalVisible(true)
+  }
+
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields()
+      const res = await handleReminder(handlingId, values)
+      if (res.success) {
+        message.success('处理成功')
+        setHandleModalVisible(false)
+        loadAll()
+      }
+    } catch {
+      // validation error
     }
   }
 
-  const handleMarkAllRead = async () => {
-    const res = await markAllRead()
-    if (res.code === 0) {
-      message.success('全部标记为已处理')
-      setReminders((prev) =>
-        prev.map((item) => ({ ...item, status: 'read' }))
-      )
-      setStats((prev) => ({ ...prev, unread: 0 }))
+  const handleMarkAll = async () => {
+    Modal.confirm({
+      title: '确认批量处理',
+      content: '确定将所有待处理提醒标记为已处理？',
+      onOk: async () => {
+        const res = await handleAllReminders()
+        if (res.success) {
+          message.success('已全部标记为已处理')
+          loadAll()
+        }
+      },
+    })
+  }
+
+  const handleGenerate = async () => {
+    const res = await generateReminders()
+    if (res.success) {
+      message.success(`生成提醒成功：新增${res.data.generated || 0}条，跳过${res.data.skipped || 0}条`)
+      loadAll()
     }
   }
 
-  const getTypeConfig = (type) => {
+  const getUrgencyConfig = (urgencyLevel) => {
     const configs = {
       urgent: {
         color: 'red',
@@ -109,25 +152,21 @@ const ReminderCenter = () => {
         borderColor: '#d9d9d9',
       },
     }
-    return configs[type] || configs.normal
+    return configs[urgencyLevel] || configs.normal
   }
 
-  const getTypeIcon = (relatedType) => {
+  const getRelatedIcon = (relatedType) => {
     const icons = {
       appointment: <CalendarOutlined />,
+      memberTreatment: <ShoppingOutlined />,
       member: <UserOutlined />,
-      treatment: <ShoppingOutlined />,
       stock: <FileTextOutlined />,
       report: <FileTextOutlined />,
     }
     return icons[relatedType] || <BellOutlined />
   }
 
-  const filteredReminders = reminders.filter((item) => {
-    if (activeTab === 'all') return true
-    if (activeTab === 'unread') return item.status === 'unread'
-    return item.type === activeTab
-  })
+  const unreadCount = stats.byStatus?.pending || 0
 
   const statsCards = [
     {
@@ -139,40 +178,43 @@ const ReminderCenter = () => {
     },
     {
       title: '紧急提醒',
-      value: stats.urgent,
+      value: stats.byUrgency?.urgent || 0,
       icon: <WarningOutlined />,
       color: '#f5222d',
       key: 'urgent',
     },
     {
       title: '普通提醒',
-      value: stats.normal,
+      value: stats.byUrgency?.normal || 0,
       icon: <InfoCircleOutlined />,
-      color: '#52c41a',
+      color: '#1890ff',
       key: 'normal',
     },
     {
-      title: '未处理',
-      value: stats.unread,
+      title: '待处理',
+      value: unreadCount,
       icon: <ClockCircleOutlined />,
       color: '#faad14',
-      key: 'unread',
+      key: 'pending',
     },
   ]
 
   const tabItems = [
     { key: 'all', label: '全部' },
-    { key: 'unread', label: `未处理 (${stats.unread})` },
-    { key: 'urgent', label: '紧急' },
-    { key: 'normal', label: '普通' },
-    { key: 'low', label: '低优先级' },
+    { key: 'pending', label: `待处理 (${unreadCount})` },
+    { key: 'urgent', label: `紧急 (${stats.byUrgency?.urgent || 0})` },
+    { key: 'normal', label: `普通 (${stats.byUrgency?.normal || 0})` },
+    { key: 'low', label: `低优先级 (${stats.byUrgency?.low || 0})` },
+    { key: 'handled', label: `已处理 (${stats.byStatus?.handled || 0})` },
   ]
 
   return (
     <div>
+      <h2 style={{ marginTop: 0, marginBottom: 20 }}>提醒中心</h2>
+
       <Row gutter={16} style={{ marginBottom: 16 }}>
         {statsCards.map((card) => (
-          <Col span={6} key={card.key}>
+          <Col xs={12} sm={12} md={6} key={card.key}>
             <Card
               hoverable
               onClick={() => setActiveTab(card.key)}
@@ -196,11 +238,24 @@ const ReminderCenter = () => {
       <Card
         title="提醒列表"
         extra={
-          <Space>
+          <Space wrap>
+            <Input
+              placeholder="搜索关键词"
+              prefix={<SearchOutlined />}
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onPressEnter={() => setPage(1)}
+              style={{ width: 200 }}
+              allowClear
+            />
+            <Button icon={<ReloadOutlined />} onClick={loadAll}>刷新</Button>
+            <Button icon={<CheckCircleOutlined />} type="primary" onClick={handleGenerate}>
+              按规则生成
+            </Button>
             <Button
               icon={<CheckCircleOutlined />}
-              onClick={handleMarkAllRead}
-              disabled={stats.unread === 0}
+              onClick={handleMarkAll}
+              disabled={unreadCount === 0}
             >
               全部标记已处理
             </Button>
@@ -209,35 +264,43 @@ const ReminderCenter = () => {
       >
         <Tabs
           activeKey={activeTab}
-          onChange={setActiveTab}
+          onChange={(k) => { setActiveTab(k); setPage(1) }}
           items={tabItems}
           style={{ marginBottom: 16 }}
         />
 
-        {filteredReminders.length > 0 ? (
+        {reminders.length > 0 ? (
           <List
-            dataSource={filteredReminders}
+            dataSource={reminders}
             loading={loading}
+            pagination={{
+              current: page,
+              pageSize: 20,
+              total,
+              onChange: setPage,
+              showTotal: (t) => `共 ${t} 条`,
+            }}
             renderItem={(item) => {
-              const typeConfig = getTypeConfig(item.type)
+              const urgency = getUrgencyConfig(item.urgencyLevel)
+              const isPending = item.status === 'pending'
               return (
                 <List.Item
                   style={{
                     padding: '16px',
                     marginBottom: 12,
-                    background: item.status === 'unread' ? '#fffbe6' : '#fff',
+                    background: isPending ? '#fffbe6' : '#fff',
                     borderRadius: 8,
-                    borderLeft: `4px solid ${typeConfig.color}`,
+                    borderLeft: `4px solid ${urgency.color}`,
                   }}
                   actions={[
-                    item.status === 'unread' && (
+                    isPending && (
                       <Button
                         type="link"
                         size="small"
                         icon={<CheckOutlined />}
-                        onClick={() => handleMarkRead(item.id)}
+                        onClick={() => handleHandleClick(item.id)}
                       >
-                        标记已处理
+                        处理
                       </Button>
                     ),
                   ]}
@@ -246,28 +309,39 @@ const ReminderCenter = () => {
                     avatar={
                       <Avatar
                         style={{
-                          backgroundColor: typeConfig.bgColor,
-                          color: typeConfig.color,
+                          backgroundColor: urgency.bgColor,
+                          color: urgency.color,
                         }}
-                        icon={getTypeIcon(item.relatedType)}
+                        icon={getRelatedIcon(item.relatedType)}
                       />
                     }
                     title={
                       <Space>
-                        <Badge dot={item.status === 'unread'} color={typeConfig.color}>
+                        <Badge dot={isPending} color={urgency.color}>
                           <span style={{ fontWeight: 500 }}>{item.title}</span>
                         </Badge>
-                        <Tag color={typeConfig.color} style={{ marginLeft: 8 }}>
-                          {typeConfig.icon} {typeConfig.label}
+                        <Tag color={urgency.color} style={{ marginLeft: 8 }}>
+                          {urgency.icon} {urgency.label}
                         </Tag>
+                        {item.rule?.name && (
+                          <Tag color="purple">规则：{item.rule.name}</Tag>
+                        )}
+                        {!isPending && (
+                          <Tag color="green">已处理 {item.handledBy?.name || ''}</Tag>
+                        )}
                       </Space>
                     }
                     description={
                       <div>
                         <p style={{ color: '#666', margin: '8px 0' }}>{item.content}</p>
+                        {item.member?.name && (
+                          <Tag color="blue" style={{ marginRight: 8 }}>
+                            <UserOutlined /> {item.member.name}
+                          </Tag>
+                        )}
                         <span style={{ color: '#999', fontSize: 12 }}>
                           <ClockCircleOutlined style={{ marginRight: 4 }} />
-                          {item.time}
+                          {item.createdAt ? dayjs(item.createdAt).format('YYYY-MM-DD HH:mm') : ''}
                         </span>
                       </div>
                     }
@@ -280,6 +354,19 @@ const ReminderCenter = () => {
           <Empty description="暂无提醒" style={{ padding: '40px 0' }} />
         )}
       </Card>
+
+      <Modal
+        title="处理提醒"
+        open={handleModalVisible}
+        onOk={handleSubmit}
+        onCancel={() => setHandleModalVisible(false)}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item label="处理备注" name="handleRemark">
+            <TextArea rows={4} placeholder="请输入处理备注（可选）" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }

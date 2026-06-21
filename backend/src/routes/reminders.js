@@ -13,5 +13,6 @@ router.put('/:id', reminderController.updateReminder);
 router.post('/:id/handle', reminderController.handleReminder);
 router.delete('/:id', reminderController.deleteReminder);
 router.post('/generate', reminderController.generateReminders);
+router.post('/bulk-handle', reminderController.bulkHandleReminders);
 
 module.exports = router;

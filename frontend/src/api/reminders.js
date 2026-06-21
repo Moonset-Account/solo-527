@@ -9,7 +9,11 @@ export function getReminder(id) {
 }
 
 export function getReminderStats() {
-  return request.get('/reminders/stats')
+  return request.get('/reminders/stats/summary')
+}
+
+export function handleAllReminders() {
+  return request.post('/reminders/bulk-handle')
 }
 
 export function createReminder(data) {
