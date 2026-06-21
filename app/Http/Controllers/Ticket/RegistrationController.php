@@ -8,6 +8,7 @@ use App\Models\Registration;
 use App\Models\TicketType;
 use App\Models\EventSession;
 use App\Models\RegistrationSessionPivot;
+use App\Models\RegistrationQualityScore;
 use App\Models\DuplicateSeatRecord;
 use App\Traits\LogsActivity;
 use Illuminate\Http\Request;

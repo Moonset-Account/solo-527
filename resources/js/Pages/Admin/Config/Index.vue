@@ -92,13 +92,13 @@ const fmt = (n) => Number(n || 0).toLocaleString()
                     <option value="">全局</option>
                     <option v-for="e in events" :key="e.id" :value="e.id">{{ e.name }}</option>
                 </select>
-                <Link :href="route('admin.config.refunds', selectedEventId ? { event_id: selectedEventId } : {})" class="btn-secondary">
+                <Link :href="route('admin.config.refunds.index', selectedEventId ? { event_id: selectedEventId } : {})" class="btn-secondary">
                     <i class="fas fa-money-bill-transfer mr-2"></i>退款申请
                 </Link>
-                <Link :href="route('admin.config.feedbacks', selectedEventId ? { event_id: selectedEventId } : {})" class="btn-secondary">
+                <Link :href="route('admin.config.feedbacks.index', selectedEventId ? { event_id: selectedEventId } : {})" class="btn-secondary">
                     <i class="fas fa-comments mr-2"></i>到场反馈
                 </Link>
-                <Link :href="route('admin.config.logs')" class="btn-secondary">
+                <Link :href="route('admin.config.logs.index')" class="btn-secondary">
                     <i class="fas fa-file-lines mr-2"></i>操作日志
                 </Link>
             </div>

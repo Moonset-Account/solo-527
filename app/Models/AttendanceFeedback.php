@@ -10,6 +10,8 @@ class AttendanceFeedback extends Model
 {
     use HasFactory;
 
+    protected $table = 'attendance_feedbacks';
+
     protected $fillable = [
         'registration_id', 'event_id', 'session_id',
         'overall_rating', 'content_rating', 'venue_rating', 'service_rating',

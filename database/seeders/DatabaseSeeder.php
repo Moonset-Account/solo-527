@@ -150,7 +150,7 @@ class DatabaseSeeder extends Seeder
                 'department' => '市场部',
                 'position' => '运营经理',
                 'employee_no' => 'EMP0002',
-                'password' => Hash::make('Manager@123'),
+                'password' => Hash::make('password'),
             ]
         );
         $managerUser->assignRole('manager');

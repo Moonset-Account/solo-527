@@ -89,7 +89,7 @@ const maxSource = computed(() => {
             </Link>
             <Link
                 v-if="refundPendingCount > 0"
-                :href="route('admin.config.refunds', selectedEvent ? { event_id: selectedEvent.id, status: 'pending' } : {})"
+                :href="route('admin.config.refunds.index', selectedEvent ? { event_id: selectedEvent.id, status: 'pending' } : {})"
                 class="inline-flex items-center gap-2 px-4 py-2 bg-sky-50 border border-sky-200 text-sky-700 rounded-lg text-sm hover:bg-sky-100 transition"
             >
                 <i class="fas fa-money-bill-transfer"></i>

@@ -68,23 +68,23 @@ const canSubmit = computed(() => !form.processing && form.email && form.password
                 </form>
 
                 <div class="mt-6 pt-6 border-t border-gray-100">
-                    <p class="text-xs text-gray-500 mb-3">默认测试账号：</p>
+                    <p class="text-xs text-gray-500 mb-3">默认测试账号（所有账号密码均为 <code class="bg-gray-100 px-1 py-0.5 rounded">password</code>）：</p>
                     <div class="grid grid-cols-2 gap-2 text-xs">
                         <div class="bg-gray-50 rounded-md px-3 py-2">
                             <div class="font-medium text-gray-700">系统管理员</div>
-                            <div class="text-gray-500 mt-1">admin@summit.local / Admin@123</div>
+                            <div class="text-gray-500 mt-1">admin@summit.local</div>
                         </div>
                         <div class="bg-gray-50 rounded-md px-3 py-2">
                             <div class="font-medium text-gray-700">运营经理</div>
-                            <div class="text-gray-500 mt-1">manager@summit.local / Manager@123</div>
+                            <div class="text-gray-500 mt-1">manager@summit.local</div>
                         </div>
                         <div class="bg-gray-50 rounded-md px-3 py-2">
                             <div class="font-medium text-gray-700">票务运营</div>
-                            <div class="text-gray-500 mt-1">ticket1@summit.local / Ticket@123</div>
+                            <div class="text-gray-500 mt-1">ticket1@summit.local</div>
                         </div>
                         <div class="bg-gray-50 rounded-md px-3 py-2">
                             <div class="font-medium text-gray-700">报名录入</div>
-                            <div class="text-gray-500 mt-1">ticket2@summit.local / Ticket@123</div>
+                            <div class="text-gray-500 mt-1">ticket2@summit.local</div>
                         </div>
                     </div>
                 </div>

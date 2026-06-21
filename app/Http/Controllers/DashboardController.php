@@ -48,12 +48,19 @@ class DashboardController extends Controller
         $event = Event::with(['sessions:id,event_id,name,start_time,seat_count'])->find($selectedEventId);
 
         $cacheKey = "dashboard:event:{$selectedEventId}:stats:" . date('Y-m-d-H-i');
-        $stats = Redis::get($cacheKey);
+        $stats = null;
+        try {
+            $cached = Redis::get($cacheKey);
+            if ($cached) $stats = json_decode($cached, true);
+        } catch (\Exception $e) {
+            $stats = null;
+        }
         if (!$stats) {
             $stats = $this->calculateStats($selectedEventId);
-            Redis::setex($cacheKey, 300, json_encode($stats, JSON_UNESCAPED_UNICODE));
-        } else {
-            $stats = json_decode($stats, true);
+            try {
+                Redis::setex($cacheKey, 300, json_encode($stats, JSON_UNESCAPED_UNICODE));
+            } catch (\Exception $e) {
+            }
         }
 
         $conversionFunnel = $this->getConversionFunnel($selectedEventId);

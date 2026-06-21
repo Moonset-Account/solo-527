@@ -99,21 +99,21 @@ const canAccessTicket = computed(() => hasRole(['admin', 'manager', 'ticket_oper
                     <span>配置管理</span>
                 </Link>
                 <Link
-                    :href="route('admin.config.refunds')"
+                    :href="route('admin.config.refunds.index')"
                     :class="['nav-link', isActive('refunds') ? 'nav-link-active' : 'nav-link-inactive']"
                 >
                     <i class="fas fa-money-bill-transfer w-5 text-center"></i>
                     <span>退款申请</span>
                 </Link>
                 <Link
-                    :href="route('admin.config.feedbacks')"
+                    :href="route('admin.config.feedbacks.index')"
                     :class="['nav-link', isActive('feedbacks') ? 'nav-link-active' : 'nav-link-inactive']"
                 >
                     <i class="fas fa-comments w-5 text-center"></i>
                     <span>到场反馈</span>
                 </Link>
                 <Link
-                    :href="route('admin.config.logs')"
+                    :href="route('admin.config.logs.index')"
                     :class="['nav-link', isActive('logs') ? 'nav-link-active' : 'nav-link-inactive']"
                 >
                     <i class="fas fa-file-lines w-5 text-center"></i>

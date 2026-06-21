@@ -277,7 +277,7 @@ const hasDuplicate = computed(() => props.registration.duplicate_records?.some(d
                 <div v-if="registration.refund_requests?.length" class="card">
                     <div class="card-header"><span><i class="fas fa-money-bill-transfer mr-2 text-sky-500"></i>退款申请</span></div>
                     <div class="card-body divide-y divide-gray-100">
-                        <Link v-for="r in registration.refund_requests" :key="r.id" :href="route('admin.config.refunds', { event_id: registration.event_id })" class="block py-3 first:pt-0 last:pb-0 hover:bg-gray-50/50">
+                        <Link v-for="r in registration.refund_requests" :key="r.id" :href="route('admin.config.refunds.index', { event_id: registration.event_id })" class="block py-3 first:pt-0 last:pb-0 hover:bg-gray-50/50">
                             <div class="flex items-center justify-between text-xs">
                                 <div>
                                     <div class="font-mono text-gray-500">{{ r.refund_no }}</div>
