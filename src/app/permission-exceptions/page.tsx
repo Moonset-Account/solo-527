@@ -5,7 +5,7 @@ import { useState } from "react";
 import { AlertTriangle, CheckCircle, Clock, XCircle, MessageSquare, Send } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Button from "@/components/ui/Button";
-import { getPermissionExceptions, handlePermissionException, getMedicalRecordById } from "@/lib/services";
+import { getPermissionExceptions, handlePermissionException } from "@/lib/services";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";

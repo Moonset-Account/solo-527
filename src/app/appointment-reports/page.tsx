@@ -28,7 +28,10 @@ export default function AppointmentReportsPage() {
     queryFn: () => getAppointmentReports(),
   });
 
-  const filtered = reports ?? [];
+  const allReports = reports ?? [];
+  const filtered = dept
+    ? allReports.filter((r) => r.department === dept)
+    : allReports;
   const byDate = filtered.reduce<Record<string, typeof filtered>>((acc, r) => {
     (acc[r.report_date] = acc[r.report_date] || []).push(r);
     return acc;

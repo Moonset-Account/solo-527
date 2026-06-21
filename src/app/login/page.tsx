@@ -57,7 +57,7 @@ export default function LoginPage() {
             </div>
             <div className="h-px bg-gradient-to-r from-transparent via-gold-400/40 to-transparent" />
             <p className="text-xs italic leading-relaxed text-teal-100/70">
-              "上医治未病，中医治欲病，下医治已病。"
+              &ldquo;上医治未病，中医治欲病，下医治已病。&rdquo;
               <br />
               <span className="text-gold-300/80">——《黄帝内经》</span>
             </p>
