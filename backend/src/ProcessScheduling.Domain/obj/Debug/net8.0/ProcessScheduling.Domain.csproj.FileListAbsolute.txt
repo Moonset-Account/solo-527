@@ -1,0 +1,11 @@
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/bin/Debug/net8.0/ProcessScheduling.Domain.deps.json
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/bin/Debug/net8.0/ProcessScheduling.Domain.dll
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/bin/Debug/net8.0/ProcessScheduling.Domain.pdb
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/obj/Debug/net8.0/ProcessScheduling.Domain.GeneratedMSBuildEditorConfig.editorconfig
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/obj/Debug/net8.0/ProcessScheduling.Domain.AssemblyInfoInputs.cache
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/obj/Debug/net8.0/ProcessScheduling.Domain.AssemblyInfo.cs
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/obj/Debug/net8.0/ProcessScheduling.Domain.csproj.CoreCompileInputs.cache
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/obj/Debug/net8.0/ProcessScheduling.Domain.dll
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/obj/Debug/net8.0/refint/ProcessScheduling.Domain.dll
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/obj/Debug/net8.0/ProcessScheduling.Domain.pdb
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/obj/Debug/net8.0/ref/ProcessScheduling.Domain.dll

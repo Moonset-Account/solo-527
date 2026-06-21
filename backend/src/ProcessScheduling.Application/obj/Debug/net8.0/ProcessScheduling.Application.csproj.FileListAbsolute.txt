@@ -1,0 +1,15 @@
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/obj/Debug/net8.0/ProcessScheduling.Application.csproj.AssemblyReference.cache
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/obj/Debug/net8.0/ProcessScheduling.Application.GeneratedMSBuildEditorConfig.editorconfig
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/obj/Debug/net8.0/ProcessScheduling.Application.AssemblyInfoInputs.cache
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/obj/Debug/net8.0/ProcessScheduling.Application.AssemblyInfo.cs
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/obj/Debug/net8.0/ProcessScheduling.Application.csproj.CoreCompileInputs.cache
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/bin/Debug/net8.0/ProcessScheduling.Application.deps.json
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/bin/Debug/net8.0/ProcessScheduling.Application.dll
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/bin/Debug/net8.0/ProcessScheduling.Application.pdb
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/bin/Debug/net8.0/ProcessScheduling.Domain.dll
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/bin/Debug/net8.0/ProcessScheduling.Domain.pdb
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/obj/Debug/net8.0/ProcessS.E3AD2529.Up2Date
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/obj/Debug/net8.0/ProcessScheduling.Application.dll
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/obj/Debug/net8.0/refint/ProcessScheduling.Application.dll
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/obj/Debug/net8.0/ProcessScheduling.Application.pdb
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/obj/Debug/net8.0/ref/ProcessScheduling.Application.dll

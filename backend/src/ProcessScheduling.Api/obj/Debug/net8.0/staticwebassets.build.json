@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "TAatRvKVYo0N/YBWlzUMisb7NurbDpkMvNxbu/NsLRQ=",
+  "Source": "ProcessScheduling.Api",
+  "BasePath": "_content/ProcessScheduling.Api",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

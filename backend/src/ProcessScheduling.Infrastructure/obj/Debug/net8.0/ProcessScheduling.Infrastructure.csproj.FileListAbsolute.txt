@@ -1,0 +1,17 @@
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/bin/Debug/net8.0/ProcessScheduling.Infrastructure.deps.json
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/bin/Debug/net8.0/ProcessScheduling.Infrastructure.dll
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/bin/Debug/net8.0/ProcessScheduling.Infrastructure.pdb
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/bin/Debug/net8.0/ProcessScheduling.Application.dll
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/bin/Debug/net8.0/ProcessScheduling.Domain.dll
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/bin/Debug/net8.0/ProcessScheduling.Domain.pdb
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/bin/Debug/net8.0/ProcessScheduling.Application.pdb
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/obj/Debug/net8.0/ProcessScheduling.Infrastructure.csproj.AssemblyReference.cache
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/obj/Debug/net8.0/ProcessScheduling.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/obj/Debug/net8.0/ProcessScheduling.Infrastructure.AssemblyInfoInputs.cache
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/obj/Debug/net8.0/ProcessScheduling.Infrastructure.AssemblyInfo.cs
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/obj/Debug/net8.0/ProcessScheduling.Infrastructure.csproj.CoreCompileInputs.cache
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/obj/Debug/net8.0/ProcessS.5FF6F7CC.Up2Date
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/obj/Debug/net8.0/ProcessScheduling.Infrastructure.dll
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/obj/Debug/net8.0/refint/ProcessScheduling.Infrastructure.dll
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/obj/Debug/net8.0/ProcessScheduling.Infrastructure.pdb
+/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/obj/Debug/net8.0/ref/ProcessScheduling.Infrastructure.dll

@@ -1,0 +1,327 @@
+{
+  "format": 1,
+  "restore": {
+    "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Api/ProcessScheduling.Api.csproj": {}
+  },
+  "projects": {
+    "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Api/ProcessScheduling.Api.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Api/ProcessScheduling.Api.csproj",
+        "projectName": "ProcessScheduling.Api",
+        "projectPath": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Api/ProcessScheduling.Api.csproj",
+        "packagesPath": "/Users/xingyaolei/.nuget/packages/",
+        "outputPath": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Api/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/xingyaolei/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/ProcessScheduling.Application.csproj": {
+                "projectPath": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/ProcessScheduling.Application.csproj"
+              },
+              "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/ProcessScheduling.Infrastructure.csproj": {
+                "projectPath": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/ProcessScheduling.Infrastructure.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Microsoft.AspNetCore.Authentication.JwtBearer": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Swashbuckle.AspNetCore": {
+              "target": "Package",
+              "version": "[6.5.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/Users/xingyaolei/.dotnet/sdk/8.0.422/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/ProcessScheduling.Application.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/ProcessScheduling.Application.csproj",
+        "projectName": "ProcessScheduling.Application",
+        "projectPath": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/ProcessScheduling.Application.csproj",
+        "packagesPath": "/Users/xingyaolei/.nuget/packages/",
+        "outputPath": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/xingyaolei/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/ProcessScheduling.Domain.csproj": {
+                "projectPath": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/ProcessScheduling.Domain.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Microsoft.Extensions.DependencyInjection": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Microsoft.Extensions.DependencyInjection.Abstractions": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/Users/xingyaolei/.dotnet/sdk/8.0.422/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/ProcessScheduling.Domain.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/ProcessScheduling.Domain.csproj",
+        "projectName": "ProcessScheduling.Domain",
+        "projectPath": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/ProcessScheduling.Domain.csproj",
+        "packagesPath": "/Users/xingyaolei/.nuget/packages/",
+        "outputPath": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/xingyaolei/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/Users/xingyaolei/.dotnet/sdk/8.0.422/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/ProcessScheduling.Infrastructure.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/ProcessScheduling.Infrastructure.csproj",
+        "projectName": "ProcessScheduling.Infrastructure",
+        "projectPath": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/ProcessScheduling.Infrastructure.csproj",
+        "packagesPath": "/Users/xingyaolei/.nuget/packages/",
+        "outputPath": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Infrastructure/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/xingyaolei/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/ProcessScheduling.Application.csproj": {
+                "projectPath": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Application/ProcessScheduling.Application.csproj"
+              },
+              "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/ProcessScheduling.Domain.csproj": {
+                "projectPath": "/Volumes/TraeProjects/trae-solo-generated-projects/work-0386/backend/src/ProcessScheduling.Domain/ProcessScheduling.Domain.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "BCrypt.Net-Next": {
+              "target": "Package",
+              "version": "[4.0.3, )"
+            },
+            "Microsoft.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Microsoft.EntityFrameworkCore.SqlServer": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Microsoft.EntityFrameworkCore.Sqlite": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Microsoft.Extensions.Caching.Memory": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Microsoft.Extensions.Configuration": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Microsoft.Extensions.DependencyInjection": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Microsoft.Extensions.Logging": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Microsoft.IdentityModel.Tokens": {
+              "target": "Package",
+              "version": "[7.0.3, )"
+            },
+            "StackExchange.Redis": {
+              "target": "Package",
+              "version": "[2.7.23, )"
+            },
+            "System.IdentityModel.Tokens.Jwt": {
+              "target": "Package",
+              "version": "[7.0.3, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/Users/xingyaolei/.dotnet/sdk/8.0.422/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}
