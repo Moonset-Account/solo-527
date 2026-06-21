@@ -2,7 +2,8 @@ import { type Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { ClerkProvider } from "@clerk/nextjs";
-import { zhCN } from "@clerk/localizations";
+import { zhCN as clerkZhCN } from "@clerk/localizations";
+import type { Localization } from "@clerk/types";
 
 import { TRPCReactProvider } from "@/trpc/react";
 import { cn } from "@/lib/utils";
@@ -28,7 +29,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider localization={zhCN}>
+    <ClerkProvider localization={clerkZhCN as Localization}>
       <html lang="zh-CN" className={`${inter.variable} ${jetBrainsMono.variable}`}>
         <body className={cn("min-h-screen bg-slate-50 font-sans antialiased")}>
           <TRPCReactProvider cookies={cookies().toString()}>

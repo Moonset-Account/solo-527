@@ -10,7 +10,7 @@ export const settlementRouter = router({
       z.object({
         page: z.number().default(1),
         pageSize: z.number().default(20),
-        status: z.string().optional(),
+        status: z.union([z.string(), z.array(z.string())]).optional(),
         search: z.string().optional(),
       })
     )
@@ -18,12 +18,18 @@ export const settlementRouter = router({
       const { page, pageSize, status, search } = input;
 
       const where: any = {};
-      if (status) where.status = status;
+      if (status) {
+        if (Array.isArray(status)) {
+          where.status = { in: status };
+        } else {
+          where.status = status;
+        }
+      }
       if (search) {
         where.OR = [
           { settlementNo: { contains: search, mode: "insensitive" } },
-          { lease: { owner: { name: { contains: search, mode: "insensitive" } } } },
-          { lease: { property: { name: { contains: search, mode: "insensitive" } } } },
+          { lease: { owner: { name: { contains: search, mode: "insensitive" } } },
+          { lease: { property: { name: { contains: search, mode: "insensitive" } } },
         ];
       }
 
@@ -76,6 +82,26 @@ export const settlementRouter = router({
             name: s.lease.tenant.name,
             phone: s.lease.tenant.phone,
           },
+        })),
+        settlements: settlements.map((s) => ({
+          id: s.id,
+          settlementNo: s.settlementNo,
+          periodFrom: s.periodFrom,
+          periodTo: s.periodTo,
+          ownerAmount: s.ownerAmount.toNumber(),
+          totalRent: s.totalRent.toNumber(),
+          managementFee: s.managementFee.toNumber(),
+          otherDeductions: s.otherDeductions.toNumber(),
+          status: s.status,
+          paidDate: s.paidDate,
+          remark: s.remark,
+          createdAt: s.createdAt,
+          propertyName: s.lease.property.name,
+          propertyAddress: s.lease.property.address,
+          ownerName: s.lease.owner.name,
+          ownerPhone: s.lease.owner.phone,
+          tenantName: s.lease.tenant.name,
+          tenantPhone: s.lease.tenant.phone,
         })),
       };
     }),

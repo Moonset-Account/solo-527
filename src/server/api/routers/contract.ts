@@ -9,7 +9,7 @@ export const contractRouter = router({
       z.object({
         page: z.number().default(1),
         pageSize: z.number().default(20),
-        status: z.string().optional(),
+        status: z.union([z.string(), z.array(z.string())]).optional(),
         search: z.string().optional(),
       })
     )
@@ -17,7 +17,13 @@ export const contractRouter = router({
       const { page, pageSize, status, search } = input;
 
       const where: any = {};
-      if (status) where.status = status;
+      if (status) {
+        if (Array.isArray(status)) {
+          where.status = { in: status };
+        } else {
+          where.status = status;
+        }
+      }
       if (search) {
         where.OR = [
           { contractNo: { contains: search, mode: "insensitive" } },
@@ -72,6 +78,25 @@ export const contractRouter = router({
           startDate: c.lease.startDate,
           endDate: c.lease.endDate,
         })),
+        contracts: contracts.map((c) => ({
+          id: c.id,
+          contractNo: c.contractNo,
+          status: c.status,
+          signUrl: c.signUrl,
+          fileUrl: c.fileUrl,
+          signedAt: c.signedAt,
+          remark: c.remark,
+          createdAt: c.createdAt,
+          propertyName: c.lease.property.name,
+          propertyAddress: c.lease.property.address,
+          tenantName: c.lease.tenant.name,
+          tenantPhone: c.lease.tenant.phone,
+          tenantEmail: c.lease.tenant.email,
+          monthlyRent: c.lease.monthlyRent.toNumber(),
+          deposit: c.lease.deposit.toNumber(),
+          startDate: c.lease.startDate,
+          endDate: c.lease.endDate,
+        })),
       };
     }),
 
@@ -99,37 +124,40 @@ export const contractRouter = router({
     }),
 
   getStats: financeProcedure.query(async ({ ctx }) => {
-    const [pending, signed, cancelled, total, pendingAmount, signedAmount, cancelledAmount, totalAmount] = await Promise.all([
+    const [pending, signed, cancelled, total, pendingContracts, signedContracts, cancelledContracts, allContracts] = await Promise.all([
       ctx.db.contract.count({ where: { status: ContractStatus.PENDING_SIGN } }),
       ctx.db.contract.count({ where: { status: ContractStatus.SIGNED } }),
       ctx.db.contract.count({ where: { status: { in: [ContractStatus.CANCELLED, ContractStatus.EXPIRED] } } }),
       ctx.db.contract.count(),
-      ctx.db.contract.aggregate({
-        _sum: { lease: { monthlyRent: true } },
+      ctx.db.contract.findMany({
         where: { status: ContractStatus.PENDING_SIGN },
+        include: { lease: { select: { monthlyRent: true } } },
       }),
-      ctx.db.contract.aggregate({
-        _sum: { lease: { monthlyRent: true } },
+      ctx.db.contract.findMany({
         where: { status: ContractStatus.SIGNED },
+        include: { lease: { select: { monthlyRent: true } } },
       }),
-      ctx.db.contract.aggregate({
-        _sum: { lease: { monthlyRent: true } },
+      ctx.db.contract.findMany({
         where: { status: { in: [ContractStatus.CANCELLED, ContractStatus.EXPIRED] } },
+        include: { lease: { select: { monthlyRent: true } } },
       }),
-      ctx.db.contract.aggregate({
-        _sum: { lease: { monthlyRent: true } },
+      ctx.db.contract.findMany({
+        include: { lease: { select: { monthlyRent: true } } },
       }),
     ]);
+
+    const calcAmount = (contracts: Array<{ lease: { monthlyRent: any } }>) =>
+      contracts.reduce((sum, c) => sum + c.lease.monthlyRent.toNumber(), 0);
 
     return {
       pending,
       signed,
       cancelled,
       total,
-      pendingAmount: 0,
-      signedAmount: 0,
-      cancelledAmount: 0,
-      totalAmount: 0,
+      pendingAmount: calcAmount(pendingContracts),
+      signedAmount: calcAmount(signedContracts),
+      cancelledAmount: calcAmount(cancelledContracts),
+      totalAmount: calcAmount(allContracts),
     };
   }),
 
