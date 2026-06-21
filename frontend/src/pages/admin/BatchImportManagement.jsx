@@ -21,6 +21,12 @@ const BatchImportManagement = () => {
     completed: { text: '已完成', color: 'green' },
     processing: { text: '处理中', color: 'blue' },
     failed: { text: '失败', color: 'red' },
+    partial: { text: '部分成功', color: 'orange' },
+  }
+
+  const typeMap = {
+    product: '产品',
+    member: '会员',
   }
 
   const loadData = async () => {
@@ -78,11 +84,11 @@ const BatchImportManagement = () => {
   const handleDownloadError = async (record) => {
     try {
       const res = await downloadErrors(record.id)
-      const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `error_${record.fileName || record.id}.xlsx`
+      link.download = `导入错误记录_${record.id}.xlsx`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -126,7 +132,7 @@ const BatchImportManagement = () => {
 
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-    { title: '导入类型', dataIndex: 'type', key: 'type', width: 100 },
+    { title: '导入类型', dataIndex: 'type', key: 'type', width: 100, render: (t) => typeMap[t] || t },
     { title: '文件名', dataIndex: 'fileName', key: 'fileName', icon: <FileTextOutlined /> },
     { title: '总数量', dataIndex: 'totalCount', key: 'totalCount', width: 100 },
     {
@@ -148,10 +154,10 @@ const BatchImportManagement = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (text) => <Tag color={statusMap[text].color}>{statusMap[text].text}</Tag>,
+      render: (text) => <Tag color={(statusMap[text] || {}).color || 'default'}>{(statusMap[text] || {}).text || text}</Tag>,
     },
-    { title: '操作人', dataIndex: 'operator', key: 'operator', width: 100 },
-    { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
+    { title: '操作人', dataIndex: 'operator', key: 'operator', width: 100, render: (op) => op?.name || '-' },
+    { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180, render: (t) => t ? new Date(t).toLocaleString() : '-' },
     {
       title: '操作',
       key: 'action',
@@ -162,7 +168,7 @@ const BatchImportManagement = () => {
           {record.failCount > 0 && (
             <Button type="link" size="small" icon={<DownloadOutlined />} onClick={() => handleDownloadError(record)}>下载错误</Button>
           )}
-          {record.status === 'failed' && (
+          {(record.status === 'failed' || record.status === 'partial') && (
             <Button type="link" size="small" icon={<ReloadOutlined />} onClick={() => handleRetry(record)}>重试</Button>
           )}
           <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>删除</Button>
@@ -196,9 +202,8 @@ const BatchImportManagement = () => {
               allowClear
               style={{ width: 150 }}
             >
-              <Option value="产品">产品</Option>
-              <Option value="会员">会员</Option>
-              <Option value="预约">预约</Option>
+              <Option value="product">产品</Option>
+              <Option value="member">会员</Option>
             </Select>
           </Space>
           <Button type="primary" icon={<UploadOutlined />} onClick={() => setUploadVisible(true)}>
@@ -236,9 +241,8 @@ const BatchImportManagement = () => {
             onChange={setImportType}
             style={{ width: '100%' }}
           >
-            <Option value="产品">产品导入</Option>
-            <Option value="会员">会员导入</Option>
-            <Option value="预约">预约导入</Option>
+            <Option value="product">产品导入</Option>
+            <Option value="member">会员导入</Option>
           </Select>
         </div>
         <div style={{ marginBottom: 16 }}>
@@ -269,15 +273,15 @@ const BatchImportManagement = () => {
           <>
             <Descriptions column={2} bordered size="small" style={{ marginBottom: 16 }}>
               <Descriptions.Item label="文件名">{currentItem.fileName}</Descriptions.Item>
-              <Descriptions.Item label="类型">{currentItem.type}</Descriptions.Item>
+              <Descriptions.Item label="类型">{typeMap[currentItem.type] || currentItem.type}</Descriptions.Item>
               <Descriptions.Item label="总数量">{currentItem.totalCount}</Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={statusMap[currentItem.status].color}>{statusMap[currentItem.status].text}</Tag>
+                <Tag color={(statusMap[currentItem.status] || {}).color || 'default'}>{(statusMap[currentItem.status] || {}).text || currentItem.status}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="成功数" contentStyle={{ color: '#52c41a' }}>{currentItem.successCount}</Descriptions.Item>
               <Descriptions.Item label="失败数" contentStyle={{ color: '#ff4d4f' }}>{currentItem.failCount}</Descriptions.Item>
-              <Descriptions.Item label="操作人">{currentItem.operator}</Descriptions.Item>
-              <Descriptions.Item label="创建时间">{currentItem.createTime}</Descriptions.Item>
+              <Descriptions.Item label="操作人">{currentItem.operator?.name || '-'}</Descriptions.Item>
+              <Descriptions.Item label="创建时间">{currentItem.createdAt ? new Date(currentItem.createdAt).toLocaleString() : '-'}</Descriptions.Item>
             </Descriptions>
             {currentItem.failCount > 0 && (
               <div>

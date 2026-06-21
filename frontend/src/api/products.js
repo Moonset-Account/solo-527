@@ -25,5 +25,5 @@ export function getStockSummary() {
 }
 
 export function adjustStock(id, data) {
-  return request.post(`/products/${id}/stock/adjust`, data)
+  return request.post(`/products/${id}/stock-adjust`, data)
 }

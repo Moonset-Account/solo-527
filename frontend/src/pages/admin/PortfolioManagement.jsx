@@ -20,20 +20,23 @@ const PortfolioManagement = () => {
   const [editingItem, setEditingItem] = useState(null)
   const [currentItem, setCurrentItem] = useState(null)
   const [form] = Form.useForm()
-  const [fileList, setFileList] = useState([])
+  const [imageUrl, setImageUrl] = useState('')
+  const [uploading, setUploading] = useState(false)
 
   const statusMap = {
-    approved: { text: '已审核', color: 'green' },
+    active: { text: '已上架', color: 'green' },
+    inactive: { text: '已下架', color: 'default' },
     pending: { text: '待审核', color: 'orange' },
+    approved: { text: '已审核', color: 'green' },
   }
 
   const loadPortfolio = async () => {
     const params = { pageSize: 100 }
     if (treatmentFilter) {
-      params.treatment = treatmentFilter
+      params.treatmentId = treatmentFilter
     }
     if (memberFilter) {
-      params.memberName = memberFilter
+      params.memberId = memberFilter
     }
     const res = await getPortfolio(params)
     if (res.success) {
@@ -67,20 +70,21 @@ const PortfolioManagement = () => {
 
   const handleAdd = () => {
     setEditingItem(null)
-    setFileList([])
+    setImageUrl('')
     form.resetFields()
     setModalVisible(true)
   }
 
   const handleEdit = (record) => {
     setEditingItem(record)
-    form.setFieldsValue(record)
-    setFileList((record.images || []).map((url, index) => ({
-      uid: `-${index}`,
-      name: `image-${index}.jpg`,
-      status: 'done',
-      url,
-    })))
+    setImageUrl(record.image || '')
+    form.setFieldsValue({
+      memberId: record.memberId,
+      treatmentId: record.treatmentId,
+      title: record.title,
+      description: record.description,
+      status: record.status,
+    })
     setModalVisible(true)
   }
 
@@ -103,10 +107,31 @@ const PortfolioManagement = () => {
     setDetailVisible(true)
   }
 
-  const handleModalOk = () => {
-    form.validateFields().then(async (values) => {
-      const images = fileList.map(f => f.url || f.response?.url).filter(Boolean)
-      const submitData = { ...values, images }
+  const handleUpload = async ({ file, onSuccess, onError }) => {
+    setUploading(true)
+    try {
+      const res = await uploadPortfolioImage(file)
+      if (res.success) {
+        const url = res.data.url
+        setImageUrl(url)
+        onSuccess({ url })
+      } else {
+        onError(new Error('上传失败'))
+      }
+    } catch (err) {
+      onError(err)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleModalOk = async () => {
+    try {
+      const values = await form.validateFields()
+      const submitData = {
+        ...values,
+        image: imageUrl,
+      }
       if (editingItem) {
         const res = await updatePortfolio(editingItem.id, submitData)
         if (res.success) {
@@ -122,28 +147,21 @@ const PortfolioManagement = () => {
           loadPortfolio()
         }
       }
-    })
+    } catch (err) {
+      // validation error
+    }
   }
 
-  const uploadProps = {
-    fileList,
-    customRequest: async ({ file, onSuccess, onError }) => {
-      try {
-        const res = await uploadPortfolioImage(file)
-        if (res.success) {
-          const url = res.data.url || res.data
-          onSuccess({ url })
-          setFileList(prev => prev.map(f => 
-            f.uid === file.uid ? { ...f, status: 'done', url } : f
-          ))
-        } else {
-          onError(new Error('上传失败'))
-        }
-      } catch (error) {
-        onError(error)
-      }
-    },
-    onChange: ({ fileList: newFileList }) => setFileList(newFileList),
+  const getMemberName = (item) => {
+    if (item.member) return item.member.name
+    const m = members.find(m => m.id === item.memberId)
+    return m ? m.name : item.memberId
+  }
+
+  const getTreatmentName = (item) => {
+    if (item.treatment) return item.treatment.name
+    const t = treatments.find(t => t.id === item.treatmentId)
+    return t ? t.name : ''
   }
 
   return (
@@ -160,14 +178,19 @@ const PortfolioManagement = () => {
               allowClear
               style={{ width: 150 }}
             >
-              {treatments.map(t => <Option key={t.id} value={t.name}>{t.name}</Option>)}
+              {treatments.map(t => <Option key={t.id} value={t.id}>{t.name}</Option>)}
             </Select>
-            <Input.Search
-              placeholder="搜索会员姓名"
+            <Select
+              placeholder="会员筛选"
+              value={memberFilter || undefined}
+              onChange={setMemberFilter}
               allowClear
-              style={{ width: 200 }}
-              onSearch={setMemberFilter}
-            />
+              style={{ width: 150 }}
+              showSearch
+              optionFilterProp="children"
+            >
+              {members.map(m => <Option key={m.id} value={m.id}>{m.name}</Option>)}
+            </Select>
           </Space>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
             上传作品
@@ -175,69 +198,60 @@ const PortfolioManagement = () => {
         </div>
 
         <Row gutter={[16, 16]}>
-          {data.map(item => (
-            <Col xs={24} sm={12} md={8} lg={6} key={item.id}>
-              <Card
-                hoverable
-                cover={
-                  <div style={{ position: 'relative' }}>
-                    <Image
-                      src={item.images?.[0]}
-                      height={200}
-                      style={{ objectFit: 'cover', width: '100%' }}
-                      preview={false}
-                    />
-                    {item.images?.length > 1 && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          bottom: 8,
-                          right: 8,
-                          background: 'rgba(0,0,0,0.6)',
-                          color: '#fff',
-                          padding: '2px 8px',
-                          borderRadius: 4,
-                          fontSize: 12,
-                        }}
+          {data.map(item => {
+            const st = statusMap[item.status] || { text: item.status, color: 'default' }
+            return (
+              <Col xs={24} sm={12} md={8} lg={6} key={item.id}>
+                <Card
+                  hoverable
+                  cover={
+                    <div style={{ position: 'relative' }}>
+                      <Image
+                        src={item.image}
+                        height={200}
+                        style={{ objectFit: 'cover', width: '100%' }}
+                        preview={false}
+                        fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN88P/BfwAJhAPk2iMa1AAAAABJRU5ErkJggg=="
+                      />
+                      {item.beforeImage && (
+                        <Image
+                          src={item.beforeImage}
+                          style={{ display: 'none' }}
+                          preview={false}
+                        />
+                      )}
+                      <Tag
+                        color={st.color}
+                        style={{ position: 'absolute', top: 8, left: 8 }}
                       >
-                        +{item.images.length - 1}
-                      </div>
-                    )}
-                    <Tag
-                      color={statusMap[item.status].color}
-                      style={{ position: 'absolute', top: 8, left: 8 }}
-                    >
-                      {statusMap[item.status].text}
-                    </Tag>
-                  </div>
-                }
-                actions={[
-                  <EyeOutlined key="view" onClick={() => handleDetail(item)} />,
-                  <EditOutlined key="edit" onClick={() => handleEdit(item)} />,
-                  <DeleteOutlined key="delete" onClick={() => handleDelete(item.id)} />,
-                ]}
-              >
-                <Card.Meta
-                  title={item.memberName}
-                  description={
-                    <div>
-                      <div style={{ marginBottom: 4 }}>{item.treatment}</div>
-                      <div style={{ color: '#999', fontSize: 12 }}>{item.createTime}</div>
+                        {st.text}
+                      </Tag>
                     </div>
                   }
-                />
-              </Card>
-            </Col>
-          ))}
+                  actions={[
+                    <EyeOutlined key="view" onClick={() => handleDetail(item)} />,
+                    <EditOutlined key="edit" onClick={() => handleEdit(item)} />,
+                    <DeleteOutlined key="delete" onClick={() => handleDelete(item.id)} />,
+                  ]}
+                >
+                  <Card.Meta
+                    title={item.title || getMemberName(item)}
+                    description={
+                      <div>
+                        <div style={{ marginBottom: 4 }}>{getTreatmentName(item)}</div>
+                        <div style={{ color: '#999', fontSize: 12 }}>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}</div>
+                      </div>
+                    }
+                  />
+                </Card>
+              </Col>
+            )
+          })}
         </Row>
 
         {data.length === 0 && (
           <div style={{ textAlign: 'center', color: '#999', padding: 50 }}>暂无作品数据</div>
         )}
-
-        <div style={{ marginTop: 16, textAlign: 'center' }}>
-          <Button>加载更多</Button>
-        </div>
       </Card>
 
       <Modal
@@ -248,21 +262,34 @@ const PortfolioManagement = () => {
         width={600}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="memberName" label="会员姓名" rules={[{ required: true, message: '请输入会员姓名' }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="treatment" label="疗程类型" rules={[{ required: true, message: '请选择疗程' }]}>
-            <Select>
-              {treatments.map(t => <Option key={t.id} value={t.name}>{t.name}</Option>)}
+          <Form.Item name="memberId" label="会员" rules={[{ required: true, message: '请选择会员' }]}>
+            <Select showSearch optionFilterProp="children" placeholder="请选择会员">
+              {members.map(m => <Option key={m.id} value={m.id}>{m.name} ({m.phone})</Option>)}
             </Select>
           </Form.Item>
-          <Form.Item label="作品图片" rules={[{ required: true, message: '请上传作品图片' }]}>
-            <Upload {...uploadProps} listType="picture-card" multiple>
-              <div>
-                <UploadOutlined />
-                <div style={{ marginTop: 8 }}>上传</div>
-              </div>
+          <Form.Item name="treatmentId" label="疗程类型">
+            <Select allowClear placeholder="请选择疗程">
+              {treatments.map(t => <Option key={t.id} value={t.id}>{t.name}</Option>)}
+            </Select>
+          </Form.Item>
+          <Form.Item name="title" label="作品标题" rules={[{ required: true, message: '请输入作品标题' }]}>
+            <Input placeholder="请输入作品标题" />
+          </Form.Item>
+          <Form.Item label="作品图片" required>
+            <Upload
+              customRequest={handleUpload}
+              showUploadList={false}
+              accept="image/*"
+            >
+              {imageUrl ? (
+                <Image src={imageUrl} style={{ maxWidth: 200, maxHeight: 200 }} />
+              ) : (
+                <div>
+                  <Button icon={<UploadOutlined />} loading={uploading}>上传图片</Button>
+                </div>
+              )}
             </Upload>
+            {!imageUrl && <div style={{ color: '#999', fontSize: 12, marginTop: 8 }}>请先上传图片</div>}
           </Form.Item>
           <Form.Item name="description" label="作品描述">
             <TextArea rows={3} placeholder="请输入作品描述" />
@@ -280,20 +307,28 @@ const PortfolioManagement = () => {
         {currentItem && (
           <>
             <Row gutter={16}>
-              {(currentItem.images || []).map((img, index) => (
-                <Col span={12} key={index} style={{ marginBottom: 16 }}>
-                  <Image src={img} style={{ width: '100%', borderRadius: 8 }} />
+              {currentItem.image && (
+                <Col span={currentItem.beforeImage ? 12 : 24} style={{ marginBottom: 16 }}>
+                  <Image src={currentItem.image} style={{ width: '100%', borderRadius: 8 }} />
                 </Col>
-              ))}
+              )}
+              {currentItem.beforeImage && (
+                <Col span={12} style={{ marginBottom: 16 }}>
+                  <Image src={currentItem.beforeImage} style={{ width: '100%', borderRadius: 8 }} />
+                </Col>
+              )}
             </Row>
             <Descriptions column={1} size="small">
-              <Descriptions.Item label="会员">{currentItem.memberName}</Descriptions.Item>
-              <Descriptions.Item label="疗程">{currentItem.treatment}</Descriptions.Item>
+              <Descriptions.Item label="标题">{currentItem.title}</Descriptions.Item>
+              <Descriptions.Item label="会员">{getMemberName(currentItem)}</Descriptions.Item>
+              <Descriptions.Item label="疗程">{getTreatmentName(currentItem)}</Descriptions.Item>
               <Descriptions.Item label="描述">{currentItem.description}</Descriptions.Item>
-              <Descriptions.Item label="创建时间">{currentItem.createTime}</Descriptions.Item>
+              <Descriptions.Item label="创建时间">
+                {currentItem.createdAt ? new Date(currentItem.createdAt).toLocaleString() : ''}
+              </Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={statusMap[currentItem.status].color}>
-                  {statusMap[currentItem.status].text}
+                <Tag color={(statusMap[currentItem.status] || {}).color || 'default'}>
+                  {(statusMap[currentItem.status] || {}).text || currentItem.status}
                 </Tag>
               </Descriptions.Item>
             </Descriptions>

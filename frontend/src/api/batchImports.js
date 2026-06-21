@@ -1,4 +1,5 @@
 import request from './request'
+import axios from 'axios'
 
 export function getBatchImports(params) {
   return request.get('/batch-imports', { params })
@@ -24,8 +25,12 @@ export function deleteBatchImport(id) {
 }
 
 export function downloadErrors(id) {
-  return request.get(`/batch-imports/${id}/errors/download`, {
-    responseType: 'blob'
+  const token = localStorage.getItem('token')
+  return axios.get(`/api/batch-imports/${id}/errors/download`, {
+    responseType: 'blob',
+    headers: {
+      Authorization: token ? `Bearer ${token}` : ''
+    }
   })
 }
 

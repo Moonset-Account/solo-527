@@ -22,8 +22,8 @@ export function deletePortfolio(id) {
 
 export function uploadPortfolioImage(file) {
   const formData = new FormData()
-  formData.append('file', file)
-  return request.post('/portfolio/upload', formData, {
+  formData.append('image', file)
+  return request.post('/portfolio/upload-image', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }

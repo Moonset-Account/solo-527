@@ -35,6 +35,7 @@ import { getMembers } from '../api/members'
 import { getTreatments } from '../api/treatments'
 import { getConsultants } from '../api/consultants'
 import { createAppointment } from '../api/appointments'
+import { getRemainingCount } from '../api/memberTreatments'
 import dayjs from 'dayjs'
 
 const { Search } = Input
@@ -53,6 +54,7 @@ const Cashier = () => {
   const [searching, setSearching] = useState(false)
   const [showMemberModal, setShowMemberModal] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [memberTreatments, setMemberTreatments] = useState([])
 
   useEffect(() => {
     loadTreatments()
@@ -90,11 +92,19 @@ const Cashier = () => {
     }
   }
 
-  const handleSelectMember = (member) => {
+  const handleSelectMember = async (member) => {
     setSelectedMember(member)
     setShowMemberModal(false)
     setSearchKeyword('')
     setSearchResults([])
+    try {
+      const res = await getRemainingCount(member.id)
+      if (res.success) {
+        setMemberTreatments(res.data.list || [])
+      }
+    } catch {
+      setMemberTreatments([])
+    }
   }
 
   const handleAddToCart = (treatment) => {
@@ -259,6 +269,23 @@ const Cashier = () => {
                     </span>
                   </List.Item>
                 </List>
+                {memberTreatments.length > 0 && (
+                  <>
+                    <Divider>疗程剩余次数</Divider>
+                    <List size="small" dataSource={memberTreatments}
+                      renderItem={(mt) => (
+                        <List.Item>
+                          <span style={{ color: '#666', fontSize: 12 }}>
+                            {mt.treatment?.name || '未知疗程'}
+                          </span>
+                          <Tag color={mt.remainingSessions > 0 ? 'blue' : 'red'}>
+                            剩余 {mt.remainingSessions}/{mt.totalSessions} 次
+                          </Tag>
+                        </List.Item>
+                      )}
+                    />
+                  </>
+                )}
               </div>
             ) : (
               <div style={{ textAlign: 'center', padding: '40px 0' }}>

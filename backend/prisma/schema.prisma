@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -33,7 +33,7 @@ model Member {
   birthday      DateTime?
   avatar        String?
   level         String   @default("普通")
-  totalSpent    Decimal  @default(0) 
+  totalSpent    Decimal  @default(0) @db.Decimal(10, 2)
   points        Int      @default(0)
   status        String   @default("active")
   lastVisitAt   DateTime?
@@ -52,7 +52,7 @@ model Treatment {
   id           Int      @id @default(autoincrement())
   name         String
   category     String?
-  price        Decimal  
+  price        Decimal  @db.Decimal(10, 2)
   duration     Int?
   description  String?
   image        String?
@@ -77,7 +77,7 @@ model MemberTreatment {
   totalSessions   Int
   usedSessions    Int      @default(0)
   remainingSessions Int
-  purchasePrice   Decimal  
+  purchasePrice   Decimal  @db.Decimal(10, 2)
   purchaseDate    DateTime @default(now())
   expireDate      DateTime?
   consultantId    Int?
@@ -99,8 +99,8 @@ model Product {
   category    String?
   sku         String   @unique
   unit        String
-  price       Decimal  
-  cost        Decimal? 
+  price       Decimal  @db.Decimal(10, 2)
+  cost        Decimal? @db.Decimal(10, 2)
   stock       Int      @default(0)
   minStock    Int      @default(0)
   maxStock    Int?
@@ -160,7 +160,7 @@ model Consultant {
   phone     String?
   avatar    String?
   level     String   @default("初级")
-  commissionRate Decimal @default(0) 
+  commissionRate Decimal @default(0) @db.Decimal(5, 2)
   status    String   @default("active")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -175,7 +175,7 @@ model Commission {
   consultantId  Int
   treatmentId   Int?
   memberId      Int?
-  amount        Decimal  
+  amount        Decimal  @db.Decimal(10, 2)
   type          String
   relatedId     Int?
   relatedType   String?
@@ -201,8 +201,8 @@ model Appointment {
   startTime       String
   endTime         String
   status          String   @default("pending")
-  totalAmount     Decimal  @default(0) 
-  actualAmount    Decimal? 
+  totalAmount     Decimal  @default(0) @db.Decimal(10, 2)
+  actualAmount    Decimal? @db.Decimal(10, 2)
   remark          String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -221,8 +221,8 @@ model AppointmentItem {
   appointmentId Int
   treatmentId   Int
   quantity      Int      @default(1)
-  unitPrice     Decimal  
-  subtotal      Decimal  
+  unitPrice     Decimal  @db.Decimal(10, 2)
+  subtotal      Decimal  @db.Decimal(10, 2)
   isConsumed    Boolean  @default(false)
   consumedAt    DateTime?
   remark        String?
@@ -291,7 +291,7 @@ model OperationLog {
   module      String
   targetId    Int?
   targetType  String?
-  detail      String?
+  detail      String?  @db.Text
   ip          String?
   userAgent   String?
   createdAt   DateTime @default(now())
@@ -352,7 +352,7 @@ model BatchImportItem {
   importId   Int
   rowNumber  Int
   productId  Int?
-  data       String?
+  data       String?  @db.Text
   status     String   @default("pending")
   errorMsg   String?
   createdAt  DateTime @default(now())

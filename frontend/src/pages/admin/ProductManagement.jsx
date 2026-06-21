@@ -149,7 +149,7 @@ const ProductManagement = () => {
       key: 'stock',
       sorter: (a, b) => a.stock - b.stock,
       render: (text, record) => (
-        <span style={{ color: record.status === 'warning' ? '#ff4d4f' : 'inherit' }}>
+        <span style={{ color: record.stock < record.minStock ? '#ff4d4f' : 'inherit' }}>
           {text}
         </span>
       ),
@@ -159,8 +159,8 @@ const ProductManagement = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (text) => (
-        text === 'warning' ? <Tag color="orange">库存预警</Tag> : <Tag color="green">正常</Tag>
+      render: (text, record) => (
+        record.stock < record.minStock ? <Tag color="orange">库存预警</Tag> : <Tag color="green">正常</Tag>
       ),
     },
     {
@@ -185,7 +185,7 @@ const ProductManagement = () => {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={8}>
           <Card>
-            <Statistic title="产品总数" value={stockSummary.totalProducts || 0} />
+            <Statistic title="产品总数" value={stockSummary.totalSkus || 0} />
           </Card>
         </Col>
         <Col span={8}>
