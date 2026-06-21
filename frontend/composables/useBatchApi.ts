@@ -9,7 +9,7 @@ export const useBatchApi = () => {
     createBatch: (data: Partial<BakingBatch>) => api.post<BakingBatch>('/batch/', data),
     updateBatch: (id: number, data: Partial<BakingBatch>) => api.put<BakingBatch>(`/batch/${id}`, data),
     completeBatch: (id: number, actual_quantity: number) =>
-      api.post<BakingBatch>(`/batch/${id}/complete`, null, { actual_quantity }),
+      api.post<BakingBatch>(`/batch/${id}/complete`, null, { query: { actual_quantity } }),
 
     getLossRecords: (params?: Record<string, any>) => api.get<LossRecord[]>('/batch/loss/', params),
     getLossRecord: (id: number) => api.get<LossRecord>(`/batch/loss/${id}`),

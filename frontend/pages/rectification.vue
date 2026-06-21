@@ -59,7 +59,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button @click="showCreateModal = false">取消</n-button>
-          <n-button type="primary" :loading="submitting" @click="submitCreateRectification">下发</n-button>
+          <n-button type="primary" :loading="submitting" @click="handleCreateRectification">下发</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -86,7 +86,7 @@
 
         <n-divider v-if="selectedRectification.status === 'pending' || selectedRectification.status === 'in_progress'">处理</n-divider>
         <div v-if="selectedRectification.status === 'pending' && canProcess" style="margin-top: 20px">
-          <n-button type="primary" :loading="submitting" @click="submitStartRectification">
+          <n-button type="primary" :loading="submitting" @click="handleStartRectification">
             开始整改
           </n-button>
         </div>
@@ -96,7 +96,7 @@
             <n-form-item label="整改结果" required>
               <n-input v-model:value="submitForm.result" type="textarea" :rows="4" placeholder="请详细描述整改结果" />
             </n-form-item>
-            <n-button type="primary" :loading="submitting" @click="submitSubmitRectification">
+            <n-button type="primary" :loading="submitting" @click="handleSubmitRectification">
               提交整改
             </n-button>
           </n-form>
@@ -115,7 +115,7 @@
             <n-form-item label="复查意见" required>
               <n-input v-model:value="reinspectForm.result" type="textarea" :rows="3" placeholder="请输入复查意见" />
             </n-form-item>
-            <n-button type="primary" :loading="submitting" @click="submitReinspectRectification">
+            <n-button type="primary" :loading="submitting" @click="handleReinspectRectification">
               确认复查
             </n-button>
           </n-form>
@@ -136,7 +136,7 @@ import { useMessage } from 'naive-ui'
 import dayjs from 'dayjs'
 
 const message = useMessage()
-const { getRectifications, createRectification, startRectification: apiStart, submitRectification: apiSubmit, reinspectRectification: apiReinspect } = useRectificationApi()
+const { getRectifications, createRectification: apiCreateRectification, startRectification: apiStartRectification, submitRectification: apiSubmitRectification, reinspectRectification: apiReinspectRectification } = useRectificationApi()
 const { getInspections } = useInspectionApi()
 const { getUsers } = useMasterApi()
 const { getUser, isSupervisor, isStoreManager, isBaker } = useAuth()
@@ -257,11 +257,11 @@ const resetFilters = () => {
   loadRectifications()
 }
 
-const createRectification = async () => {
+const handleCreateRectification = async () => {
   try {
     submitting.value = true
     const user = getUser()
-    await createRectification({
+    await apiCreateRectification({
       ...rectForm,
       supervisor_id: user?.id
     })
@@ -286,7 +286,7 @@ const viewDetail = (rect: RectificationTask) => {
   showDetailModal.value = true
 }
 
-const submitStartRectification = async () => {
+const handleStartRectification = async () => {
   if (!selectedRectification.value) return
   try {
     submitting.value = true
@@ -299,11 +299,11 @@ const submitStartRectification = async () => {
   }
 }
 
-const submitRectification = async () => {
+const handleSubmitRectification = async () => {
   if (!selectedRectification.value || !submitForm.result) return
   try {
     submitting.value = true
-    selectedRectification.value = await apiSubmit(selectedRectification.value.id, submitForm.result)
+    selectedRectification.value = await apiSubmitRectification(selectedRectification.value.id, submitForm.result)
     message.success('整改已提交，等待复查')
     showDetailModal.value = false
     loadRectifications()
@@ -314,7 +314,7 @@ const submitRectification = async () => {
   }
 }
 
-const submitReinspectRectification = async () => {
+const handleReinspectRectification = async () => {
   if (!selectedRectification.value || !reinspectForm.result) return
   try {
     submitting.value = true
