@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { partService } from '@/services/partService';
 import { getCurrentUser } from '@/lib/auth';
-import { hasPermission } from '@/lib/permissions';
+import { hasPermissionAsync } from '@/lib/permissions';
 import type { Role } from '@prisma/client';
 import * as XLSX from 'xlsx';
 
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '未授权' }, { status: 401 });
     }
 
-    if (!hasPermission(user.role as Role, 'inventory', 'export')) {
+    if (!await hasPermissionAsync(user.role as Role, 'inventory', 'export')) {
       return NextResponse.json({ error: '权限不足' }, { status: 403 });
     }
 

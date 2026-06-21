@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -20,7 +20,6 @@ import {
   X,
 } from 'lucide-react';
 import { cn, getRoleColor, getStatusText } from '@/lib/utils';
-import { hasPermission } from '@/lib/permissions';
 import type { Role } from '@prisma/client';
 import { Badge } from '@/components/ui/Badge';
 
@@ -29,6 +28,13 @@ interface SidebarProps {
   onToggle: () => void;
   isMobileOpen: boolean;
   onMobileClose: () => void;
+}
+
+interface PermEntry {
+  id?: string;
+  role: string;
+  resource: string;
+  action: string;
 }
 
 const menuItems = [
@@ -100,18 +106,44 @@ export function Sidebar({ collapsed, onToggle, isMobileOpen, onMobileClose }: Si
   const pathname = usePathname();
   const router = useRouter();
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['订单管理', '配件管理', '质检管理', '系统配置']);
+  const [dbPermissions, setDbPermissions] = useState<PermEntry[]>([]);
+
+  const role = (session?.user?.role as Role) || 'reception';
+
+  useEffect(() => {
+    async function loadPermissions() {
+      if (role === 'admin') return;
+      try {
+        const res = await fetch('/api/permissions');
+        if (res.ok) {
+          const data = await res.json();
+          setDbPermissions(data);
+        }
+      } catch {
+      }
+    }
+    loadPermissions();
+  }, [role]);
+
+  const checkPermission = (resource: string, action: string): boolean => {
+    if (role === 'admin') return true;
+    if (dbPermissions.length > 0) {
+      return dbPermissions.some(
+        (p) => p.role === role && (p.resource === resource || p.resource === '*') && (p.action === action || p.action === '*')
+      );
+    }
+    return false;
+  };
+
+  const visibleMenuItems = menuItems.filter((item) =>
+    checkPermission(item.resource, item.action)
+  );
 
   const toggleMenu = (title: string) => {
     setExpandedMenus((prev) =>
       prev.includes(title) ? prev.filter((m) => m !== title) : [...prev, title]
     );
   };
-
-  const role = (session?.user?.role as Role) || 'reception';
-
-  const visibleMenuItems = menuItems.filter((item) =>
-    hasPermission(role, item.resource, item.action)
-  );
 
   const handleNavigation = (href: string) => {
     router.push(href);
@@ -178,7 +210,7 @@ export function Sidebar({ collapsed, onToggle, isMobileOpen, onMobileClose }: Si
             const isExpanded = expandedMenus.includes(item.title);
             const hasChildren = item.children && item.children.length > 0;
             const visibleChildren = item.children?.filter((child) =>
-              hasPermission(role, child.resource, child.action)
+              checkPermission(child.resource, child.action)
             );
 
             return (

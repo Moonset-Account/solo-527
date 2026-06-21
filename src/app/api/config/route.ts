@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { configService } from '@/services/configService';
 import { getCurrentUser } from '@/lib/auth';
-import { hasPermission } from '@/lib/permissions';
+import { hasPermissionAsync, invalidatePermissionCache } from '@/lib/permissions';
 import type { Role } from '@prisma/client';
 
 export async function GET() {
@@ -12,7 +12,7 @@ export async function GET() {
       return NextResponse.json({ error: '未授权' }, { status: 401 });
     }
 
-    if (!hasPermission(user.role as Role, 'config', 'view')) {
+    if (!await hasPermissionAsync(user.role as Role, 'config', 'view')) {
       return NextResponse.json({ error: '权限不足' }, { status: 403 });
     }
 
@@ -36,7 +36,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: '未授权' }, { status: 401 });
     }
 
-    if (!hasPermission(user.role as Role, 'config', 'edit')) {
+    if (!await hasPermissionAsync(user.role as Role, 'config', 'edit')) {
       return NextResponse.json({ error: '权限不足' }, { status: 403 });
     }
 
@@ -60,11 +60,13 @@ export async function PUT(request: Request) {
         const perm = await prisma.rolePermission.create({
           data: { role, resource, action },
         });
+        await invalidatePermissionCache();
         return NextResponse.json(perm);
       } else {
         await prisma.rolePermission.deleteMany({
           where: { role, resource, action },
         });
+        await invalidatePermissionCache();
         return NextResponse.json({ success: true });
       }
     }
@@ -88,7 +90,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: '未授权' }, { status: 401 });
     }
 
-    if (!hasPermission(user.role as Role, 'config', 'edit')) {
+    if (!await hasPermissionAsync(user.role as Role, 'config', 'edit')) {
       return NextResponse.json({ error: '权限不足' }, { status: 403 });
     }
 

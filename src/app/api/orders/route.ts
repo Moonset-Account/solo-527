@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { orderService } from '@/services/orderService';
 import { getCurrentUser } from '@/lib/auth';
-import { hasPermission } from '@/lib/permissions';
+import { hasPermissionAsync } from '@/lib/permissions';
 import type { Role, OrderStatus } from '@prisma/client';
 
 export async function GET(request: Request) {
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '未授权' }, { status: 401 });
     }
 
-    if (!hasPermission(user.role as Role, 'orders', 'view')) {
+    if (!await hasPermissionAsync(user.role as Role, 'orders', 'view')) {
       return NextResponse.json({ error: '权限不足' }, { status: 403 });
     }
 
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '未授权' }, { status: 401 });
     }
 
-    if (!hasPermission(user.role as Role, 'orders', 'create')) {
+    if (!await hasPermissionAsync(user.role as Role, 'orders', 'create')) {
       return NextResponse.json({ error: '权限不足' }, { status: 403 });
     }
 
