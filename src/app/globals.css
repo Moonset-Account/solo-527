@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+:root {
+  --foreground: #102034;
+  --background: #f5f7fa;
+}
+
+html,
+body {
+  height: 100%;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: "Inter", "Noto Serif SC", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 {
+  font-family: "Noto Serif SC", serif;
+  letter-spacing: 0.01em;
+}
+
+.num {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl shadow-card border border-deep-blue-50/60;
+  }
+  .card-gold {
+    @apply relative card;
+  }
+  .card-gold::before {
+    content: "";
+    @apply absolute inset-x-0 top-0 h-[3px] rounded-t-xl bg-gradient-to-r from-ink-gold-400 via-ink-gold-500 to-ink-gold-300 opacity-80;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-deep-blue-600 text-white hover:bg-deep-blue-700 hover:ring-2 hover:ring-ink-gold-500/40;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-deep-blue-700 border border-deep-blue-200 hover:bg-deep-blue-50 hover:border-deep-blue-400;
+  }
+  .btn-gold {
+    @apply btn bg-ink-gold-500 text-white hover:bg-ink-gold-600;
+  }
+  .btn-danger {
+    @apply btn bg-alert-red text-white hover:opacity-90;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .input {
+    @apply w-full px-3 py-2 rounded-md border border-deep-blue-100 bg-white text-sm placeholder-deep-blue-300 focus:outline-none focus:ring-2 focus:ring-ink-gold-500/40 focus:border-ink-gold-400 transition;
+  }
+  .label {
+    @apply text-xs font-medium text-deep-blue-500 mb-1.5;
+  }
+  .section-title {
+    @apply text-deep-blue-700 font-semibold font-serif text-lg;
+  }
+  .table-head {
+    @apply text-left text-xs font-semibold uppercase tracking-wide text-deep-blue-500 bg-deep-blue-50/60 px-4 py-3;
+  }
+  .table-cell {
+    @apply px-4 py-3 text-sm text-deep-blue-800 border-t border-deep-blue-50;
+  }
+  .gold-ring-icon {
+    @apply relative inline-flex items-center justify-center w-10 h-10 rounded-full border-2 border-ink-gold-400/60 text-ink-gold-600;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(30, 58, 95, 0.15);
+    border-radius: 9999px;
+  }
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(30, 58, 95, 0.04) 0%,
+      rgba(30, 58, 95, 0.1) 50%,
+      rgba(30, 58, 95, 0.04) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+}

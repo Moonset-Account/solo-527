@@ -1,0 +1,468 @@
+// Prisma schema for 排课消课台
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PRINCIPAL
+  ACADEMIC_AFFAIRS
+  TEACHING_LEAD
+  FINANCE
+}
+
+enum StaffStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum LeadStatus {
+  NEW
+  FOLLOWING
+  TRIAL_SCHEDULED
+  TRIAL_DONE
+  CONVERTED
+  LOST
+  ARCHIVED
+}
+
+enum LeadLevel {
+  HOT
+  WARM
+  COLD
+}
+
+enum FollowUpType {
+  PHONE
+  WECHAT
+  VISIT
+  OTHER
+}
+
+enum TrialStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum IntentionLevel {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum ClassStatus {
+  PENDING
+  ONGOING
+  FINISHED
+  SUSPENDED
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+  GRADUATED
+  TRANSFERRED
+}
+
+enum LessonStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  LEAVE
+}
+
+enum ConsumptionStatus {
+  NORMAL
+  EXCEPTION
+  RECONCILED
+}
+
+enum FeedbackReadStatus {
+  UNREAD
+  READ
+}
+
+enum ExportTaskStatus {
+  PROCESSING
+  DONE
+  FAILED
+}
+
+enum Major {
+  FINE_ARTS
+  DESIGN
+  MEDIA
+  MUSIC
+  DANCE
+  OTHER
+}
+
+model Campus {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  phone     String?
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  staff          Staff[]
+  leads          Lead[]
+  classes        Class[]
+  students       Student[]
+  settingRules   SettingRule[]
+  questionBanks  QuestionBank[]
+}
+
+model Staff {
+  id           String   @id @default(uuid())
+  clerkUserId  String   @unique
+  campusId     String
+  name         String
+  email        String?
+  phone        String?
+  avatarUrl    String?
+  role         Role     @default(ACADEMIC_AFFAIRS)
+  status       StaffStatus @default(ACTIVE)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  campus        Campus         @relation(fields: [campusId], references: [id])
+  assignedLeads Lead[]         @relation("AssignedLeads")
+  followUps     FollowUp[]
+  scheduledTrials Trial[]      @relation("ScheduledTrials")
+  consumptions  Consumption[]
+  operationLogs OperationLog[]
+  exportTasks   ExportTask[]
+  workFeedbacks WorkFeedback[]
+  classTeachers ClassTeacher[]
+}
+
+model SettingRule {
+  id                    String   @id @default(uuid())
+  campusId              String
+  trialFollowUpHours    Int      @default(24)
+  renewalHighRiskHours  Int      @default(10)
+  renewalMidRiskHours   Int      @default(20)
+  feedbackTimeoutHours  Int      @default(48)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  campus Campus @relation(fields: [campusId], references: [id])
+}
+
+model Lead {
+  id              String     @id @default(uuid())
+  campusId        String
+  name            String
+  phone           String
+  parentName      String?
+  source          String?
+  intendedMajor   Major?
+  status          LeadStatus @default(NEW)
+  level           LeadLevel  @default(WARM)
+  assigneeId      String?
+  tags            String[]
+  remark          String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  campus      Campus     @relation(fields: [campusId], references: [id])
+  assignee    Staff?     @relation("AssignedLeads", fields: [assigneeId], references: [id])
+  followUps   FollowUp[]
+  trials      Trial[]
+  student     Student?
+}
+
+model FollowUp {
+  id            String       @id @default(uuid())
+  leadId        String
+  staffId       String
+  type          FollowUpType @default(PHONE)
+  content       String
+  nextFollowAt  DateTime?
+  createdAt     DateTime     @default(now())
+
+  lead  Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  staff Staff @relation(fields: [staffId], references: [id])
+}
+
+model Trial {
+  id              String         @id @default(uuid())
+  leadId          String
+  scheduledById   String
+  trialAt         DateTime
+  durationMinutes Int            @default(60)
+  className       String?
+  teacherName     String?
+  status          TrialStatus    @default(SCHEDULED)
+  followedUp      Boolean        @default(false)
+  satisfaction    Int?
+  parentFeedback  String?
+  intentionLevel  IntentionLevel?
+  teacherRemark   String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  lead        Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  scheduledBy Staff @relation("ScheduledTrials", fields: [scheduledById], references: [id])
+}
+
+model Student {
+  id             String        @id @default(uuid())
+  campusId       String
+  leadId         String?       @unique
+  name           String
+  gender         String?
+  birthday       DateTime?
+  grade          String?
+  phone          String?
+  totalHours     Int           @default(0)
+  remainingHours Int           @default(0)
+  status         StudentStatus @default(ACTIVE)
+  remark         String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  campus      Campus            @relation(fields: [campusId], references: [id])
+  lead        Lead?             @relation(fields: [leadId], references: [id])
+  enrollments ClassEnrollment[]
+  attendances Attendance[]
+  consumptions Consumption[]
+  works       Work[]
+  feedbacks   ParentFeedback[]
+}
+
+model Class {
+  id                   String      @id @default(uuid())
+  campusId             String
+  name                 String
+  major                Major
+  questionBankVersionId String?
+  totalHours           Int         @default(0)
+  maxStudents          Int         @default(20)
+  status               ClassStatus @default(PENDING)
+  remark               String?
+  startDate            DateTime?
+  endDate              DateTime?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  campus         Campus             @relation(fields: [campusId], references: [id])
+  questionBank   QuestionBankVersion? @relation(fields: [questionBankVersionId], references: [id])
+  enrollments    ClassEnrollment[]
+  teachers       ClassTeacher[]
+  lessons        Lesson[]
+  consumptions   Consumption[]
+}
+
+model ClassEnrollment {
+  id        String   @id @default(uuid())
+  classId   String
+  studentId String
+  enrolledAt DateTime @default(now())
+
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, studentId])
+}
+
+model ClassTeacher {
+  id      String @id @default(uuid())
+  classId String
+  staffId String
+
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, staffId])
+}
+
+model Lesson {
+  id            String       @id @default(uuid())
+  classId       String
+  title         String
+  startAt       DateTime
+  durationHours Int          @default(2)
+  status        LessonStatus @default(PLANNED)
+  room          String?
+  teacherRemark String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  class        Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  attendances  Attendance[]
+  consumptions Consumption[]
+}
+
+model Attendance {
+  id         String           @id @default(uuid())
+  lessonId   String
+  studentId  String
+  status     AttendanceStatus @default(PRESENT)
+  remark     String?
+  signedAt   DateTime?
+  createdAt  DateTime         @default(now())
+
+  lesson  Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, studentId])
+}
+
+model Consumption {
+  id         String            @id @default(uuid())
+  lessonId   String
+  studentId  String
+  classId    String
+  operatorId String
+  hours      Int
+  status     ConsumptionStatus @default(NORMAL)
+  remark     String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  lesson     Lesson     @relation(fields: [lessonId], references: [id])
+  student    Student    @relation(fields: [studentId], references: [id])
+  class      Class      @relation(fields: [classId], references: [id])
+  operator   Staff      @relation(fields: [operatorId], references: [id])
+  revisions  Revision[]
+}
+
+model Revision {
+  id            String   @id @default(uuid())
+  consumptionId String
+  beforeData    Json?
+  afterData     Json?
+  operatorId    String?
+  createdAt     DateTime @default(now())
+
+  consumption Consumption @relation(fields: [consumptionId], references: [id], onDelete: Cascade)
+}
+
+model Work {
+  id         String   @id @default(uuid())
+  studentId  String
+  title      String
+  imageUrl   String
+  submittedAt DateTime @default(now())
+  remark     String?
+  createdAt  DateTime @default(now())
+
+  student    Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  feedbacks  WorkFeedback[]
+}
+
+model WorkFeedback {
+  id               String   @id @default(uuid())
+  workId           String
+  teacherId        String
+  compositionScore Int      @default(0)
+  colorScore       Int      @default(0)
+  creativityScore  Int      @default(0)
+  techniqueScore   Int      @default(0)
+  overallScore     Int      @default(0)
+  comment          String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  work    Work  @relation(fields: [workId], references: [id], onDelete: Cascade)
+  teacher Staff @relation(fields: [teacherId], references: [id])
+}
+
+model QuestionBank {
+  id        String   @id @default(uuid())
+  campusId  String
+  name      String
+  major     Major
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campus   Campus               @relation(fields: [campusId], references: [id])
+  versions QuestionBankVersion[]
+}
+
+model QuestionBankVersion {
+  id             String   @id @default(uuid())
+  questionBankId String
+  versionNo      String
+  enabledAt      DateTime
+  changelog      String?
+  downloadUrl    String?
+  createdAt      DateTime @default(now())
+
+  questionBank QuestionBank  @relation(fields: [questionBankId], references: [id], onDelete: Cascade)
+  classes      Class[]
+  diffsAsBase  QuestionBankDiff[] @relation("FromVersion")
+  diffsAsTarget QuestionBankDiff[] @relation("ToVersion")
+}
+
+model QuestionBankDiff {
+  id          String   @id @default(uuid())
+  fromVersionId String
+  toVersionId   String
+  diffContent   Json
+  remark        String?
+  createdAt     DateTime @default(now())
+
+  fromVersion QuestionBankVersion @relation("FromVersion", fields: [fromVersionId], references: [id])
+  toVersion   QuestionBankVersion @relation("ToVersion", fields: [toVersionId], references: [id])
+}
+
+model ParentFeedback {
+  id         String             @id @default(uuid())
+  studentId  String
+  title      String
+  content    String
+  status     FeedbackReadStatus @default(UNREAD)
+  reply      String?
+  repliedBy  String?
+  repliedAt  DateTime?
+  createdAt  DateTime           @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model OperationLog {
+  id         String   @id @default(uuid())
+  staffId    String
+  module     String
+  action     String
+  targetId   String?
+  targetType String?
+  ip         String?
+  beforeData Json?
+  afterData  Json?
+  createdAt  DateTime @default(now())
+
+  staff Staff @relation(fields: [staffId], references: [id])
+}
+
+model ExportTask {
+  id          String           @id @default(uuid())
+  operatorId  String
+  fileName    String
+  module      String
+  filters     Json?
+  format      String           @default("XLSX")
+  status      ExportTaskStatus @default(PROCESSING)
+  downloadUrl String?
+  createdAt   DateTime         @default(now())
+  doneAt      DateTime?
+
+  operator Staff @relation(fields: [operatorId], references: [id])
+}
