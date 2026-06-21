@@ -4,7 +4,7 @@ import { computed } from 'vue'
 
 const form = useForm({
     email: 'admin@summit.local',
-    password: 'Admin@123',
+    password: 'password',
     remember: true,
 })
 

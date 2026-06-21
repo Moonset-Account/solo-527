@@ -137,9 +137,12 @@ class DatabaseSeeder extends Seeder
                 'department' => '信息中心',
                 'position' => '系统管理员',
                 'employee_no' => 'EMP0001',
-                'password' => Hash::make('Admin@123'),
+                'password' => Hash::make('password'),
             ]
         );
+        if (!$adminUser->wasRecentlyCreated) {
+            $adminUser->update(['password' => Hash::make('password')]);
+        }
         $adminUser->assignRole('admin');
 
         $managerUser = User::firstOrCreate(
@@ -153,6 +156,9 @@ class DatabaseSeeder extends Seeder
                 'password' => Hash::make('password'),
             ]
         );
+        if (!$managerUser->wasRecentlyCreated) {
+            $managerUser->update(['password' => Hash::make('password')]);
+        }
         $managerUser->assignRole('manager');
 
         $ticketUser1 = User::firstOrCreate(
@@ -163,9 +169,12 @@ class DatabaseSeeder extends Seeder
                 'department' => '票务组',
                 'position' => '票务运营专员',
                 'employee_no' => 'EMP0003',
-                'password' => Hash::make('Ticket@123'),
+                'password' => Hash::make('password'),
             ]
         );
+        if (!$ticketUser1->wasRecentlyCreated) {
+            $ticketUser1->update(['password' => Hash::make('password')]);
+        }
         $ticketUser1->assignRole('ticket_operator');
 
         $ticketUser2 = User::firstOrCreate(
@@ -176,9 +185,12 @@ class DatabaseSeeder extends Seeder
                 'department' => '票务组',
                 'position' => '报名录入专员',
                 'employee_no' => 'EMP0004',
-                'password' => Hash::make('Ticket@123'),
+                'password' => Hash::make('password'),
             ]
         );
+        if (!$ticketUser2->wasRecentlyCreated) {
+            $ticketUser2->update(['password' => Hash::make('password')]);
+        }
         $ticketUser2->assignRole('ticket_operator');
 
         $event = Event::firstOrCreate(
