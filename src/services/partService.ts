@@ -255,7 +255,14 @@ export const partService = {
       return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
     }
 
-    return data;
+    const headers = Object.keys(data[0] || {}).join(',');
+    const rows = data.map((row) =>
+      Object.values(row)
+        .map((val) => `"${String(val).replace(/"/g, '""')}"`)
+        .join(',')
+    );
+    const csvContent = [headers, ...rows].join('\n');
+    return Buffer.from('\uFEFF' + csvContent, 'utf-8');
   },
 
   async getCategories() {

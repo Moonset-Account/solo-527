@@ -30,7 +30,12 @@ export async function GET(request: Request) {
       });
     }
 
-    return NextResponse.json(data);
+    return new NextResponse(data as Buffer, {
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="parts-${new Date().toISOString().slice(0, 10)}.csv"`,
+      },
+    });
   } catch (error) {
     console.error('Export parts API error:', error);
     return NextResponse.json(

@@ -64,12 +64,36 @@ interface OrderDetail {
   totalAmount: number;
   createdAt: string;
   customer: { id: string; name: string; phone: string };
-  vehicle: { id: string; plateNumber: string; brand: string; model: string; year: number; color: string };
+  vehicle: { id: string; plateNumber: string; brand: string; model: string; vin: string; mileage: number };
   technician: { name: string } | null;
   creator: { name: string };
   items: OrderItem[];
   processes: ProcessItem[];
   qualityChecks: QualityCheckItem[];
+}
+
+function transformOrderData(raw: any): OrderDetail {
+  return {
+    ...raw,
+    totalAmount: Number(raw.totalAmount),
+    estimatedDelivery: raw.estimatedDelivery,
+    actualDelivery: raw.actualDelivery,
+    createdAt: raw.createdAt,
+    items: raw.items?.map((item: any) => ({
+      ...item,
+      unitPrice: Number(item.unitPrice),
+      amount: Number(item.amount),
+    })) || [],
+    processes: raw.processes?.map((p: any) => ({
+      ...p,
+      startedAt: p.startedAt,
+      completedAt: p.completedAt,
+    })) || [],
+    qualityChecks: raw.qualityChecks?.map((qc: any) => ({
+      ...qc,
+      checkedAt: qc.checkedAt,
+    })) || [],
+  };
 }
 
 const mockOrderDetail: OrderDetail = {
@@ -83,7 +107,7 @@ const mockOrderDetail: OrderDetail = {
   totalAmount: 2850,
   createdAt: '2024-06-21T09:30:00',
   customer: { id: '1', name: '张三', phone: '13800138001' },
-  vehicle: { id: '1', plateNumber: '京A12345', brand: '宝马', model: '530Li', year: 2020, color: '白色' },
+  vehicle: { id: '1', plateNumber: '京A12345', brand: '宝马', model: '530Li', vin: 'WBAJB1C5XKB123456', mileage: 60000 },
   technician: { name: '李师傅' },
   creator: { name: '前台小王' },
   items: [
@@ -118,8 +142,8 @@ export default function OrderDetailPage() {
       try {
         const res = await fetch(`/api/orders/${params.id}`);
         if (res.ok) {
-          const data = await res.json();
-          setOrder(data);
+          const raw = await res.json();
+          setOrder(transformOrderData(raw));
         } else {
           setOrder(mockOrderDetail);
         }
@@ -382,12 +406,12 @@ export default function OrderDetailPage() {
                   <span className="font-medium text-metal-900">{order.vehicle.brand} {order.vehicle.model}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-metal-500">年份</span>
-                  <span className="font-medium text-metal-900">{order.vehicle.year}</span>
+                  <span className="text-metal-500">VIN码</span>
+                  <span className="font-mono text-xs font-medium text-metal-900">{order.vehicle.vin}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-metal-500">颜色</span>
-                  <span className="font-medium text-metal-900">{order.vehicle.color}</span>
+                  <span className="text-metal-500">当前里程</span>
+                  <span className="font-medium text-metal-900">{order.vehicle.mileage.toLocaleString()} km</span>
                 </div>
               </CardContent>
             </Card>
