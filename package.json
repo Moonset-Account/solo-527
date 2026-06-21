@@ -1,0 +1,31 @@
+{
+  "name": "sales-email-knowledge-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "description": "销售邮件知识检索助手 - 基于 AdonisJS 6 + Vue 3 + PostgreSQL + Redis 的全栈 AI 辅助系统",
+  "scripts": {
+    "install:all": "npm run install:backend && npm run install:frontend",
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "dev": "concurrently -n BACKEND,FRONTEND -c blue,green \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "start": "cd backend && npm run start",
+    "db:setup": "npm run db:migrate && npm run db:seed",
+    "db:migrate": "cd backend && node ace migration:run",
+    "db:migrate:fresh": "cd backend && node ace migration:fresh",
+    "db:seed": "cd backend && node ace db:seed",
+    "db:reset": "cd backend && node ace migration:fresh && node ace db:seed",
+    "typecheck": "npm run typecheck:backend && npm run typecheck:frontend",
+    "typecheck:backend": "cd backend && npx tsc --noEmit",
+    "typecheck:frontend": "cd frontend && npx vue-tsc --noEmit",
+    "lint:backend": "cd backend && npx eslint . --ext .ts",
+    "lint:frontend": "cd frontend && npx eslint . --ext .ts,.vue"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

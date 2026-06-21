@@ -1,0 +1,89 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700;800&family=Charter:ital,wght@0,400;0,700;0,900;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --deep-blue-50: #E8F0F8;
+  --deep-blue-100: #D0E1F1;
+  --deep-blue-200: #A1C3E3;
+  --deep-blue-300: #72A5D5;
+  --deep-blue-400: #4387C7;
+  --deep-blue-500: #1469B9;
+  --deep-blue-600: #0B4F8C;
+  --deep-blue-700: #0A467E;
+  --deep-blue-800: #093D70;
+  --deep-blue-900: #072E54;
+
+  --amber-gold-50: #FBF6EC;
+  --amber-gold-100: #F7EDD9;
+  --amber-gold-200: #EFDAB3;
+  --amber-gold-300: #E7C88D;
+  --amber-gold-400: #DFB567;
+  --amber-gold-500: #D4A853;
+  --amber-gold-600: #C59237;
+  --amber-gold-700: #A87A2E;
+  --amber-gold-800: #8B6225;
+  --amber-gold-900: #6E4A1C;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: 'Inter Tight', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: #F8FAFC;
+  color: #1E293B;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-charter {
+  font-family: 'Charter', Georgia, 'Times New Roman', serif;
+}
+
+.font-inter-tight {
+  font-family: 'Inter Tight', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
