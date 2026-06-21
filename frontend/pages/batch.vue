@@ -109,7 +109,7 @@ import dayjs from 'dayjs'
 const message = useMessage()
 const dialog = useDialog()
 
-const { getBatches, createBatch, completeBatch: apiCompleteBatch, createLoss } = useBatchApi()
+const { getBatches, createBatch: apiCreateBatch, updateBatch: apiUpdateBatch, completeBatch: apiCompleteBatch, createLoss: apiCreateLoss } = useBatchApi()
 const { getProducts } = useMasterApi()
 const { getUser } = useAuth()
 
@@ -221,7 +221,6 @@ const submitCreateBatch = async () => {
   try {
     submitting.value = true
     const user = getUser()
-    const { createBatch: apiCreateBatch } = useBatchApi()
     await apiCreateBatch({
       ...batchForm,
       store_id: user?.store_id,
@@ -240,7 +239,7 @@ const submitCreateBatch = async () => {
 
 const startBatch = async (batch: BakingBatch) => {
   try {
-    await apiBatchUpdate(batch.id, { status: 'baking', start_time: new Date().toISOString() })
+    await apiUpdateBatch(batch.id, { status: 'baking', start_time: new Date().toISOString() })
     message.success('烘焙已开始')
     loadBatches()
   } catch (e: any) {
@@ -249,8 +248,7 @@ const startBatch = async (batch: BakingBatch) => {
 }
 
 const apiBatchUpdate = async (id: number, data: any) => {
-  const { updateBatch } = useBatchApi()
-  return updateBatch(id, data)
+  return apiUpdateBatch(id, data)
 }
 
 const completeBatchModal = (batch: BakingBatch) => {
@@ -267,7 +265,7 @@ const completeBatch = async () => {
 
     const diff = (selectedBatch.value.planned_quantity || 0) - completeForm.actual_quantity
     if (diff > 0) {
-      await createLoss({
+      await apiCreateLoss({
         store_id: selectedBatch.value.store_id,
         batch_id: selectedBatch.value.id,
         loss_type: 'baking_failure',

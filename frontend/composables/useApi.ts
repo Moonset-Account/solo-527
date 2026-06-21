@@ -5,10 +5,11 @@ export const useApi = () => {
   const apiBase = runtimeConfig.public.apiBase
   const { getToken } = useAuth()
 
-  const getHeaders = () => {
+  const getHeaders = (hasBody: boolean = true) => {
     const token = getToken()
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
+    const headers: Record<string, string> = {}
+    if (hasBody) {
+      headers['Content-Type'] = 'application/json'
     }
     if (token) {
       headers['Authorization'] = `Bearer ${token}`
@@ -25,16 +26,36 @@ export const useApi = () => {
     throw error
   }
 
-  const request = async <T>(url: string, options: any = {}): Promise<T> => {
+  const request = async <T>(
+    url: string,
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
+    options: {
+      body?: any
+      query?: Record<string, any>
+      headers?: Record<string, string>
+    } = {}
+  ): Promise<T> => {
     try {
       const fullUrl = url.startsWith('http') ? url : `${apiBase}${url}`
-      const res = await $fetch<T>(fullUrl, {
-        ...options,
+      const hasBody = options.body !== undefined && options.body !== null
+
+      const fetchOptions: any = {
+        method,
         headers: {
-          ...getHeaders(),
+          ...getHeaders(hasBody),
           ...options.headers
         }
-      })
+      }
+
+      if (options.query) {
+        fetchOptions.query = options.query
+      }
+
+      if (hasBody) {
+        fetchOptions.body = options.body
+      }
+
+      const res = await $fetch<T>(fullUrl, fetchOptions)
       return res
     } catch (error) {
       handleError(error)
@@ -42,10 +63,17 @@ export const useApi = () => {
     }
   }
 
-  const get = <T>(url: string, params?: any) => request<T>(url, { method: 'GET', query: params })
-  const post = <T>(url: string, body?: any) => request<T>(url, { method: 'POST', body })
-  const put = <T>(url: string, body?: any) => request<T>(url, { method: 'PUT', body })
-  const del = <T>(url: string) => request<T>(url, { method: 'DELETE' })
+  const get = <T>(url: string, query?: Record<string, any>) =>
+    request<T>(url, 'GET', { query })
+
+  const post = <T>(url: string, body?: any, query?: Record<string, any>) =>
+    request<T>(url, 'POST', { body, query })
+
+  const put = <T>(url: string, body?: any, query?: Record<string, any>) =>
+    request<T>(url, 'PUT', { body, query })
+
+  const del = <T>(url: string, query?: Record<string, any>) =>
+    request<T>(url, 'DELETE', { query })
 
   return { get, post, put, del, request }
 }

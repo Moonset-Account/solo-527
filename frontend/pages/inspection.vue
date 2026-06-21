@@ -79,7 +79,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button @click="showCreateModal = false">取消</n-button>
-          <n-button type="primary" :loading="submitting" @click="createInspection">创建</n-button>
+          <n-button type="primary" :loading="submitting" @click="submitCreateInspection">创建</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -126,7 +126,7 @@
               <n-input v-model:value="checkForm.remark" type="textarea" :rows="2" />
             </n-form-item>
             <n-space>
-              <n-button type="primary" :loading="checkSubmitting" @click="addCheckRecord">添加记录</n-button>
+              <n-button type="primary" :loading="checkSubmitting" @click="submitAddCheckRecord">添加记录</n-button>
             </n-space>
           </n-form>
         </div>
@@ -141,7 +141,7 @@
               <n-input v-model:value="completeForm.remark" type="textarea" :rows="2" />
             </n-form-item>
             <n-space>
-              <n-button type="primary" :loading="submitting" @click="completeInspection">完成巡店</n-button>
+              <n-button type="primary" :loading="submitting" @click="submitCompleteInspection">完成巡店</n-button>
             </n-space>
           </n-form>
         </div>
@@ -149,7 +149,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button @click="showDetailModal = false">关闭</n-button>
-          <n-button v-if="selectedInspection?.status === 'pending'" type="primary" :loading="submitting" @click="startInspection">
+          <n-button v-if="selectedInspection?.status === 'pending'" type="primary" :loading="submitting" @click="submitStartInspection">
             开始巡店
           </n-button>
         </n-space>
@@ -165,7 +165,7 @@ import { CloseOutline } from '@vicons/ionicons5'
 import dayjs from 'dayjs'
 
 const message = useMessage()
-const { getInspections, createInspection, startInspection: apiStart, completeInspection: apiComplete, addCheckRecord, getCheckRecords } = useInspectionApi()
+const { getInspections, createInspection: apiCreateInspection, startInspection: apiStartInspection, completeInspection: apiCompleteInspection, addCheckRecord: apiAddCheckRecord, getCheckRecords } = useInspectionApi()
 const { getStores, getUsers } = useMasterApi()
 const { getUser, isSupervisor } = useAuth()
 
@@ -326,12 +326,12 @@ const resetFilters = () => {
   loadInspections()
 }
 
-const createInspection = async () => {
+const submitCreateInspection = async () => {
   try {
     submitting.value = true
     const user = getUser()
     const validCheckItems = checkItems.value.filter(c => c.name.trim())
-    await createInspection({
+    await apiCreateInspection({
       ...inspectionForm,
       supervisor_id: user?.id,
       check_items: validCheckItems
@@ -366,11 +366,11 @@ const startInspectionModal = (inspection: InspectionTask) => {
   viewDetail(inspection)
 }
 
-const startInspection = async () => {
+const submitStartInspection = async () => {
   if (!selectedInspection.value) return
   try {
     submitting.value = true
-    selectedInspection.value = await apiStart(selectedInspection.value.id)
+    selectedInspection.value = await apiStartInspection(selectedInspection.value.id)
     message.success('巡店已开始')
   } catch (e: any) {
     message.error(e.data?.detail || '操作失败')
@@ -379,12 +379,12 @@ const startInspection = async () => {
   }
 }
 
-const addCheckRecord = async () => {
+const submitAddCheckRecord = async () => {
   if (!selectedInspection.value || !checkForm.check_item) return
   try {
     checkSubmitting.value = true
     const category = (selectedInspection.value.check_items as any[]).find((c: any) => c.name === checkForm.check_item)?.category || '其他'
-    await addCheckRecord(selectedInspection.value.id, {
+    await apiAddCheckRecord(selectedInspection.value.id, {
       inspection_id: selectedInspection.value.id,
       check_item: checkForm.check_item,
       category,
@@ -403,11 +403,11 @@ const addCheckRecord = async () => {
   }
 }
 
-const completeInspection = async () => {
+const submitCompleteInspection = async () => {
   if (!selectedInspection.value || completeForm.score === null) return
   try {
     submitting.value = true
-    selectedInspection.value = await apiComplete(selectedInspection.value.id, completeForm.score, completeForm.remark)
+    selectedInspection.value = await apiCompleteInspection(selectedInspection.value.id, completeForm.score, completeForm.remark)
     message.success('巡店已完成')
     showDetailModal.value = false
     loadInspections()

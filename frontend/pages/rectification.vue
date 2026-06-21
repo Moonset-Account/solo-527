@@ -59,7 +59,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button @click="showCreateModal = false">取消</n-button>
-          <n-button type="primary" :loading="submitting" @click="createRectification">下发</n-button>
+          <n-button type="primary" :loading="submitting" @click="submitCreateRectification">下发</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -86,7 +86,7 @@
 
         <n-divider v-if="selectedRectification.status === 'pending' || selectedRectification.status === 'in_progress'">处理</n-divider>
         <div v-if="selectedRectification.status === 'pending' && canProcess" style="margin-top: 20px">
-          <n-button type="primary" :loading="submitting" @click="startRectification">
+          <n-button type="primary" :loading="submitting" @click="submitStartRectification">
             开始整改
           </n-button>
         </div>
@@ -96,7 +96,7 @@
             <n-form-item label="整改结果" required>
               <n-input v-model:value="submitForm.result" type="textarea" :rows="4" placeholder="请详细描述整改结果" />
             </n-form-item>
-            <n-button type="primary" :loading="submitting" @click="submitRectification">
+            <n-button type="primary" :loading="submitting" @click="submitSubmitRectification">
               提交整改
             </n-button>
           </n-form>
@@ -115,7 +115,7 @@
             <n-form-item label="复查意见" required>
               <n-input v-model:value="reinspectForm.result" type="textarea" :rows="3" placeholder="请输入复查意见" />
             </n-form-item>
-            <n-button type="primary" :loading="submitting" @click="reinspectRectification">
+            <n-button type="primary" :loading="submitting" @click="submitReinspectRectification">
               确认复查
             </n-button>
           </n-form>
@@ -286,11 +286,11 @@ const viewDetail = (rect: RectificationTask) => {
   showDetailModal.value = true
 }
 
-const startRectification = async () => {
+const submitStartRectification = async () => {
   if (!selectedRectification.value) return
   try {
     submitting.value = true
-    selectedRectification.value = await apiStart(selectedRectification.value.id)
+    selectedRectification.value = await apiStartRectification(selectedRectification.value.id)
     message.success('已开始整改')
   } catch (e: any) {
     message.error(e.data?.detail || '操作失败')
@@ -314,11 +314,11 @@ const submitRectification = async () => {
   }
 }
 
-const reinspectRectification = async () => {
+const submitReinspectRectification = async () => {
   if (!selectedRectification.value || !reinspectForm.result) return
   try {
     submitting.value = true
-    selectedRectification.value = await apiReinspect(selectedRectification.value.id, reinspectForm.result, reinspectForm.is_pass)
+    selectedRectification.value = await apiReinspectRectification(selectedRectification.value.id, reinspectForm.result, reinspectForm.is_pass)
     message.success(reinspectForm.is_pass ? '复查通过' : '已驳回，需重新整改')
     showDetailModal.value = false
     loadRectifications()

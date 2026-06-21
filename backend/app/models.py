@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, Date, Enum, JSON
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, Date, Enum, JSON, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -340,6 +340,3 @@ class SystemSetting(Base):
     __table_args__ = (
         UniqueConstraint('module', 'key', name='_module_key_uc'),
     )
-
-
-from sqlalchemy import UniqueConstraint
