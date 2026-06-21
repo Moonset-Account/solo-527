@@ -1,14 +1,15 @@
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 from django.db import models
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Supplier, SupplierRisk, SupplierRiskEvidence, SupplierEvaluation
 from .serializers import (
     SupplierSerializer, SupplierRiskSerializer, SupplierRiskEvidenceSerializer, SupplierEvaluationSerializer
 )
-from users.permissions import IsProcurementManagerOrReadOnly
+from users.permissions import IsProcurementManagerOrReadOnly, IsProcurementOrFinanceOrAdmin, IsProcurementOrProjectManagerOrAdmin
+from users.models import UserRole
 
 
 class SupplierViewSet(viewsets.ModelViewSet):
@@ -70,23 +71,44 @@ class SupplierRiskViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'description', 'supplier__name']
     ordering_fields = ['risk_level', 'discovered_date', 'created_at', 'status']
 
+    def get_permissions(self):
+        if self.request.method in SAFE_METHODS:
+            return [IsAuthenticated()]
+        if self.action in ['handle', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsProcurementOrProjectManagerOrAdmin()]
+        if self.action == 'create':
+            return [IsAuthenticated(), IsProcurementOrProjectManagerOrAdmin()]
+        return [IsAuthenticated()]
+
     def perform_create(self, serializer):
         serializer.save(identified_by=self.request.user)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProcurementOrProjectManagerOrAdmin])
     def handle(self, request, pk=None):
         risk = self.get_object()
-        action = request.data.get('action')
+        action_val = request.data.get('action')
         mitigation = request.data.get('mitigation_measures', '')
         status_val = request.data.get('status')
         if mitigation:
             risk.mitigation_measures = mitigation
         if status_val:
+            valid_transitions = {
+                'open': ['monitoring', 'resolved', 'closed'],
+                'monitoring': ['resolved', 'closed', 'open'],
+                'resolved': ['closed'],
+                'closed': []
+            }
+            allowed = valid_transitions.get(risk.status, [])
+            if status_val not in allowed:
+                return Response(
+                    {'error': f'风险状态不能从 {risk.get_status_display()} 变更为 {status_val}，允许的目标状态: {allowed}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             risk.status = status_val
             if status_val in ['resolved', 'closed']:
                 from datetime import date
                 risk.actual_resolution_date = date.today()
-        if action == 'assign':
+        if action_val == 'assign':
             assigned_to_id = request.data.get('assigned_to')
             if assigned_to_id:
                 from users.models import User

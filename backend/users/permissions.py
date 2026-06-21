@@ -72,6 +72,13 @@ class IsApproverOrAdmin(BasePermission):
         ]
 
 
+class IsProcurementOrProjectManagerOrAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role in [
+            UserRole.PROCUREMENT_MANAGER, UserRole.PROJECT_MANAGER, UserRole.ADMIN
+        ]
+
+
 class IsProjectManagerOrAdmin(BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role in [

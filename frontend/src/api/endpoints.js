@@ -89,6 +89,7 @@ export const contractApi = {
   expiringSoon: (params) => api.get('/contracts/expiring_soon/', { params }),
   statusSummary: () => api.get('/contracts/status_summary/'),
   submitForApproval: (id) => api.post(`/contracts/${id}/submit_for_approval/`),
+  createRenewal: (id, data) => api.post(`/contracts/${id}/create_renewal/`, data),
   prices: {
     list: (params) => api.get('/contracts/prices/', { params }),
     create: (data) => api.post('/contracts/prices/', data),

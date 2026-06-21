@@ -27,6 +27,9 @@ class FrameworkContractViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
+    def perform_update(self, serializer):
+        serializer.save()
+
     @action(detail=False, methods=['get'])
     def expiring_soon(self, request):
         days = int(request.query_params.get('days', 30))
@@ -54,6 +57,25 @@ class FrameworkContractViewSet(viewsets.ModelViewSet):
         contract.status = 'pending_approval'
         contract.save()
         return Response({'status': '已提交审批'})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProjectManagerOrAdmin])
+    def create_renewal(self, request, pk=None):
+        contract = self.get_object()
+        existing = ContractRenewal.objects.filter(
+            original_contract=contract, decision='pending'
+        ).first()
+        if existing:
+            return Response(
+                {'error': '该合同已有待处理的续签记录', 'renewal_id': existing.id},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        renewal = ContractRenewal.objects.create(
+            original_contract=contract,
+            renewal_recommendation=request.data.get('renewal_recommendation', ''),
+            decision='pending',
+            handled_by=request.user
+        )
+        return Response(ContractRenewalSerializer(renewal).data, status=status.HTTP_201_CREATED)
 
 
 class ContractPriceViewSet(viewsets.ModelViewSet):
