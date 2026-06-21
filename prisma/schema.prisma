@@ -1,0 +1,278 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LeaseStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  TERMINATED
+}
+
+enum BillStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
+  EXCEPTION
+}
+
+enum AssignmentType {
+  COLLECTION
+  REPAIR
+  VISIT
+  COMPLAINT
+}
+
+enum AssignmentStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ExceptionType {
+  OVERDUE
+  DISPUTE
+  DAMAGE
+}
+
+enum ExceptionLevel {
+  NORMAL
+  SERIOUS
+  CRITICAL
+}
+
+enum ExceptionStatus {
+  OPEN
+  HANDLING
+  RESOLVED
+  CLOSED
+}
+
+enum SettlementStatus {
+  PENDING
+  CONFIRMED
+  PAID
+}
+
+enum ContractStatus {
+  DRAFT
+  PENDING_SIGN
+  SIGNED
+  ARCHIVED
+}
+
+enum UserRole {
+  FINANCE
+  FRONTLINE
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  clerkId   String   @unique
+  name      String
+  email     String   @unique
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments       Assignment[]   @relation("assignee")
+  operatedChanges   ChangeRecord[] @relation("operator")
+}
+
+model Property {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  ownerId   String
+  owner     Owner    @relation(fields: [ownerId], references: [id])
+  leases    Lease[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model Owner {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  email     String?
+  properties Property[]
+  leases     Lease[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  email     String?
+  company   String?
+  leases    Lease[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Lease {
+  id          String   @id @default(uuid())
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id])
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  ownerId     String
+  owner       Owner    @relation(fields: [ownerId], references: [id])
+  monthlyRent Decimal  @db.Decimal(10, 2)
+  deposit     Decimal  @db.Decimal(10, 2)
+  startDate   DateTime @db.Date
+  endDate     DateTime @db.Date
+  paymentDay  Int
+  status      LeaseStatus
+  remark      String?
+  bills       Bill[]
+  assignments Assignment[]
+  settlements Settlement[]
+  contracts   Contract[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([ownerId])
+}
+
+model Bill {
+  id           String          @id @default(uuid())
+  leaseId      String
+  lease        Lease           @relation(fields: [leaseId], references: [id])
+  billNo       String          @unique
+  period       String
+  amount       Decimal         @db.Decimal(10, 2)
+  paidAmount   Decimal         @default(0) @db.Decimal(10, 2)
+  dueDate      DateTime        @db.Date
+  paidDate     DateTime?       @db.Date
+  status       BillStatus
+  exceptionId  String?
+  exception    ExceptionOrder? @relation(fields: [exceptionId], references: [id])
+  assignments  Assignment[]
+  paymentMethod String?
+  remark       String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([status])
+  @@index([dueDate])
+  @@index([leaseId])
+  @@index([period])
+}
+
+model Assignment {
+  id                String     @id @default(uuid())
+  leaseId           String
+  lease             Lease      @relation(fields: [leaseId], references: [id])
+  billId            String?
+  bill              Bill?      @relation(fields: [billId], references: [id])
+  type              AssignmentType
+  priority          Priority
+  assigneeId        String
+  assignee          User       @relation(fields: [assigneeId], references: [id], name: "assignee")
+  title             String
+  description       String
+  status            AssignmentStatus
+  handleNote        String?
+  satisfactionScore Int?
+  completedAt       DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([status])
+  @@index([assigneeId])
+  @@index([priority])
+  @@index([leaseId])
+  @@index([billId])
+}
+
+model ExceptionOrder {
+  id         String     @id @default(uuid())
+  billId     String     @unique
+  bill       Bill       @relation(fields: [billId], references: [id])
+  type       ExceptionType
+  level      ExceptionLevel
+  status     ExceptionStatus
+  description String
+  resolution String?
+  createdAt  DateTime   @default(now())
+  resolvedAt DateTime?
+}
+
+model Settlement {
+  id              String           @id @default(uuid())
+  leaseId         String
+  lease           Lease            @relation(fields: [leaseId], references: [id])
+  settlementNo    String           @unique
+  periodFrom      DateTime         @db.Date
+  periodTo        DateTime         @db.Date
+  totalRent       Decimal          @db.Decimal(10, 2)
+  managementFee   Decimal          @default(0) @db.Decimal(10, 2)
+  otherDeductions Decimal          @default(0) @db.Decimal(10, 2)
+  ownerAmount     Decimal          @db.Decimal(10, 2)
+  status          SettlementStatus
+  paidDate        DateTime?        @db.Date
+  remark          String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([leaseId])
+  @@index([status])
+}
+
+model Contract {
+  id        String         @id @default(uuid())
+  leaseId   String
+  lease     Lease          @relation(fields: [leaseId], references: [id])
+  contractNo String        @unique
+  status    ContractStatus
+  signUrl   String?
+  signedAt  DateTime?
+  fileUrl   String?
+  remark    String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([leaseId])
+  @@index([status])
+}
+
+model ChangeRecord {
+  id          String   @id @default(uuid())
+  entityType  String
+  entityId    String
+  fieldName   String
+  oldValue    String?
+  newValue    String?
+  operatorId  String
+  operator    User     @relation(fields: [operatorId], references: [id], name: "operator")
+  reason      String?
+  changedAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([fieldName])
+  @@index([changedAt])
+  @@index([operatorId])
+}
