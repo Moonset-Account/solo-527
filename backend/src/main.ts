@@ -14,8 +14,18 @@ async function bootstrap() {
     bodyParser: true,
   });
 
-  const configService = app.get(ConfigService);
-  const port = configService.get<number>('app.port') || 3000;
+  app.use((req: any, res: any, next: any) => {
+    const path = req.url;
+    if (path.startsWith('/auth') || path.startsWith('/contracts') ||
+        path.startsWith('/approval') || path.startsWith('/conflicts') ||
+        path.startsWith('/notifications') || path.startsWith('/files') ||
+        path.startsWith('/callbacks')) {
+      req.url = '/api' + path;
+    }
+    next();
+  });
+
+  const port = parseInt(process.env.PORT || '3005', 10);
 
   app.setGlobalPrefix('api', { exclude: ['uploads/(.*)'] });
 

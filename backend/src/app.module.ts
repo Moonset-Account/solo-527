@@ -1,4 +1,4 @@
-import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_GUARD } from '@nestjs/core';
@@ -33,12 +33,24 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { ConflictModule } from './modules/conflict/conflict.module';
 import { FileModule } from './modules/file/file.module';
 import { CallbackModule } from './modules/callback/callback.module';
+import { SeedModule } from './modules/seed/seed.module';
 
 const entities = [
   User, Role, Permission, UserRole, RolePermission,
   Contract, ContractAttachment, ApprovalFlow, ConflictRecord,
   Notification, CallbackLog, ContractNumberPool, FileResource, AuditLog,
 ];
+
+function PathRewriteMiddleware(req: any, res: any, next: any) {
+  const path = req.url;
+  if (path.startsWith('/auth') || path.startsWith('/contracts') ||
+      path.startsWith('/approval') || path.startsWith('/conflicts') ||
+      path.startsWith('/notifications') || path.startsWith('/files') ||
+      path.startsWith('/callbacks')) {
+    req.url = '/api' + path;
+  }
+  next();
+}
 
 @Module({
   imports: [
@@ -49,7 +61,6 @@ const entities = [
     }),
     TypeOrmModule.forRoot({
       ...dataSourceOptions,
-      entities,
       autoLoadEntities: true,
     }),
     TypeOrmModule.forFeature(entities),
@@ -71,6 +82,7 @@ const entities = [
     ConflictModule,
     FileModule,
     CallbackModule,
+    SeedModule,
   ],
   providers: [
     {

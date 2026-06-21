@@ -223,12 +223,17 @@ export class ConflictService {
       }));
     }
 
-    qb.orderBy(`CASE c.severity
-      WHEN 'critical' THEN 0
-      WHEN 'high' THEN 1
-      WHEN 'medium' THEN 2
-      WHEN 'low' THEN 3
-      ELSE 4 END, c.createdAt`, 'DESC');
+    qb.addSelect(`
+      CASE c.severity
+        WHEN 'critical' THEN 0
+        WHEN 'high' THEN 1
+        WHEN 'medium' THEN 2
+        WHEN 'low' THEN 3
+        ELSE 4
+      END
+    `, 'severity_order');
+    
+    qb.orderBy('severity_order', 'ASC').addOrderBy('c.createdAt', 'DESC');
 
     qb.skip((page - 1) * pageSize).take(pageSize);
 
