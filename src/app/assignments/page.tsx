@@ -6,7 +6,7 @@ import { api } from "@/trpc/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Drawer, DrawerHeader, DrawerSection, DrawerFooter } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerTitle, DrawerHeader, DrawerSection, DrawerFooter } from "@/components/ui/drawer";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   formatDate,
@@ -505,13 +505,13 @@ export default function AssignmentsPage() {
 
       <Drawer
         open={drawerOpen}
-        onClose={handleCloseDrawer}
-        title="工单详情"
-        width="max-w-3xl"
+        onOpenChange={(open) => !open && handleCloseDrawer()}
       >
+        <DrawerContent className="max-w-3xl">
         {assignmentDetail && (
           <>
             <DrawerHeader>
+              <DrawerTitle>工单详情</DrawerTitle>
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">
@@ -700,9 +700,6 @@ export default function AssignmentsPage() {
             </div>
 
             <DrawerFooter>
-              <Button variant="outline" onClick={handleCloseDrawer}>
-                关闭
-              </Button>
               {assignmentDetail.status === AssignmentStatus.IN_PROGRESS && (
                 <Button
                   onClick={() => {
@@ -722,6 +719,7 @@ export default function AssignmentsPage() {
             </DrawerFooter>
           </>
         )}
+        </DrawerContent>
       </Drawer>
 
       {completeModalOpen && (

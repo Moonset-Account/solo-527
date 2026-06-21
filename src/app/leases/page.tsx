@@ -6,7 +6,7 @@ import { api } from "@/trpc/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Drawer, DrawerHeader, DrawerSection, DrawerFooter } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerSection, DrawerFooter } from "@/components/ui/drawer";
 import {
   formatCurrency,
   formatDate,
@@ -327,26 +327,27 @@ export default function LeasesPage() {
 
       <Drawer
         open={drawerOpen}
-        onClose={handleCloseDrawer}
-        title="租约详情"
-        width="max-w-3xl"
+        onOpenChange={(open) => !open && handleCloseDrawer()}
       >
+        <DrawerContent className="max-w-3xl">
         {leaseDetail && (
           <>
             <DrawerHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900">
-                    {leaseDetail.property.name}
-                  </h2>
-                  <p className="text-sm text-slate-500 mt-1">
-                    {leaseDetail.property.address}
-                  </p>
+              <DrawerTitle>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">
+                      {leaseDetail.property.name}
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {leaseDetail.property.address}
+                    </p>
+                  </div>
+                  <Badge className={getStatusColor(leaseDetail.status)}>
+                    {getStatusLabel(leaseDetail.status)}
+                  </Badge>
                 </div>
-                <Badge className={getStatusColor(leaseDetail.status)}>
-                  {getStatusLabel(leaseDetail.status)}
-                </Badge>
-              </div>
+              </DrawerTitle>
             </DrawerHeader>
 
             <div className="space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
@@ -570,9 +571,6 @@ export default function LeasesPage() {
             </div>
 
             <DrawerFooter>
-              <Button variant="outline" onClick={handleCloseDrawer}>
-                关闭
-              </Button>
               <Button>
                 <FileText className="h-4 w-4 mr-2" />
                 查看全部账单
@@ -580,6 +578,7 @@ export default function LeasesPage() {
             </DrawerFooter>
           </>
         )}
+        </DrawerContent>
       </Drawer>
     </AppLayout>
   );

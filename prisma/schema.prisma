@@ -66,12 +66,15 @@ enum SettlementStatus {
   PENDING
   CONFIRMED
   PAID
+  CANCELLED
 }
 
 enum ContractStatus {
   DRAFT
   PENDING_SIGN
   SIGNED
+  CANCELLED
+  EXPIRED
   ARCHIVED
 }
 
@@ -169,7 +172,7 @@ model Bill {
   paidDate     DateTime?       @db.Date
   status       BillStatus
   exceptionId  String?
-  exception    ExceptionOrder? @relation(fields: [exceptionId], references: [id])
+  exception    ExceptionOrder?
   assignments  Assignment[]
   paymentMethod String?
   remark       String?

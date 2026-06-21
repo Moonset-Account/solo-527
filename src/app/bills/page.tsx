@@ -6,7 +6,7 @@ import { api } from "@/trpc/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Drawer, DrawerHeader, DrawerSection, DrawerFooter } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerSection, DrawerFooter } from "@/components/ui/drawer";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   formatCurrency,
@@ -458,14 +458,13 @@ export default function BillsPage() {
 
       <Drawer
         open={drawerOpen}
-        onClose={handleCloseDrawer}
-        title="账单详情"
-        width="max-w-3xl"
+        onOpenChange={(open) => !open && handleCloseDrawer()}
       >
         {billDetail && (
-          <>
+          <DrawerContent className="max-w-2xl">
             <DrawerHeader>
-              <div className="flex items-center justify-between">
+              <DrawerTitle>账单详情</DrawerTitle>
+              <div className="flex items-center justify-between mt-4">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">
                     {billDetail.billNo}
@@ -652,9 +651,6 @@ export default function BillsPage() {
             </div>
 
             <DrawerFooter>
-              <Button variant="outline" onClick={handleCloseDrawer}>
-                关闭
-              </Button>
               {billDetail.status !== BillStatus.PAID && (
                 <Button
                   onClick={() => {
@@ -681,7 +677,7 @@ export default function BillsPage() {
                 </Button>
               )}
             </DrawerFooter>
-          </>
+          </DrawerContent>
         )}
       </Drawer>
 

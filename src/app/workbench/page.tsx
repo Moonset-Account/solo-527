@@ -6,7 +6,7 @@ import { api } from "@/trpc/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Drawer, DrawerHeader, DrawerSection, DrawerFooter } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerTitle, DrawerHeader, DrawerSection, DrawerFooter } from "@/components/ui/drawer";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   formatDate,
@@ -651,13 +651,13 @@ export default function WorkbenchPage() {
 
       <Drawer
         open={drawerOpen}
-        onClose={handleCloseDrawer}
-        title="详情"
-        width="max-w-3xl"
+        onOpenChange={(open) => !open && handleCloseDrawer()}
       >
+        <DrawerContent className="max-w-3xl">
         {selectedType === "assignment" && assignmentDetail && (
           <>
             <DrawerHeader>
+              <DrawerTitle className="sr-only">详情</DrawerTitle>
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">
@@ -750,9 +750,6 @@ export default function WorkbenchPage() {
             </div>
 
             <DrawerFooter>
-              <Button variant="outline" onClick={handleCloseDrawer}>
-                关闭
-              </Button>
               {assignmentDetail.status === AssignmentStatus.PENDING && (
                 <Button
                   onClick={() =>
@@ -785,6 +782,7 @@ export default function WorkbenchPage() {
         {selectedType === "settlement" && settlementDetail && (
           <>
             <DrawerHeader>
+              <DrawerTitle className="sr-only">详情</DrawerTitle>
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">
@@ -858,9 +856,6 @@ export default function WorkbenchPage() {
             </div>
 
             <DrawerFooter>
-              <Button variant="outline" onClick={handleCloseDrawer}>
-                关闭
-              </Button>
               {settlementDetail.status === SettlementStatus.PENDING && (
                 <Button
                   onClick={() =>
@@ -888,6 +883,7 @@ export default function WorkbenchPage() {
         {selectedType === "bill" && billDetail && (
           <>
             <DrawerHeader>
+              <DrawerTitle className="sr-only">详情</DrawerTitle>
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">
@@ -967,9 +963,6 @@ export default function WorkbenchPage() {
             </div>
 
             <DrawerFooter>
-              <Button variant="outline" onClick={handleCloseDrawer}>
-                关闭
-              </Button>
               {billDetail.status !== BillStatus.PAID && (
                 <Button
                   onClick={() =>
@@ -990,6 +983,7 @@ export default function WorkbenchPage() {
         {selectedType === "contract" && contractDetail && (
           <>
             <DrawerHeader>
+              <DrawerTitle className="sr-only">详情</DrawerTitle>
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">
@@ -1053,9 +1047,6 @@ export default function WorkbenchPage() {
             </div>
 
             <DrawerFooter>
-              <Button variant="outline" onClick={handleCloseDrawer}>
-                关闭
-              </Button>
               {contractDetail.status === ContractStatus.DRAFT && (
                 <Button
                   onClick={() =>
@@ -1086,6 +1077,7 @@ export default function WorkbenchPage() {
             </DrawerFooter>
           </>
         )}
+        </DrawerContent>
       </Drawer>
 
       {completeModalOpen && (

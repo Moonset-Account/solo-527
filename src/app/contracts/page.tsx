@@ -459,9 +459,6 @@ export default function ContractsPage() {
                       <p className="text-xs text-slate-500">
                         {selectedContract.property.address}
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        面积: {selectedContract.property.area}㎡
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -508,15 +505,15 @@ export default function ContractsPage() {
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-600">付款方式</span>
-                      <span className="text-sm font-medium text-slate-900">
-                        {selectedContract.paymentTerms}
+                      <span className="text-sm text-slate-600">合同编号</span>
+                      <span className="text-sm font-medium text-slate-900 font-mono">
+                        {selectedContract.contractNo}
                       </span>
                     </div>
                     <div className="border-t border-slate-200 pt-3 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-slate-900">合同总金额</span>
+                      <span className="text-sm font-semibold text-slate-900">月租金</span>
                       <span className="text-lg font-bold text-emerald-600">
-                        {formatCurrency(selectedContract.totalAmount)}
+                        {formatCurrency(selectedContract.monthlyRent)}
                       </span>
                     </div>
                   </div>

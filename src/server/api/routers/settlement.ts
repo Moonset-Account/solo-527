@@ -1,9 +1,8 @@
 import { z } from "zod";
-import { router, protectedProcedure, financeProcedure, auditedProcedure } from "@/server/api/trpc";
+import { router, protectedProcedure, financeProcedure } from "@/server/api/trpc";
 import { SettlementStatus, type Settlement } from "@prisma/client";
 import { recordChanges, getChangeHistory } from "@/server/services/auditService";
 import { format } from "date-fns";
-import { zhCN } from "date-fns/locale";
 
 export const settlementRouter = router({
   list: protectedProcedure
@@ -11,22 +10,22 @@ export const settlementRouter = router({
       z.object({
         page: z.number().default(1),
         pageSize: z.number().default(20),
-        status: z.array(z.enum([SettlementStatus.PENDING, SettlementStatus.CONFIRMED, SettlementStatus.PAID])).optional(),
-        ownerName: z.string().optional(),
-        propertyName: z.string().optional(),
-        periodFrom: z.string().optional(),
-        periodTo: z.string().optional(),
+        status: z.string().optional(),
+        search: z.string().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
-      const { page, pageSize, status, ownerName, propertyName, periodFrom, periodTo } = input;
+      const { page, pageSize, status, search } = input;
 
       const where: any = {};
-      if (status?.length) where.status = { in: status };
-      if (ownerName) where.lease = { owner: { name: { contains: ownerName, mode: "insensitive" } } };
-      if (propertyName) where.lease = { ...where.lease, property: { name: { contains: propertyName, mode: "insensitive" } } };
-      if (periodFrom) where.periodFrom = { gte: new Date(periodFrom) };
-      if (periodTo) where.periodTo = { lte: new Date(periodTo) };
+      if (status) where.status = status;
+      if (search) {
+        where.OR = [
+          { settlementNo: { contains: search, mode: "insensitive" } },
+          { lease: { owner: { name: { contains: search, mode: "insensitive" } } } },
+          { lease: { property: { name: { contains: search, mode: "insensitive" } } } },
+        ];
+      }
 
       const [total, settlements] = await Promise.all([
         ctx.db.settlement.count({ where }),
@@ -35,9 +34,9 @@ export const settlementRouter = router({
           include: {
             lease: {
               include: {
-                property: { select: { name: true } },
-                tenant: { select: { name: true } },
-                owner: { select: { name: true, phone: true } },
+                property: { select: { name: true, address: true } },
+                tenant: { select: { name: true, phone: true } },
+                owner: { select: { name: true, phone: true, email: true } },
               },
             },
           },
@@ -52,23 +51,31 @@ export const settlementRouter = router({
         page,
         pageSize,
         totalPages: Math.ceil(total / pageSize),
-        settlements: settlements.map((s) => ({
+        items: settlements.map((s) => ({
           id: s.id,
           settlementNo: s.settlementNo,
-          periodFrom: s.periodFrom,
-          periodTo: s.periodTo,
-          totalRent: s.totalRent.toNumber(),
+          startDate: s.periodFrom,
+          endDate: s.periodTo,
+          amount: s.ownerAmount.toNumber(),
+          rentAmount: s.totalRent.toNumber(),
           managementFee: s.managementFee.toNumber(),
-          otherDeductions: s.otherDeductions.toNumber(),
-          ownerAmount: s.ownerAmount.toNumber(),
+          otherFee: s.otherDeductions.toNumber(),
           status: s.status,
           paidDate: s.paidDate,
           remark: s.remark,
-          propertyName: s.lease.property.name,
-          tenantName: s.lease.tenant.name,
-          ownerName: s.lease.owner.name,
-          ownerPhone: s.lease.owner.phone,
           createdAt: s.createdAt,
+          property: {
+            name: s.lease.property.name,
+            address: s.lease.property.address,
+          },
+          owner: {
+            name: s.lease.owner.name,
+            phone: s.lease.owner.phone,
+          },
+          tenant: {
+            name: s.lease.tenant.name,
+            phone: s.lease.tenant.phone,
+          },
         })),
       };
     }),
@@ -142,20 +149,20 @@ export const settlementRouter = router({
     .input(
       z.object({
         id: z.string(),
-        reason: z.string().optional(),
+        remark: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, reason } = input;
+      const { id, remark } = input;
 
       const oldSettlement = await ctx.db.settlement.findUnique({ where: { id } });
       if (!oldSettlement) throw new Error("结算单不存在");
 
-      const updateData = { status: SettlementStatus.CONFIRMED };
+      const updateData: any = { status: SettlementStatus.CONFIRMED };
 
       const [updated] = await Promise.all([
-        ctx.db.settlement.update({ where: { id }, data: updateData as Partial<Settlement> }),
-        recordChanges("SETTLEMENT", id, oldSettlement, updateData as Partial<Settlement>, ctx.user, reason || "确认结算"),
+        ctx.db.settlement.update({ where: { id }, data: updateData }),
+        recordChanges("SETTLEMENT", id, oldSettlement, updateData, ctx.user, remark || "确认结算"),
       ]);
 
       return updated;
@@ -165,25 +172,47 @@ export const settlementRouter = router({
     .input(
       z.object({
         id: z.string(),
-        paidDate: z.date().default(() => new Date()),
-        reason: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, paidDate, reason } = input;
+      const { id } = input;
 
       const oldSettlement = await ctx.db.settlement.findUnique({ where: { id } });
       if (!oldSettlement) throw new Error("结算单不存在");
 
-      const updateData = { status: SettlementStatus.PAID, paidDate };
+      const updateData: any = { status: SettlementStatus.PAID, paidDate: new Date() };
 
       const [updated] = await Promise.all([
-        ctx.db.settlement.update({ where: { id }, data: updateData as Partial<Settlement> }),
-        recordChanges("SETTLEMENT", id, oldSettlement, updateData as Partial<Settlement>, ctx.user, reason || "标记已付款"),
+        ctx.db.settlement.update({ where: { id }, data: updateData }),
+        recordChanges("SETTLEMENT", id, oldSettlement, updateData, ctx.user, "标记已付款"),
       ]);
 
       return updated;
     }),
+
+  getStats: financeProcedure.query(async ({ ctx }) => {
+    const [pending, confirmed, paid, total, pendingAmount, confirmedAmount, paidAmount, totalAmount] = await Promise.all([
+      ctx.db.settlement.count({ where: { status: SettlementStatus.PENDING } }),
+      ctx.db.settlement.count({ where: { status: SettlementStatus.CONFIRMED } }),
+      ctx.db.settlement.count({ where: { status: SettlementStatus.PAID } }),
+      ctx.db.settlement.count(),
+      ctx.db.settlement.aggregate({ _sum: { ownerAmount: true }, where: { status: SettlementStatus.PENDING } }),
+      ctx.db.settlement.aggregate({ _sum: { ownerAmount: true }, where: { status: SettlementStatus.CONFIRMED } }),
+      ctx.db.settlement.aggregate({ _sum: { ownerAmount: true }, where: { status: SettlementStatus.PAID } }),
+      ctx.db.settlement.aggregate({ _sum: { ownerAmount: true } }),
+    ]);
+
+    return {
+      pending,
+      confirmed,
+      paid,
+      total,
+      pendingAmount: pendingAmount._sum.ownerAmount?.toNumber() ?? 0,
+      confirmedAmount: confirmedAmount._sum.ownerAmount?.toNumber() ?? 0,
+      paidAmount: paidAmount._sum.ownerAmount?.toNumber() ?? 0,
+      totalAmount: totalAmount._sum.ownerAmount?.toNumber() ?? 0,
+    };
+  }),
 
   getByLeaseId: protectedProcedure
     .input(z.object({ leaseId: z.string() }))
@@ -203,23 +232,4 @@ export const settlementRouter = router({
         status: s.status,
       }));
     }),
-
-  getSummary: financeProcedure.query(async ({ ctx }) => {
-    const [pending, confirmed, paid, totalAmount] = await Promise.all([
-      ctx.db.settlement.count({ where: { status: SettlementStatus.PENDING } }),
-      ctx.db.settlement.count({ where: { status: SettlementStatus.CONFIRMED } }),
-      ctx.db.settlement.count({ where: { status: SettlementStatus.PAID } }),
-      ctx.db.settlement.aggregate({
-        _sum: { ownerAmount: true },
-        where: { status: SettlementStatus.PAID },
-      }),
-    ]);
-
-    return {
-      pending,
-      confirmed,
-      paid,
-      totalPaidAmount: totalAmount._sum.ownerAmount?.toNumber() ?? 0,
-    };
-  }),
 });

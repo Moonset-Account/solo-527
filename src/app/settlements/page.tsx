@@ -522,20 +522,20 @@ export default function SettlementsPage() {
                   </div>
                 )}
 
-                {selectedSettlement.confirmedAt && (
+                {selectedSettlement.status !== "PENDING" && (
                   <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
                     <h3 className="text-sm font-semibold text-blue-900 mb-2">确认信息</h3>
                     <p className="text-sm text-blue-700">
-                      确认时间: {formatDateTime(selectedSettlement.confirmedAt)}
+                      当前状态: {getStatusLabel(selectedSettlement.status)}
                     </p>
                   </div>
                 )}
 
-                {selectedSettlement.paidAt && (
+                {selectedSettlement.paidDate && (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                     <h3 className="text-sm font-semibold text-emerald-900 mb-2">付款信息</h3>
                     <p className="text-sm text-emerald-700">
-                      付款时间: {formatDateTime(selectedSettlement.paidAt)}
+                      付款时间: {formatDateTime(selectedSettlement.paidDate)}
                     </p>
                   </div>
                 )}
