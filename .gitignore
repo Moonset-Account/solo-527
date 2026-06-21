@@ -1,0 +1,8 @@
+node_modules
+.svelte-kit
+build
+drizzle
+.env
+.env.local
+.DS_Store
+*.log
