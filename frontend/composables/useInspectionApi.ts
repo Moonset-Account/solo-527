@@ -10,7 +10,7 @@ export const useInspectionApi = () => {
     updateInspection: (id: number, data: Partial<InspectionTask>) => api.put<InspectionTask>(`/inspection/${id}`, data),
     startInspection: (id: number) => api.post<InspectionTask>(`/inspection/${id}/start`),
     completeInspection: (id: number, score: number, remark?: string) =>
-      api.post<InspectionTask>(`/inspection/${id}/complete`, null, { query: { score, remark } }),
+      api.post<InspectionTask>(`/inspection/${id}/complete`, null, { score, remark }),
 
     getCheckRecords: (inspectionId: number) =>
       api.get<InspectionCheckRecord[]>(`/inspection/${inspectionId}/checks`),

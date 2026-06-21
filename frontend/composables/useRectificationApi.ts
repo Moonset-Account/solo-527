@@ -10,8 +10,8 @@ export const useRectificationApi = () => {
     updateRectification: (id: number, data: Partial<RectificationTask>) => api.put<RectificationTask>(`/rectification/${id}`, data),
     startRectification: (id: number) => api.post<RectificationTask>(`/rectification/${id}/start`),
     submitRectification: (id: number, result: string) =>
-      api.post<RectificationTask>(`/rectification/${id}/submit`, null, { query: { result } }),
+      api.post<RectificationTask>(`/rectification/${id}/submit`, null, { result }),
     reinspectRectification: (id: number, result: string, is_pass: boolean) =>
-      api.post<RectificationTask>(`/rectification/${id}/reinspect`, null, { query: { result, is_pass } })
+      api.post<RectificationTask>(`/rectification/${id}/reinspect`, null, { result, is_pass })
   }
 }

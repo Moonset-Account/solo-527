@@ -27,9 +27,9 @@ export const useSettingsApi = () => {
     createSetting: (data: Partial<SystemSetting>) => api.post<SystemSetting>('/settings/', data),
     updateSetting: (id: number, data: Partial<SystemSetting>) => api.put<SystemSetting>(`/settings/${id}`, data),
     setSettingValue: (module: string, key: string, value: string, value_type?: string, description?: string) =>
-      api.put(`/settings/module/${module}/key/${key}`, null, { query: { value, value_type, description } }),
+      api.put(`/settings/module/${module}/key/${key}`, null, { value, value_type, description }),
     toggleModule: (module: string, enabled: boolean) =>
-      api.post(`/settings/module/${module}/toggle`, null, { query: { enabled } }),
+      api.post(`/settings/module/${module}/toggle`, null, { enabled }),
     initDefaults: () => api.post('/settings/init-defaults')
   }
 }

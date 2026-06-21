@@ -9,14 +9,14 @@ export const useBatchApi = () => {
     createBatch: (data: Partial<BakingBatch>) => api.post<BakingBatch>('/batch/', data),
     updateBatch: (id: number, data: Partial<BakingBatch>) => api.put<BakingBatch>(`/batch/${id}`, data),
     completeBatch: (id: number, actual_quantity: number) =>
-      api.post<BakingBatch>(`/batch/${id}/complete`, null, { query: { actual_quantity } }),
+      api.post<BakingBatch>(`/batch/${id}/complete`, null, { actual_quantity }),
 
     getLossRecords: (params?: Record<string, any>) => api.get<LossRecord[]>('/batch/loss/', params),
     getLossRecord: (id: number) => api.get<LossRecord>(`/batch/loss/${id}`),
     createLoss: (data: Partial<LossRecord>) => api.post<LossRecord>('/batch/loss', data),
     updateLoss: (id: number, data: Partial<LossRecord>) => api.put<LossRecord>(`/batch/loss/${id}`, data),
     handleLoss: (id: number, handle_result: string) =>
-      api.post<LossRecord>(`/batch/loss/${id}/handle`, null, { query: { handle_result } }),
+      api.post<LossRecord>(`/batch/loss/${id}/handle`, null, { handle_result }),
     getLossStats: (params?: Record<string, any>) => api.get('/batch/loss/stats/summary', params),
 
     getBatchLoss: (batchId: number) => api.get<LossRecord[]>(`/batch/${batchId}/loss`)
