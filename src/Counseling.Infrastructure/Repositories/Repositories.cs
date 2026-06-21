@@ -90,7 +90,11 @@ public class AppointmentRepository : Repository<Appointment>, IAppointmentReposi
         return await _dbSet
             .Include(a => a.Client)
             .Include(a => a.Counselor)
+                .ThenInclude(c => c!.User)
             .Include(a => a.ServiceItem)
+            .Include(a => a.CheckInRecord)
+            .Include(a => a.RefundRecord)
+            .Include(a => a.NoShowRecord)
             .Where(a => a.AppointmentDate >= startDate.Date && a.AppointmentDate <= endDate.Date)
             .OrderByDescending(a => a.AppointmentDate)
             .ThenByDescending(a => a.StartTime)

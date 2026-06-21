@@ -509,6 +509,14 @@ function StatisticsPage() {
                                     >
                                       {statusMap[item.status].text}
                                     </Tag>
+                                    {item.refundRecord && (
+                                      <Tag
+                                        color={refundStatusMap[item.refundRecord.status].color}
+                                        style={{ marginLeft: 4 }}
+                                      >
+                                        退款: {refundStatusMap[item.refundRecord.status].text}
+                                      </Tag>
+                                    )}
                                   </span>
                                 }
                                 description={`${item.clientName} - ${item.serviceItemName} - ${dayjs(item.appointmentDate).format('MM-DD')} ${item.startTime?.slice(0, 5)}`}

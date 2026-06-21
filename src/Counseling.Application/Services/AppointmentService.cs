@@ -312,7 +312,7 @@ public class AppointmentService : IAppointmentService
             IsFromWaitlist = appointment.IsFromWaitlist,
             CreatedAt = appointment.CreatedAt,
             CheckInRecord = appointment.CheckInRecord != null ? MapCheckInToDto(appointment.CheckInRecord) : null,
-            RefundRecord = appointment.RefundRecord != null ? null : null,
+            RefundRecord = appointment.RefundRecord != null ? MapRefundToDto(appointment.RefundRecord, appointment) : null,
             NoShowRecord = appointment.NoShowRecord != null ? MapNoShowToDto(appointment.NoShowRecord) : null
         };
     }
@@ -340,5 +340,24 @@ public class AppointmentService : IAppointmentService
         IsWaived = record.IsWaived,
         WaivedReason = record.WaivedReason,
         WaivedBy = record.WaivedBy
+    };
+
+    private static RefundRecordDto MapRefundToDto(RefundRecord record, Appointment appointment) => new()
+    {
+        Id = record.Id,
+        AppointmentId = record.AppointmentId,
+        AppointmentNo = appointment.AppointmentNo,
+        ClientName = appointment.Client?.FullName ?? "",
+        Amount = record.Amount,
+        Status = record.Status,
+        Reason = record.Reason,
+        ApprovedAt = record.ApprovedAt,
+        ApprovedBy = record.ApprovedBy,
+        RejectedReason = record.RejectedReason,
+        RejectedAt = record.RejectedAt,
+        RejectedBy = record.RejectedBy,
+        CompletedAt = record.CompletedAt,
+        TransactionId = record.TransactionId,
+        CreatedAt = record.CreatedAt
     };
 }
