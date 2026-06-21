@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}报表中心{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h1>报表中心</h1>
+    <p class="muted">评价回访、区域需求、退款争议多维度报表</p>
+</section>
+
+<div class="toolbar">
+    <div class="filters">
+        <label>起始日 <input type="date" id="r_start_date" value=""></label>
+        <label>结束日 <input type="date" id="r_end_date" value=""></label>
+        <button class="btn btn-secondary" onclick="refreshAll()">生成报表</button>
+    </div>
+</div>
+
+<section class="stats-grid" id="summary-grid">
+    <div class="loading">加载中...</div>
+</section>
+
+<section class="two-col">
+    <div class="panel">
+        <div class="panel-header"><h3>评价评分分布</h3></div>
+        <div id="rating-chart" class="chart-box"><div class="loading">加载中...</div></div>
+    </div>
+    <div class="panel">
+        <div class="panel-header"><h3>区域需求分布</h3></div>
+        <div id="demand-chart" class="chart-box"><div class="loading">加载中...</div></div>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-header"><h3>退款争议原因分析</h3></div>
+    <div id="refund-report" class="chart-box"><div class="loading">加载中...</div></div>
+</section>
+
+<script>
+const refundLabels = {not_repaired:'未修复', overcharged:'收费过高', bad_service:'服务差', secondary_damage:'二次损坏', other:'其他'};
+
+function getParams() {
+    const sd = document.getElementById('r_start_date').value;
+    const ed = document.getElementById('r_end_date').value;
+    const params = [];
+    if (sd) params.push('start_date=' + sd);
+    if (ed) params.push('end_date=' + ed);
+    return params.length ? '?' + params.join('&') : '';
+}
+
+function refreshAll() {
+    fetch('/api/reviews/report/summary').then(r=>r.json()).then(d=>{
+        const box = document.getElementById('summary-grid');
+        box.innerHTML = `
+            <div class="stat-card"><span class="stat-label">评价总数</span><span class="stat-value">${d.total}</span></div>
+            <div class="stat-card"><span class="stat-label">平均评分</span><span class="stat-value success">⭐ ${d.avg_rating}</span></div>
+            <div class="stat-card"><span class="stat-label">待回访</span><span class="stat-value warn">${d.not_revisited}</span></div>
+            <div class="stat-card"><span class="stat-label">低分评价(≤3)</span><span class="stat-value danger">${d.low_rating_count}</span></div>
+        `;
+        const rc = document.getElementById('rating-chart');
+        const maxCount = Math.max(...d.by_rating.map(r=>r.count), 1);
+        rc.innerHTML = d.by_rating.map(r => `
+            <div class="bar-row">
+                <span class="bar-label">⭐ ${r.rating} 星</span>
+                <div class="bar"><span style="width:${(r.count/maxCount*100).toFixed(0)}%"></span></div>
+                <span class="bar-count">${r.count}</span>
+            </div>`).join('');
+    });
+
+    fetch('/api/reviews/report/demand' + getParams()).then(r=>r.json()).then(list=>{
+        const box = document.getElementById('demand-chart');
+        if (!list.length) { box.innerHTML = '<div class="empty">暂无数据</div>'; return; }
+        const max = Math.max(...list.map(x=>x.order_count), 1);
+        box.innerHTML = list.map(x => `
+            <div class="bar-row">
+                <span class="bar-label">${x.community}</span>
+                <div class="bar bar-warm"><span style="width:${(x.order_count/max*100).toFixed(0)}%"></span></div>
+                <span class="bar-count">${x.order_count} 单</span>
+            </div>`).join('');
+    });
+
+    fetch('/api/reviews/report/refunds' + getParams()).then(r=>r.json()).then(d=>{
+        const box = document.getElementById('refund-report');
+        let html = `
+            <div class="refund-header">
+                <span>退款总单数：<b>${d.total_refunds}</b></span>
+                <span>退款总金额：<b class="danger">¥${d.total_amount}</b></span>
+            </div>`;
+        if (!d.by_reason.length) { html += '<div class="empty">暂无退款数据</div>'; box.innerHTML = html; return; }
+        html += '<div class="refund-grid">';
+        html += d.by_reason.map(r => `
+            <div class="refund-card">
+                <div class="refund-reason">${refundLabels[r.reason] || r.reason}</div>
+                <div class="refund-count">${r.count} 次 · ¥${r.amount}</div>
+                <div class="progress"><span style="width:${r.percent}%"></span></div>
+                <div class="muted">${r.percent}%</div>
+            </div>`).join('');
+        html += '</div>';
+        box.innerHTML = html;
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date();
+    const from = new Date(today); from.setDate(from.getDate() - 30);
+    document.getElementById('r_end_date').value = today.toISOString().slice(0,10);
+    document.getElementById('r_start_date').value = from.toISOString().slice(0,10);
+    refreshAll();
+});
+</script>
+{% endblock %}

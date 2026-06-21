@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}家电维修调度看板{% endblock %}</title>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <a href="/" class="brand">
+                <span class="brand-icon">🛠️</span>
+                <span class="brand-text">家电维修调度看板</span>
+            </a>
+            <nav class="main-nav">
+                <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">首页</a>
+                <a href="/submit" class="{% if request.url.path == '/submit' %}active{% endif %}">提交故障</a>
+                <a href="/dispatch" class="{% if request.url.path == '/dispatch' %}active{% endif %}">调度监控</a>
+                <a href="/technicians" class="{% if request.url.path.startswith('/technicians') %}active{% endif %}">师傅负载</a>
+                <a href="/reports" class="{% if request.url.path == '/reports' %}active{% endif %}">报表中心</a>
+                <a href="/logs" class="{% if request.url.path == '/logs' %}active{% endif %}">操作日志</a>
+            </nav>
+        </div>
+    </header>
+    <main class="container main-content">
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="site-footer">
+        <div class="container">
+            <small>© 家电维修调度系统 · FastAPI + HTMX + PostgreSQL + Redis</small>
+        </div>
+    </footer>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}调度监控{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h1>调度监控中心</h1>
+    <p class="muted">实时监控区域订单、人员动态与异常工单</p>
+</section>
+
+<div class="toolbar">
+    <div class="filters">
+        <select id="region-filter" hx-get="/api/orders" hx-target="#order-table-body" hx-include="#region-filter,#status-filter,#tech-filter" hx-swap="outerHTML">
+            <option value="">全部区域</option>
+        </select>
+        <select id="status-filter" hx-get="/api/orders" hx-target="#order-table-body" hx-include="#region-filter,#status-filter,#tech-filter" hx-swap="outerHTML">
+            <option value="">全部状态</option>
+            <option value="pending">待派单</option>
+            <option value="assigned">已派单</option>
+            <option value="in_progress">进行中</option>
+            <option value="completed">已完成</option>
+            <option value="refund_requested">退款申请</option>
+            <option value="refunded">已退款</option>
+            <option value="cancelled">已取消</option>
+        </select>
+        <select id="tech-filter" hx-get="/api/orders" hx-target="#order-table-body" hx-include="#region-filter,#status-filter,#tech-filter" hx-swap="outerHTML">
+            <option value="">全部师傅</option>
+        </select>
+    </div>
+    <div class="actions">
+        <a href="/submit" class="btn btn-primary">+ 新建工单</a>
+        <button class="btn btn-secondary" hx-get="/api/dispatch/dashboard" hx-target="#refresh-indicator" hx-swap="innerHTML">🔄 刷新</button>
+        <span id="refresh-indicator"></span>
+    </div>
+</div>
+
+<section class="region-grid" hx-get="/api/dispatch/dashboard" hx-trigger="load, every 60s" hx-target="#region-snippet" hx-swap="innerHTML">
+    <div id="region-snippet" class="loading">加载区域数据...</div>
+</section>
+
+<section class="two-col">
+    <div class="panel flex-2">
+        <div class="panel-header">
+            <h3>工单列表</h3>
+            <span class="muted">支持 HTMX 实时筛选</span>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table" hx-get="/api/orders" hx-trigger="load" hx-target="tbody" hx-swap="innerHTML">
+                <thead>
+                    <tr>
+                        <th>工单号</th>
+                        <th>客户</th>
+                        <th>家电</th>
+                        <th>地址/区域</th>
+                        <th>预约</th>
+                        <th>状态</th>
+                        <th>师傅</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="order-table-body">
+                    <tr><td colspan="8" class="loading">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-header">
+            <h3>人员状态</h3>
+        </div>
+        <div id="tech-panel" hx-get="/api/technicians" hx-trigger="load, every 30s" hx-target="#tech-panel" hx-swap="innerHTML">
+            <div class="loading">加载中...</div>
+        </div>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-header">
+        <h3>异常工单 / 退款争议</h3>
+    </div>
+    <table class="data-table" hx-get="/api/orders?status=refund_requested&status=refunded" hx-trigger="load" hx-target="tbody" hx-swap="innerHTML">
+        <thead>
+            <tr>
+                <th>工单号</th>
+                <th>客户</th>
+                <th>状态</th>
+                <th>退款原因</th>
+                <th>退款金额</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="6" class="loading">加载中...</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/dispatch/regions').then(r=>r.json()).then(rs=>{
+        const s = document.getElementById('region-filter');
+        s.innerHTML = '<option value="">全部区域</option>' + rs.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
+    });
+    fetch('/api/technicians').then(r=>r.json()).then(ts=>{
+        const s = document.getElementById('tech-filter');
+        s.innerHTML = '<option value="">全部师傅</option>' + ts.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+    });
+});
+
+document.addEventListener('htmx:afterRequest', function(evt) {
+    const resp = evt.detail.xhr;
+    if (!resp || !resp.responseText) return;
+    try {
+        const data = JSON.parse(resp.responseText);
+        if (Array.isArray(data) && data.length && data[0].order_no) {
+            renderOrders(data);
+        }
+        if (data.region_stats) {
+            renderRegions(data);
+        }
+        if (Array.isArray(data) && data.length && data[0].name && data[0].phone) {
+            renderTechnicians(data);
+        }
+    } catch(e) {}
+});
+
+function statusBadge(s) {
+    const map = {
+        pending: 'badge-warn', assigned: 'badge-info', in_progress: 'badge-info',
+        completed: 'badge-success', refund_requested: 'badge-danger', refunded: 'badge-danger',
+        cancelled: 'badge-muted'
+    };
+    const cn = map[s] || 'badge-muted';
+    const labels = {pending:'待派单', assigned:'已派单', in_progress:'进行中', completed:'已完成', refund_requested:'退款申请', refunded:'已退款', cancelled:'已取消'};
+    return `<span class="badge ${cn}">${labels[s]||s}</span>`;
+}
+
+function techBadge(s) {
+    const map = {idle:'badge-success', busy:'badge-info', offline:'badge-muted', leave:'badge-muted'};
+    const labels = {idle:'空闲', busy:'忙碌', offline:'离线', leave:'休假'};
+    return `<span class="badge ${map[s]||'badge-muted'}">${labels[s]||s}</span>`;
+}
+
+function renderOrders(list) {
+    const tbody = document.querySelector('#order-table-body') || document.querySelectorAll('tbody')[0];
+    if (!tbody) return;
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">暂无工单</td></tr>'; return; }
+    tbody.innerHTML = list.map(o => `
+        <tr>
+            <td class="mono">${o.order_no}</td>
+            <td>${o.customer_name}<br><small class="muted">${o.customer_phone}</small></td>
+            <td>${o.appliance_type || '-'}</td>
+            <td title="${o.full_address || o.address_detail}">${(o.full_address || o.address_detail || '').substring(0, 20)}...</td>
+            <td>${o.schedule_date || '-'}<br><small class="muted">${o.schedule_time_slot || ''}</small></td>
+            <td>${statusBadge(o.status)}</td>
+            <td>${o.technician ? o.technician.name : '-'}</td>
+            <td><a href="/orders/${o.id}" class="link-btn">详情</a></td>
+        </tr>`).join('');
+}
+
+function renderRegions(d) {
+    const box = document.getElementById('region-snippet');
+    if (!box) return;
+    box.innerHTML = d.region_stats.map(r => `
+        <div class="region-card">
+            <div class="region-head">
+                <strong>${r.region_name}</strong>
+                <span class="demand-bar">
+                    <span class="demand-fill" style="width:${r.demand_level}%"></span>
+                </span>
+            </div>
+            <div class="region-nums">
+                <span>今日 <b>${r.total_today}</b></span>
+                <span class="warn">待派 <b>${r.pending}</b></span>
+                <span class="info">进行 <b>${r.in_progress}</b></span>
+                <span class="success">完成 <b>${r.completed}</b></span>
+            </div>
+        </div>`).join('');
+}
+
+function renderTechnicians(list) {
+    const box = document.getElementById('tech-panel');
+    if (!box) return;
+    if (!list.length) { box.innerHTML = '<div class="empty">暂无师傅</div>'; return; }
+    box.innerHTML = list.map(t => `
+        <div class="tech-card">
+            <div class="tech-head">
+                <strong>${t.name}</strong>
+                ${techBadge(t.status)}
+            </div>
+            <div class="tech-info">
+                <span>${t.phone}</span>
+                <span>⭐ ${t.rating_avg.toFixed ? t.rating_avg.toFixed(1) : t.rating_avg}</span>
+                <span>今日 ${t.today_orders || 0}/${t.daily_max_orders}</span>
+            </div>
+            <div class="tech-actions">
+                <a href="/technicians/${t.id}" class="link-btn">查看负载 →</a>
+            </div>
+        </div>`).join('');
+}
+</script>
+{% endblock %}

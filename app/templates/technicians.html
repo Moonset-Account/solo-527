@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}师傅负载{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h1>师傅负载总览</h1>
+    <p class="muted">查看师傅总负载，点击进入按社区/日期/退款争议拆分的详情</p>
+</section>
+
+<div class="toolbar">
+    <div class="filters">
+        <label>起始日 <input type="date" id="start_date" value=""></label>
+        <label>结束日 <input type="date" id="end_date" value=""></label>
+        <button class="btn btn-secondary" onclick="refreshLoad()">查询</button>
+    </div>
+</div>
+
+<section class="panel">
+    <div class="table-wrap">
+        <table class="data-table" id="load-table">
+            <thead>
+                <tr>
+                    <th>师傅</th>
+                    <th>联系电话</th>
+                    <th>所属社区</th>
+                    <th>状态</th>
+                    <th>评分</th>
+                    <th>已完成</th>
+                    <th>待处理</th>
+                    <th>累计工时</th>
+                    <th>退款争议</th>
+                    <th>日上限</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="11" class="loading">加载中...</td></tr>
+            </thead>
+        </table>
+    </div>
+</section>
+
+<script>
+function techBadge(s) {
+    const map = {idle:'badge-success', busy:'badge-info', offline:'badge-muted', leave:'badge-muted'};
+    const labels = {idle:'空闲', busy:'忙碌', offline:'离线', leave:'休假'};
+    return `<span class="badge ${map[s]||'badge-muted'}">${labels[s]||s}</span>`;
+}
+
+function refreshLoad() {
+    const sd = document.getElementById('start_date').value;
+    const ed = document.getElementById('end_date').value;
+    let url = '/api/technicians/load/list';
+    const params = [];
+    if (sd) params.push('start_date=' + sd);
+    if (ed) params.push('end_date=' + ed);
+    if (params.length) url += '?' + params.join('&');
+    fetch(url).then(r=>r.json()).then(list=>{
+        const tbody = document.querySelector('#load-table tbody');
+        if (!list.length) { tbody.innerHTML = '<tr><td colspan="11" class="empty">暂无数据</td></tr>'; return; }
+        tbody.innerHTML = list.map(t => `
+            <tr>
+                <td><strong>${t.technician_name}</strong></td>
+                <td>${t.phone}</td>
+                <td>${t.community_name || '-'}</td>
+                <td>${techBadge(t.status)}</td>
+                <td>⭐ ${(typeof t.rating_avg === 'number') ? t.rating_avg.toFixed(1) : t.rating_avg}</td>
+                <td>${t.completed_count}</td>
+                <td>${t.assigned_count}</td>
+                <td>${t.total_hours} h</td>
+                <td>${t.refund_count > 0 ? '<span class="badge badge-danger">'+t.refund_count+'</span>' : '0'}</td>
+                <td>${t.daily_max}</td>
+                <td><a href="/technicians/${t.technician_id}" class="link-btn">查看详情</a></td>
+            </tr>`).join('');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date();
+    const from = new Date(today); from.setDate(from.getDate() - 14);
+    document.getElementById('end_date').value = today.toISOString().slice(0,10);
+    document.getElementById('start_date').value = from.toISOString().slice(0,10);
+    refreshLoad();
+});
+</script>
+{% endblock %}

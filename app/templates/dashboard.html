@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}调度看板首页{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1>维修站长工作台</h1>
+    <p class="hero-sub">高效调度 · 实时监控 · 数据驱动</p>
+</section>
+
+<section class="portal-grid">
+    <a href="/dispatch" class="portal-card portal-todo" hx-get="/api/dispatch/todos" hx-trigger="load" hx-target="#todo-badge">
+        <div class="portal-icon">📋</div>
+        <div class="portal-title">待办事项</div>
+        <div class="portal-desc">未派单、今日排班、待回访、退款申请</div>
+        <div id="todo-badge" class="portal-badge">加载中...</div>
+    </a>
+
+    <a href="/dispatch" class="portal-card portal-warn">
+        <div class="portal-icon">⚠️</div>
+        <div class="portal-title">异常处理</div>
+        <div class="portal-desc">退款争议、超时工单、低评分回访</div>
+        <div class="portal-badge">实时监测</div>
+    </a>
+
+    <a href="/reports" class="portal-card portal-report">
+        <div class="portal-icon">📊</div>
+        <div class="portal-title">报表中心</div>
+        <div class="portal-desc">区域需求、师傅负载、退款分析</div>
+        <div class="portal-badge">多维数据</div>
+    </a>
+</section>
+
+<section class="quick-stats" hx-get="/api/dispatch/dashboard" hx-trigger="load, every 60s" hx-target="#dashboard-snippet" hx-swap="innerHTML">
+    <h2>实时概览</h2>
+    <div id="dashboard-snippet" class="stats-loading">加载中...</div>
+</section>
+
+<section class="two-col">
+    <div class="panel">
+        <div class="panel-header">
+            <h3>待派单 / 处理中</h3>
+            <a href="/dispatch" class="link-btn">查看全部 →</a>
+        </div>
+        <div hx-get="/api/orders?status=pending&status=assigned" hx-trigger="load" hx-target="#pending-list">
+            <div id="pending-list" class="list-loading">加载中...</div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <h3>空闲师傅</h3>
+            <a href="/technicians" class="link-btn">查看全部 →</a>
+        </div>
+        <div hx-get="/api/technicians?status=idle" hx-trigger="load" hx-target="#idle-list">
+            <div id="idle-list" class="list-loading">加载中...</div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("htmx:afterOnLoad", function(evt) {
+    if (evt.detail.elt.id === 'todo-badge') return;
+    const resp = evt.detail.xhr;
+    if (!resp) return;
+    try {
+        const data = JSON.parse(resp.responseText);
+        if (data.region_stats) {
+            renderDashboard(data);
+        }
+    } catch(e) {}
+});
+
+function renderDashboard(d) {
+    const box = document.getElementById('dashboard-snippet');
+    if (!box || d === '加载中...') return;
+    let html = '<div class="stats-grid">';
+    html += `<div class="stat-card"><span class="stat-label">今日订单</span><span class="stat-value">${d.region_stats.reduce((s,r)=>s+r.total_today,0)}</span></div>`;
+    html += `<div class="stat-card"><span class="stat-label">待处理</span><span class="stat-value warn">${d.region_stats.reduce((s,r)=>s+r.pending,0)}</span></div>`;
+    html += `<div class="stat-card"><span class="stat-label">进行中</span><span class="stat-value info">${d.region_stats.reduce((s,r)=>s+r.in_progress,0)}</span></div>`;
+    html += `<div class="stat-card"><span class="stat-label">已完成</span><span class="stat-value success">${d.region_stats.reduce((s,r)=>s+r.completed,0)}</span></div>`;
+    html += `<div class="stat-card"><span class="stat-label">空闲师傅</span><span class="stat-value">${d.idle_technicians.length}</span></div>`;
+    html += `<div class="stat-card"><span class="stat-label">异常工单</span><span class="stat-value danger">${d.abnormal_orders.length}</span></div>`;
+    html += '</div>';
+    box.innerHTML = html;
+}
+</script>
+{% endblock %}

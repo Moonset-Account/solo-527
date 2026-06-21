@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}工单详情{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h1>工单详情</h1>
+    <a href="/dispatch" class="link-btn">← 返回调度</a>
+</section>
+
+<div id="order-detail" class="loading">加载中...</div>
+
+<script>
+const orderId = {{ order_id }};
+function statusBadge(s) {
+    const map = {pending:'badge-warn',assigned:'badge-info',in_progress:'badge-info',completed:'badge-success',refund_requested:'badge-danger',refunded:'badge-danger',cancelled:'badge-muted'};
+    const labels = {pending:'待派单',assigned:'已派单',in_progress:'进行中',completed:'已完成',refund_requested:'退款申请',refunded:'已退款',cancelled:'已取消'};
+    return `<span class="badge ${map[s]||'badge-muted'}">${labels[s]||s}</span>`;
+}
+const refundLabels = {not_repaired:'未修复', overcharged:'收费过高', bad_service:'服务差', secondary_damage:'二次损坏', other:'其他'};
+
+function loadOrder() {
+    fetch(`/api/orders/${orderId}`).then(r=>r.json()).then(o=>{
+        const box = document.getElementById('order-detail');
+        let photos = '';
+        if (o.fault_photos && o.fault_photos.length) {
+            photos = '<div class="photos-grid">' + o.fault_photos.map(p => `<img src="${p}" class="fault-photo">`).join('') + '</div>';
+        } else {
+            photos = '<span class="muted">未上传照片</span>';
+        }
+        let reviewBlock = '';
+        if (o.review) {
+            reviewBlock = `
+                <div class="info-block">
+                    <h4>评价回访</h4>
+                    <div class="info-row"><span>评分</span><b>⭐ ${o.review.rating}</b></div>
+                    <div class="info-row"><span>评价</span><b>${o.review.comment || '-'}</b></div>
+                    <div class="info-row"><span>回访备注</span><b>${o.review.revisit_note || '-'}</b></div>
+                    <div class="info-row"><span>回访状态</span><b>${o.review.revisited ? '<span class="badge badge-success">已回访</span>' : '<span class="badge badge-warn">待回访</span>'}</b></div>
+                    <div class="info-row"><span>回访人</span><b>${o.review.revisited_by || '-'}</b></div>
+                </div>`;
+        }
+        box.innerHTML = `
+            <div class="two-col">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>基础信息</h3>
+                        ${statusBadge(o.status)}
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-block">
+                            <h4>客户信息</h4>
+                            <div class="info-row"><span>姓名</span><b>${o.customer_name}</b></div>
+                            <div class="info-row"><span>电话</span><b>${o.customer_phone}</b></div>
+                            <div class="info-row"><span>工单号</span><b class="mono">${o.order_no}</b></div>
+                        </div>
+                        <div class="info-block">
+                            <h4>故障信息</h4>
+                            <div class="info-row"><span>家电类型</span><b>${o.appliance_type || '-'}</b></div>
+                            <div class="info-row"><span>故障描述</span><b>${o.fault_description || '-'}</b></div>
+                            <div class="info-row"><span>优先级</span><b>${'⭐'.repeat(o.priority)}</b></div>
+                        </div>
+                        <div class="info-block">
+                            <h4>地址时间（关联主记录）</h4>
+                            <div class="info-row"><span>完整地址</span><b>${o.full_address || o.address_detail}</b></div>
+                            <div class="info-row"><span>预约日期</span><b>${o.schedule_date || '-'}</b></div>
+                            <div class="info-row"><span>预约时段</span><b>${o.schedule_time_slot || '-'}</b></div>
+                        </div>
+                        <div class="info-block">
+                            <h4>故障照片</h4>
+                            ${photos}
+                        </div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <div class="panel-header"><h3>流程 & 费用</h3></div>
+                    <div class="info-grid">
+                        <div class="info-block">
+                            <h4>派单维修</h4>
+                            <div class="info-row"><span>指派师傅</span><b>${o.technician ? o.technician.name : '未派单'}</b></div>
+                            <div class="info-row"><span>派单时间</span><b>${o.assigned_at || '-'}</b></div>
+                            <div class="info-row"><span>开工时间</span><b>${o.started_at || '-'}</b></div>
+                            <div class="info-row"><span>完工时间</span><b>${o.completed_at || '-'}</b></div>
+                        </div>
+                        <div class="info-block">
+                            <h4>费用</h4>
+                            <div class="info-row"><span>维修费</span><b>¥${o.repair_fee || 0}</b></div>
+                            <div class="info-row"><span>配件费</span><b>¥${o.parts_fee || 0}</b></div>
+                            <div class="info-row"><span>合计</span><b class="primary">¥${o.total_fee || 0}</b></div>
+                            <div class="info-row"><span>支付状态</span><b>${o.paid ? '<span class="badge badge-success">已支付</span>' : '<span class="badge badge-warn">未支付</span>'}</b></div>
+                        </div>
+                        ${o.refund_reason ? `
+                        <div class="info-block">
+                            <h4>退款争议</h4>
+                            <div class="info-row"><span>退款原因</span><b>${refundLabels[o.refund_reason] || o.refund_reason}</b></div>
+                            <div class="info-row"><span>备注</span><b>${o.refund_note || '-'}</b></div>
+                            <div class="info-row"><span>退款金额</span><b class="danger">¥${o.refund_amount || 0}</b></div>
+                            <div class="info-row"><span>退款时间</span><b>${o.refunded_at || '-'}</b></div>
+                        </div>` : ''}
+                        ${reviewBlock}
+                    </div>
+                </div>
+            </div>
+            <section class="panel">
+                <div class="panel-header"><h3>操作历史（站长 / 人员 / 时间）</h3></div>
+                <div hx-get="/api/dispatch/logs" hx-trigger="load" hx-target="#logs-body" hx-swap="innerHTML">
+                    <table class="data-table">
+                        <thead><tr><th>时间</th><th>操作人</th><th>类型</th><th>详情</th></tr></thead>
+                        <tbody id="logs-body"><tr><td colspan="4" class="loading">加载中...</td></tr></tbody>
+                    </table>
+                </div>
+            </section>`;
+    });
+}
+document.addEventListener('DOMContentLoaded', loadOrder);
+</script>
+{% endblock %}

@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}提交故障报修{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h1>提交故障报修</h1>
+    <p class="muted">填写故障信息，上传故障照片，预约上门时间</p>
+</section>
+
+<form class="form-card" hx-post="/api/orders/submit-with-photos" hx-encoding="multipart/form-data" hx-target="#submit-result" hx-swap="innerHTML">
+    <div class="form-grid">
+        <div class="form-group">
+            <label>客户姓名 *</label>
+            <input type="text" name="customer_name" required placeholder="请输入姓名">
+        </div>
+        <div class="form-group">
+            <label>联系电话 *</label>
+            <input type="tel" name="customer_phone" required placeholder="请输入手机号">
+        </div>
+        <div class="form-group">
+            <label>家电类型</label>
+            <select name="appliance_type">
+                <option value="">请选择</option>
+                <option>空调</option>
+                <option>冰箱</option>
+                <option>洗衣机</option>
+                <option>热水器</option>
+                <option>电视</option>
+                <option>油烟机</option>
+                <option>微波炉</option>
+                <option>其他</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>优先级</label>
+            <select name="priority">
+                <option value="1">普通</option>
+                <option value="2">加急</option>
+                <option value="3">特急</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>所在区域</label>
+            <select name="region_id" hx-get="/api/dispatch/communities" hx-target="#community-select" hx-include="[name='region_id']" hx-swap="innerHTML">
+                <option value="">请选择区域</option>
+                <option hx-get="/api/dispatch/regions" hx-trigger="load once" hx-target="this" hx-swap="outerHTML"></option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>社区/小区</label>
+            <select id="community-select" name="community_id">
+                <option value="">先选择区域</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>预约日期</label>
+            <input type="date" name="schedule_date">
+        </div>
+        <div class="form-group">
+            <label>预约时段</label>
+            <select name="schedule_time_slot">
+                <option value="">请选择</option>
+                <option>上午 9:00-12:00</option>
+                <option>下午 14:00-17:00</option>
+                <option>晚上 18:00-20:00</option>
+            </select>
+        </div>
+        <div class="form-group full-width">
+            <label>详细地址 *</label>
+            <input type="text" name="address_detail" required placeholder="例：3号楼2单元1501室">
+        </div>
+        <div class="form-group full-width">
+            <label>故障描述</label>
+            <textarea name="fault_description" rows="3" placeholder="请描述故障现象..."></textarea>
+        </div>
+        <div class="form-group full-width">
+            <label>故障照片（可多选）</label>
+            <input type="file" name="photos" accept="image/*" multiple class="file-input">
+            <small class="muted">支持 JPG、PNG 格式，建议不超过 5 张</small>
+        </div>
+    </div>
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">提交预约</button>
+        <button type="reset" class="btn btn-secondary">重置</button>
+    </div>
+</form>
+
+<div id="submit-result" class="result-box"></div>
+
+<script>
+document.addEventListener('htmx:load', function() {
+    const regionSelect = document.querySelector('select[name="region_id"]');
+    if (regionSelect && regionSelect.options.length <= 2) {
+        fetch('/api/dispatch/regions')
+            .then(r => r.json())
+            .then(regions => {
+                regionSelect.innerHTML = '<option value="">请选择区域</option>' +
+                    regions.map(r => `<option value="${r.id}">${r.name} (${r.city || ''})</option>`).join('');
+            });
+    }
+});
+
+document.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.elt.tagName === 'FORM') {
+        const result = document.getElementById('submit-result');
+        try {
+            const data = JSON.parse(evt.detail.xhr.responseText);
+            if (data.id) {
+                result.innerHTML = `
+                    <div class="alert alert-success">
+                        ✅ 提交成功！工单编号：<strong>${data.order_no}</strong><br>
+                        <a href="/orders/${data.id}" class="link-btn">查看工单详情 →</a>
+                    </div>`;
+                evt.detail.elt.reset();
+            }
+        } catch(e) {
+            result.innerHTML = '<div class="alert alert-danger">提交失败，请检查输入后重试</div>';
+        }
+    }
+});
+</script>
+{% endblock %}

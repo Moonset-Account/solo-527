@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}师傅负载详情{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h1>师傅负载详情</h1>
+    <a href="/technicians" class="link-btn">← 返回列表</a>
+</section>
+
+<div id="detail-content" class="loading">加载中...</div>
+
+<script>
+const techId = {{ tech_id }};
+function loadDetail() {
+    fetch(`/api/technicians/${techId}/load`).then(r=>r.json()).then(d=>{
+        const box = document.getElementById('detail-content');
+        const refundLabels = {not_repaired:'未修复', overcharged:'收费过高', bad_service:'服务差', secondary_damage:'二次损坏', other:'其他'};
+        let html = `
+            <div class="stats-grid">
+                <div class="stat-card"><span class="stat-label">师傅</span><span class="stat-value">${d.technician_name}</span></div>
+                <div class="stat-card"><span class="stat-label">总单数</span><span class="stat-value">${d.total_orders}</span></div>
+                <div class="stat-card"><span class="stat-label">累计工时</span><span class="stat-value info">${d.total_hours} h</span></div>
+                <div class="stat-card"><span class="stat-label">平均评分</span><span class="stat-value success">⭐ ${d.avg_rating}</span></div>
+            </div>
+
+            <section class="two-col">
+                <div class="panel">
+                    <div class="panel-header"><h3>按日期拆分</h3></div>
+                    <table class="data-table">
+                        <thead><tr><th>日期</th><th>单数</th><th>工时</th><th>退款争议</th><th>争议原因</th></tr></thead>
+                        <tbody>`;
+        if (d.by_date.length) {
+            html += d.by_date.map(dd => `
+                <tr>
+                    <td>${dd.date_key}</td>
+                    <td>${dd.order_count}</td>
+                    <td>${dd.hours} h</td>
+                    <td>${dd.refund_issues > 0 ? '<span class="badge badge-danger">'+dd.refund_issues+'</span>' : '0'}</td>
+                    <td>${dd.refund_reasons.map(r => refundLabels[r]||r).join('、') || '-'}</td>
+                </tr>`).join('');
+        } else {
+            html += '<tr><td colspan="5" class="empty">暂无数据</td></tr>';
+        }
+        html += `</tbody></table></div>
+
+                <div class="panel">
+                    <div class="panel-header"><h3>按社区运营拆分</h3></div>
+                    <table class="data-table">
+                        <thead><tr><th>社区</th><th>单数</th><th>工时</th><th>占比</th></tr></thead>
+                        <tbody>`;
+        const total = d.total_orders || 1;
+        if (d.by_community.length) {
+            html += d.by_community.map(c => `
+                <tr>
+                    <td>${c.community_name || '-'}</td>
+                    <td>${c.order_count}</td>
+                    <td>${c.hours} h</td>
+                    <td><div class="progress"><span style="width:${(c.order_count/total*100).toFixed(0)}%"></span></div> ${(c.order_count/total*100).toFixed(1)}%</td>
+                </tr>`).join('');
+        } else {
+            html += '<tr><td colspan="4" class="empty">暂无数据</td></tr>';
+        }
+        html += `</tbody></table></div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-header"><h3>退款争议原因分析</h3></div>
+                <div class="refund-grid">`;
+        if (d.refund_breakdown.length) {
+            const totalR = d.refund_breakdown.reduce((s,r)=>s+r.count,0) || 1;
+            html += d.refund_breakdown.map(r => `
+                <div class="refund-card">
+                    <div class="refund-reason">${refundLabels[r.reason] || r.reason}</div>
+                    <div class="refund-count">${r.count} 次</div>
+                    <div class="progress"><span style="width:${(r.count/totalR*100).toFixed(0)}%"></span></div>
+                    <div class="muted">${(r.count/totalR*100).toFixed(1)}%</div>
+                </div>`).join('');
+        } else {
+            html += '<div class="empty">暂无退款争议记录</div>';
+        }
+        html += `</div></section>`;
+        box.innerHTML = html;
+    });
+}
+document.addEventListener('DOMContentLoaded', loadDetail);
+</script>
+{% endblock %}
