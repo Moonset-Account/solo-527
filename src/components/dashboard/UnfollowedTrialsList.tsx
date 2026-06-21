@@ -4,20 +4,7 @@ import { motion } from "framer-motion";
 import { Phone, UserX, Clock, UserCheck } from "lucide-react";
 import { cn, formatDateTime } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/KPICards";
-
-interface UnfollowedTrial {
-  id: string;
-  leadId: string;
-  leadName: string;
-  phone: string;
-  trialAt: Date;
-  elapsedHours: number;
-  status: string;
-  assigneeName: string;
-  assigneeId: string | null;
-  thresholdHours: number;
-  isOverdue: boolean;
-}
+import type { UnfollowedTrial } from "@/types";
 
 interface UnfollowedTrialsListProps {
   items: UnfollowedTrial[];

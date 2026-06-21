@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { protectedProcedure, router, requireRoles } from "../trpc";
-import { db, sortBy, paginate } from "../db";
+import { db, paginate, sortBy } from "../db";
+import { repose } from "../repositories";
+import { toDate } from "@/lib/utils";
 
 export const auditRouter = router({
   questionBankVersions: protectedProcedure
@@ -10,9 +12,9 @@ export const auditRouter = router({
       const p = paginate(items, input.page, input.pageSize);
       return {
         ...p,
-        items: p.items.map((v) => ({
+        items: p.items.map((v: any) => ({
           ...v,
-          classesUsing: db.classes.filter((c) => c.questionBankVersionId === v.id).map((c) => c.name),
+          classesUsing: db.classes.filter((c: any) => c.questionBankVersionId === v.id).map((c: any) => c.name),
         })),
       };
     }),
@@ -35,53 +37,56 @@ export const auditRouter = router({
       };
     }),
 
-  operationLogs: protectedProcedure.use(requireRoles("PRINCIPAL", "FINANCE"))
+  operationLogs: protectedProcedure
+    .use(requireRoles("PRINCIPAL", "FINANCE"))
     .input(z.object({
       page: z.number().default(1), pageSize: z.number().default(20),
       module: z.string().optional(), action: z.string().optional(),
       staffId: z.string().optional(), startDate: z.string().optional(), endDate: z.string().optional(),
     }))
     .query(({ ctx, input }) => {
-      let items = db.operationLogs.filter((l) => {
+      let items = db.operationLogs.filter((l: any) => {
         const s = db.staff.findById(l.staffId);
         return s?.campusId === ctx.campusId;
       });
-      if (input.module) items = items.filter((l) => l.module === input.module);
-      if (input.action) items = items.filter((l) => l.action === input.action);
-      if (input.staffId) items = items.filter((l) => l.staffId === input.staffId);
+      if (input.module) items = items.filter((l: any) => l.module === input.module);
+      if (input.action) items = items.filter((l: any) => l.action === input.action);
+      if (input.staffId) items = items.filter((l: any) => l.staffId === input.staffId);
       if (input.startDate) {
         const s = new Date(input.startDate);
-        items = items.filter((l) => l.createdAt >= s);
+        items = items.filter((l: any) => toDate(l.createdAt) >= s);
       }
       if (input.endDate) {
         const e = new Date(input.endDate); e.setHours(23, 59, 59);
-        items = items.filter((l) => l.createdAt <= e);
+        items = items.filter((l: any) => toDate(l.createdAt) <= e);
       }
       items = sortBy(items, "createdAt", "desc");
       const p = paginate(items, input.page, input.pageSize);
       return {
         ...p,
-        items: p.items.map((l) => {
+        items: p.items.map((l: any) => {
           const s = db.staff.findById(l.staffId);
           return { ...l, staffName: s?.name ?? "-", staffRole: s?.role ?? "-" };
         }),
       };
     }),
 
-  downloadLogs: protectedProcedure.use(requireRoles("PRINCIPAL", "FINANCE"))
+  downloadLogs: protectedProcedure
+    .use(requireRoles("PRINCIPAL", "FINANCE"))
     .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20) }))
-    .query(({ ctx, input }) => {
-      const items = sortBy(
-        db.exportTasks.filter((t) => {
+    .query(async ({ ctx, input }) => {
+      const all = await repose.exportTasks.list();
+      const items = repose.exportTasks.sortBy(
+        all.filter((t: any) => {
           const s = db.staff.findById(t.operatorId);
           return s?.campusId === ctx.campusId;
         }),
         "createdAt", "desc",
       );
-      const p = paginate(items, input.page, input.pageSize);
+      const p = repose.exportTasks.paginate(items, input.page, input.pageSize);
       return {
         ...p,
-        items: p.items.map((t) => {
+        items: p.items.map((t: any) => {
           const s = db.staff.findById(t.operatorId);
           return { ...t, operatorName: s?.name ?? "-", operatorRole: s?.role ?? "-" };
         }),

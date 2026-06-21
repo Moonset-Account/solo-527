@@ -62,7 +62,7 @@ export function Pagination({ page, pageSize, total, onPageChange }: PaginationPr
   );
 }
 
-interface DataTableColumn<T> {
+export interface DataTableColumn<T> {
   key: keyof T | string;
   header: string;
   width?: string;
@@ -71,7 +71,7 @@ interface DataTableColumn<T> {
   className?: string;
 }
 
-interface DataTableProps<T> {
+export interface DataTableProps<T> {
   columns: DataTableColumn<T>[];
   data: T[];
   rowKey?: (row: T) => string;

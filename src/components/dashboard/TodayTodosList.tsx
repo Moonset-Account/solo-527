@@ -11,16 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/KPICards";
-
-type TodoType = "FOLLOW_UP" | "TRIAL" | "LESSON" | "FEEDBACK";
-
-interface TodoItem {
-  type: TodoType;
-  id: string;
-  title: string;
-  desc: string;
-  href: string;
-}
+import type { TodoItem, TodoType } from "@/types";
 
 interface TodayTodosListProps {
   items: TodoItem[];

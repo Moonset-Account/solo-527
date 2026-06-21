@@ -205,3 +205,55 @@ export interface SettingRule extends BaseEntity {
   renewalMidRiskHours: number;
   feedbackTimeoutHours: number;
 }
+
+// ========== Dashboard View Types ==========
+export interface KPIData {
+  value: number | string;
+  delta?: number;
+  label: string;
+}
+
+export interface KPIs {
+  leads: KPIData;
+  trials: KPIData;
+  conversionRate: KPIData;
+  consumptionHours: KPIData;
+  students: KPIData;
+  renewalRisk: KPIData;
+  unfollowedTrials: KPIData;
+}
+
+export interface RenewalRisk {
+  id: string;
+  name: string;
+  remainingHours: number;
+  totalHours: number;
+  level: "HIGH" | "MID" | "LOW";
+  classes: string[];
+  expectedDaysLeft: number;
+  lastFollowUp: Date | null;
+}
+
+export interface UnfollowedTrial {
+  id: string;
+  leadId: string;
+  leadName: string;
+  phone: string;
+  trialAt: Date;
+  elapsedHours: number;
+  status: string;
+  assigneeName: string;
+  assigneeId: string | null;
+  thresholdHours: number;
+  isOverdue: boolean;
+}
+
+export type TodoType = "FOLLOW_UP" | "TRIAL" | "LESSON" | "FEEDBACK";
+
+export interface TodoItem {
+  type: TodoType;
+  id: string;
+  title: string;
+  desc: string;
+  href: string;
+}

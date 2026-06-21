@@ -1,6 +1,7 @@
 "use client";
 
 import { KPICard } from "@/components/ui/KPICards";
+import type { KPIs } from "@/types";
 import {
   UserPlus,
   FileCheck2,
@@ -10,22 +11,6 @@ import {
   AlertTriangle,
   ListTodo,
 } from "lucide-react";
-
-interface KPIData {
-  value: number | string;
-  delta?: number;
-  label: string;
-}
-
-interface KPIs {
-  leads: KPIData;
-  trials: KPIData;
-  conversionRate: KPIData;
-  consumptionHours: KPIData;
-  students: KPIData;
-  renewalRisk: KPIData;
-  unfollowedTrials: KPIData;
-}
 
 interface KPIGridProps {
   kpis: KPIs;

@@ -4,17 +4,7 @@ import { motion } from "framer-motion";
 import { AlertTriangle, Clock, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/KPICards";
-
-interface RenewalRisk {
-  id: string;
-  name: string;
-  remainingHours: number;
-  totalHours: number;
-  level: "HIGH" | "MID" | "LOW";
-  classes: string[];
-  expectedDaysLeft: number;
-  lastFollowUp: Date | null;
-}
+import type { RenewalRisk } from "@/types";
 
 interface RenewalRisksListProps {
   items: RenewalRisk[];

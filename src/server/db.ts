@@ -5,7 +5,7 @@ import {
   works as seedWorks, workFeedbacks as seedWorkFeedbacks, questionBankVersions as seedQB,
   parentFeedbacks as seedFeedback, operationLogs as seedLogs, exportTasks as seedExport, settingRules as seedRules,
 } from "./mock/seed";
-import { deepClone } from "@/lib/utils";
+import { deepClone, toDate } from "@/lib/utils";
 import type {
   Campus, Staff, Lead, FollowUp, Trial, Student, Class, Lesson, Attendance, Consumption,
   Revision, Work, WorkFeedback, QuestionBankVersion, ParentFeedback, OperationLog, ExportTask, SettingRule,
@@ -84,9 +84,9 @@ if (process.env.NODE_ENV !== "production") globalForDB.db = db;
 // Utilities
 export const sortBy = <T extends Record<string, any>>(arr: T[], key: keyof T, dir: "asc" | "desc" = "desc") =>
   [...arr].sort((a, b) => {
-    const av = a[key]; const bv = b[key];
-    const an = (av instanceof Date || typeof av === "string" && !Number.isNaN(Date.parse(av))) ? toDate(av).getTime() : av;
-    const bn = (bv instanceof Date || typeof bv === "string" && !Number.isNaN(Date.parse(bv))) ? toDate(bv).getTime() : bv;
+    const av: any = a[key]; const bv: any = b[key];
+    const an = (av instanceof Date || (typeof av === "string" && !Number.isNaN(Date.parse(av)))) ? toDate(av).getTime() : av;
+    const bn = (bv instanceof Date || (typeof bv === "string" && !Number.isNaN(Date.parse(bv)))) ? toDate(bv).getTime() : bv;
     if (an === bn) return 0;
     return dir === "asc" ? (an > bn ? 1 : -1) : (an > bn ? -1 : 1);
   });

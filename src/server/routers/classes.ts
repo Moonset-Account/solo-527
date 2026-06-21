@@ -16,7 +16,7 @@ export const classesRouter = router({
       let items = db.classes.filter((c) => c.campusId === (ctx.campusId ?? ""));
       if (input.status) items = items.filter((c) => c.status === input.status);
       if (input.major) items = items.filter((c) => c.major === input.major);
-      if (input.keyword) items = items.filter((c) => c.name.includes(input.keyword));
+      if (input.keyword) items = items.filter((c) => c.name.includes(input.keyword!));
       items = sortBy(items, "startDate", "desc");
       const p = paginate(items, input.page, input.pageSize);
       return {
@@ -70,10 +70,10 @@ export const classesRouter = router({
     }),
 
   getConsumptions: protectedProcedure
-    .input(z.object({ classId: z.string() }))
+    .input(z.string())
     .query(({ input }) => {
       return sortBy(
-        db.consumptions.filter((c) => c.classId === input.classId),
+        db.consumptions.filter((c) => c.classId === input),
         "createdAt", "desc",
       ).map((c) => {
         const student = db.students.findById(c.studentId)!;
