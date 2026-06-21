@@ -41,9 +41,12 @@
         </div>
         <div class="form-group">
             <label>所在区域</label>
-            <select name="region_id" hx-get="/api/dispatch/communities" hx-target="#community-select" hx-include="[name='region_id']" hx-swap="innerHTML">
+            <select id="region-select" name="region_id"
+                    hx-get="/api/dispatch/communities/options"
+                    hx-target="#community-select"
+                    hx-include="[id='region-select']"
+                    hx-swap="innerHTML">
                 <option value="">请选择区域</option>
-                <option hx-get="/api/dispatch/regions" hx-trigger="load once" hx-target="this" hx-swap="outerHTML"></option>
             </select>
         </div>
         <div class="form-group">

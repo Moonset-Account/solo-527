@@ -1,7 +1,8 @@
 from typing import List, Optional
 from datetime import date, datetime
 import json
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 
@@ -9,7 +10,7 @@ from app.database import get_db
 from app.redis_client import get_redis
 from app.models import (
     RepairOrder, Region, Community, Technician, Review,
-    OrderStatus, TechnicianStatus, ActionLog, RefundReason
+    OrderStatus, TechnicianStatus, ActionLog, RefundReason, ActionType
 )
 from app.schemas import RegionOut, CommunityOut, ActionLogOut
 
@@ -196,9 +197,72 @@ def get_todos(db: Session = Depends(get_db)):
 def get_action_logs(
     limit: int = 50,
     operator: Optional[str] = None,
+    order_id: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
     q = db.query(ActionLog)
     if operator:
         q = q.filter(ActionLog.operator.ilike(f"%{operator}%"))
+    if order_id:
+        q = q.filter(ActionLog.order_id == order_id)
     return q.order_by(ActionLog.created_at.desc()).limit(limit).all()
+
+
+_action_labels = {
+    "create_order": "创建工单",
+    "assign_technician": "派单",
+    "update_status": "更新状态",
+    "schedule": "预约安排",
+    "refund": "退款处理",
+    "review": "评价回访",
+    "update_technician": "更新师傅",
+}
+
+
+@router.get("/logs/rows", response_class=HTMLResponse)
+def get_action_log_rows(
+    limit: int = 50,
+    operator: Optional[str] = None,
+    order_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    q = db.query(ActionLog)
+    if operator:
+        q = q.filter(ActionLog.operator.ilike(f"%{operator}%"))
+    if order_id:
+        q = q.filter(ActionLog.order_id == order_id)
+    logs = q.order_by(ActionLog.created_at.desc()).limit(limit).all()
+    if not logs:
+        return '<tr><td colspan="5" class="empty">暂无操作记录</td></tr>'
+
+    rows = []
+    for l in logs:
+        label = _action_labels.get(l.action_type, l.action_type)
+        detail_json = json.dumps(l.detail or {}, ensure_ascii=False) if l.detail else "{}"
+        order_link = f'<a href="/orders/{l.order_id}" class="link-btn">#{l.order_id}</a>' if l.order_id else "-"
+        rows.append(f"""
+<tr>
+    <td class="mono">{l.created_at}</td>
+    <td><strong>{l.operator}</strong></td>
+    <td><span class="badge badge-info">{label}</span></td>
+    <td>{order_link}</td>
+    <td class="detail-cell"><code>{detail_json}</code></td>
+</tr>""".strip())
+    return "\n".join(rows)
+
+
+@router.get("/communities/options", response_class=HTMLResponse)
+def get_community_options(
+    region_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    q = db.query(Community)
+    if region_id:
+        q = q.filter(Community.region_id == region_id)
+    items = q.order_by(Community.name).all()
+    if not items:
+        return '<option value="">暂无社区</option>'
+    options = ['<option value="">请选择社区</option>']
+    for c in items:
+        options.append(f'<option value="{c.id}">{c.name}</option>')
+    return "\n".join(options)

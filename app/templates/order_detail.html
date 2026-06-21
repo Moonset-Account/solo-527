@@ -102,13 +102,14 @@ function loadOrder() {
             </div>
             <section class="panel">
                 <div class="panel-header"><h3>操作历史（站长 / 人员 / 时间）</h3></div>
-                <div hx-get="/api/dispatch/logs" hx-trigger="load" hx-target="#logs-body" hx-swap="innerHTML">
-                    <table class="data-table">
-                        <thead><tr><th>时间</th><th>操作人</th><th>类型</th><th>详情</th></tr></thead>
-                        <tbody id="logs-body"><tr><td colspan="4" class="loading">加载中...</td></tr></tbody>
-                    </table>
-                </div>
+                <table class="data-table">
+                    <thead><tr><th>时间</th><th>操作人</th><th>类型</th><th>工单</th><th>详情</th></tr></thead>
+                    <tbody hx-get="/api/dispatch/logs/rows?order_id=${orderId}" hx-trigger="load" hx-swap="innerHTML" id="logs-tbody">
+                        <tr><td colspan="5" class="loading">加载中...</td></tr>
+                    </tbody>
+                </table>
             </section>`;
+        htmx.process(box);
     });
 }
 document.addEventListener('DOMContentLoaded', loadOrder);
