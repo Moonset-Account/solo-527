@@ -34,22 +34,22 @@ class EventSession extends Model
 
     public function seats(): HasMany
     {
-        return $this->hasMany(EventSeat::class);
+        return $this->hasMany(EventSeat::class, 'session_id');
     }
 
     public function registrationPivots(): HasMany
     {
-        return $this->hasMany(RegistrationSessionPivot::class);
+        return $this->hasMany(RegistrationSessionPivot::class, 'session_id');
     }
 
     public function attendanceSummaries(): HasMany
     {
-        return $this->hasMany(AttendanceSummary::class);
+        return $this->hasMany(AttendanceSummary::class, 'session_id');
     }
 
     public function duplicateSeatRecords(): HasMany
     {
-        return $this->hasMany(DuplicateSeatRecord::class);
+        return $this->hasMany(DuplicateSeatRecord::class, 'session_id');
     }
 
     public function creator(): BelongsTo

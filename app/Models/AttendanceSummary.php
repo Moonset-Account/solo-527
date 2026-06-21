@@ -33,7 +33,7 @@ class AttendanceSummary extends Model
 
     public function session(): BelongsTo
     {
-        return $this->belongsTo(EventSession::class);
+        return $this->belongsTo(EventSession::class, 'session_id');
     }
 
     public function creator(): BelongsTo

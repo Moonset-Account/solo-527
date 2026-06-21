@@ -172,22 +172,22 @@ class Registration extends Model
 
     public function sessionPivots(): HasMany
     {
-        return $this->hasMany(RegistrationSessionPivot::class);
+        return $this->hasMany(RegistrationSessionPivot::class, 'registration_id');
     }
 
     public function qualityScore(): HasOne
     {
-        return $this->hasOne(RegistrationQualityScore::class);
+        return $this->hasOne(RegistrationQualityScore::class, 'registration_id');
     }
 
     public function refundRequests(): HasMany
     {
-        return $this->hasMany(RefundRequest::class);
+        return $this->hasMany(RefundRequest::class, 'registration_id');
     }
 
     public function attendanceFeedbacks(): HasMany
     {
-        return $this->hasMany(AttendanceFeedback::class);
+        return $this->hasMany(AttendanceFeedback::class, 'registration_id');
     }
 
     public function creator(): BelongsTo

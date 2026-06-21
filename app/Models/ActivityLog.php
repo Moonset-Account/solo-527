@@ -59,12 +59,12 @@ class ActivityLog extends Model
         return $query->whereIn('log_name', $logs);
     }
 
-    public function hasChanges(): bool
+    public function hasLoggedChanges(): bool
     {
         return !empty($this->old_values) || !empty($this->new_values);
     }
 
-    public function changes(): array
+    public function getChanges(): array
     {
         $changes = [];
         $attributes = array_keys(array_merge($this->old_values ?? [], $this->new_values ?? []));

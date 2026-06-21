@@ -7,6 +7,7 @@ use App\Models\Registration;
 use App\Models\ConversionSummary;
 use App\Models\AttendanceSummary;
 use App\Models\RegistrationSessionPivot;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -173,7 +174,7 @@ class SummaryService
 
             DB::commit();
 
-            return [
+        return [
                 'success' => true,
                 'conversion_count' => count($conversionResults),
                 'attendance_count' => count($attendanceResults),
@@ -189,5 +190,73 @@ class SummaryService
                 'error' => $e->getMessage(),
             ];
         }
+    }
+
+    public function getCachedStats(int $eventId, ?string $date = null): array
+    {
+        $date = $date ?: now()->toDateString();
+        $cacheKey = "summary:event:{$eventId}:date:{$date}";
+
+        return Cache::remember($cacheKey, 300, function () use ($eventId, $date) {
+            $event = Event::find($eventId);
+            if (!$event) return [];
+
+            $baseQuery = Registration::where('event_id', $eventId);
+
+            $funnel = [
+                'inquiry' => (clone $baseQuery)->count(),
+                'registered' => (clone $baseQuery)->where('conversion_stage', 'registered')->count(),
+                'confirmed' => (clone $baseQuery)->where('conversion_stage', 'confirmed')->count(),
+                'paid' => (clone $baseQuery)->where('conversion_stage', 'paid')->count(),
+                'ticket_sent' => (clone $baseQuery)->where('conversion_stage', 'ticket_sent')->count(),
+                'lost' => (clone $baseQuery)->where('conversion_stage', 'lost')->count(),
+            ];
+
+            $statusBreakdown = [
+                'pending' => (clone $baseQuery)->where('registration_status', 'pending')->count(),
+                'approved' => (clone $baseQuery)->where('registration_status', 'approved')->count(),
+                'rejected' => (clone $baseQuery)->where('registration_status', 'rejected')->count(),
+                'cancelled' => (clone $baseQuery)->where('registration_status', 'cancelled')->count(),
+                'refunded' => (clone $baseQuery)->where('registration_status', 'refunded')->count(),
+            ];
+
+            $attendance = [
+                'not_arrived' => (clone $baseQuery)->where('attendance_status', 'not_arrived')->count(),
+                'arrived' => (clone $baseQuery)->where('attendance_status', 'arrived')->count(),
+                'partial' => (clone $baseQuery)->where('attendance_status', 'partial')->count(),
+                'no_show' => (clone $baseQuery)->where('attendance_status', 'no_show')->count(),
+            ];
+
+            $totalPaid = (clone $baseQuery)->sum('paid_amount');
+            $confirmedTotal = $statusBreakdown['approved'] + $statusBreakdown['refunded'];
+            $attendanceRate = $confirmedTotal > 0
+                ? round($attendance['arrived'] / $confirmedTotal * 100, 2)
+                : 0;
+
+            return [
+                'event' => [
+                    'id' => $event->id,
+                    'name' => $event->name,
+                ],
+                'date' => $date,
+                'conversion_funnel' => $funnel,
+                'registration_status' => $statusBreakdown,
+                'attendance' => $attendance,
+                'totals' => [
+                    'registration_count' => $funnel['inquiry'],
+                    'paid_amount' => (float) $totalPaid,
+                    'attendance_rate_pct' => $attendanceRate,
+                ],
+                'sessions' => $event->sessions->map(fn($s) => [
+                    'id' => $s->id,
+                    'name' => $s->name,
+                    'venue' => $s->venue,
+                    'start_time' => $s->start_time,
+                    'seat_count' => $s->seat_count,
+                    'registered_count' => $s->registrationPivots()->count(),
+                    'arrived_count' => $s->registrationPivots()->where('attendance_status', 'arrived')->count(),
+                ])->toArray(),
+            ];
+        });
     }
 }
