@@ -1,64 +1,62 @@
 import { get, put } from '../http'
 import type { EmailDraft, PaginationResponse, ReviewRecord, PaginationParams, ReviewResult, RiskLevel } from '@/types'
 
-type BackendEmailStatus = 'draft' | 'submitted' | 'approved' | 'rejected' | 'used'
+type BackendReviewStatus = 'reviewing' | 'approved' | 'rejected'
 type EmailStatus = 'draft' | 'ai_generated' | 'pending_review' | 'approved' | 'sent' | 'rejected'
 
-function mapStatusFromBackend(status: BackendEmailStatus | string): EmailStatus {
+function mapStatusFromBackend(status: BackendReviewStatus | string): EmailStatus {
   switch (status) {
-    case 'draft': return 'draft'
-    case 'submitted': return 'pending_review'
+    case 'reviewing': return 'pending_review'
     case 'approved': return 'approved'
     case 'rejected': return 'rejected'
-    case 'used': return 'sent'
-    default: return 'draft'
+    default: return 'pending_review'
   }
 }
 
 function mapEmailFromBackend(data: any): EmailDraft {
-  const customerBg = data?.customer_background || {}
-  const citedSources = data?.cited_sources || []
-  const knowledgeIds: string[] = Array.isArray(citedSources)
-    ? citedSources.map((s: any) => String(typeof s === 'object' ? (s.id ?? s) : s))
-    : []
-  const aiSuggestion = Array.isArray(citedSources) && citedSources.length > 0 && typeof citedSources[0] === 'object'
-    ? (citedSources[0] as any).note || (citedSources[0] as any).suggestion
-    : undefined
+  const sales = data?.sales || {}
+  const ops = data?.ops || {}
+  const rejectReason = data?.rejectReason || {}
+  const customerBg: any = typeof data?.customerBackground === 'string'
+    ? (() => { try { return JSON.parse(data.customerBackground) } catch { return {} } })()
+    : (data?.customerBackground || {})
 
   return {
     id: String(data.id ?? ''),
     subject: data.subject || '',
-    recipient: customerBg.companyName || data.recipient || '',
+    recipient: data.recipientEmail || customerBg.companyName || '',
     recipientName: data.recipientName || customerBg.contactName || '',
     content: data.body || data.content || '',
-    status: mapStatusFromBackend(data.status || 'draft'),
+    status: mapStatusFromBackend(data.status || 'reviewing'),
     priority: (data.priority as any) || 'normal',
     category: data.category || 'general',
-    templateId: data.template_version_id ? String(data.template_version_id) : undefined,
-    promptId: data.prompt_id ? String(data.prompt_id) : undefined,
-    knowledgeIds,
-    aiSuggestion,
     riskLevel: (data.riskLevel as any) || 'none',
     riskItems: [],
-    createdAt: data.created_at || data.createdAt || new Date().toISOString(),
-    updatedAt: data.updated_at || data.updatedAt || new Date().toISOString(),
-    reviewedAt: data.reviewed_at || data.reviewedAt,
-    sentAt: data.sent_at || data.sentAt,
-    generatedBy: data.created_by ? String(data.created_by) : undefined,
-    reviewedBy: data.reviewed_by ? String(data.reviewed_by) : undefined,
-    sentBy: data.sent_by ? String(data.sent_by) : undefined,
-  } as EmailDraft
+    createdAt: data.createdAt || data.created_at || new Date().toISOString(),
+    updatedAt: data.updatedAt || data.updated_at || new Date().toISOString(),
+    reviewedAt: data.approvedAt || data.rejectedAt,
+    sentAt: data.sentAt || data.sent_at,
+    generatedBy: sales?.id ? String(sales.id) : undefined,
+    generatedByName: sales?.fullName || sales?.username,
+    reviewedBy: ops?.id ? String(ops.id) : undefined,
+    reviewedByName: ops?.fullName || ops?.username,
+    rejectReasonCode: rejectReason?.code,
+    rejectReasonName: rejectReason?.name,
+    rejectDetail: data.rejectDetail,
+    generationCost: data.generationCost ?? 0,
+    reviewCount: data.reviewCount ?? 0,
+  } as EmailDraft & any
 }
 
 export async function getPendingReviewListApi(params: {
   page: number
   perPage: number
-  status?: 'submitted' | 'approved' | 'rejected'
+  status?: BackendReviewStatus
 }): Promise<PaginationResponse<EmailDraft>> {
   const q: any = { page: params.page, perPage: params.perPage }
   if (params.status) q.status = params.status
   const resp = await get<any>('/reviews', q)
-  const list = resp?.data || resp?.list || []
+  const list: any[] = resp?.data || resp?.list || []
   const pagination = resp?.pagination || {}
   return {
     list: list.map(mapEmailFromBackend),
@@ -68,33 +66,64 @@ export async function getPendingReviewListApi(params: {
   }
 }
 
-export async function approveReviewApi(id: string, afterContent?: string): Promise<EmailDraft> {
-  const data = await put<any>(`/reviews/${id}/approve`, { afterContent })
-  return mapEmailFromBackend(data)
+export async function approveReviewApi(id: string, _afterContent?: string): Promise<EmailDraft> {
+  const resp = await put<any>(`/reviews/${id}/approve`, {})
+  const draft: any = resp?.draft || resp || {}
+  return mapEmailFromBackend({
+    id: draft.id ?? id,
+    status: draft.status || 'approved',
+    approvedAt: draft.approvedAt,
+    reviewCount: draft.reviewCount,
+    opsId: draft.opsId,
+  })
 }
 
-export async function rejectReviewApi(id: string, code: string, note?: string): Promise<EmailDraft> {
-  const data = await put<any>(`/reviews/${id}/reject`, {
-    rejectReasonCode: code,
-    rejectNote: note || '',
+export async function rejectReviewApi(id: string, reasonCode: string, note?: string): Promise<EmailDraft> {
+  const resp = await put<any>(`/reviews/${id}/reject`, {
+    reasonCode,
+    note: note || '',
   })
-  return mapEmailFromBackend(data)
+  const draft: any = resp?.draft || resp || {}
+  return mapEmailFromBackend({
+    id: draft.id ?? id,
+    status: draft.status || 'rejected',
+    rejectedAt: draft.rejectedAt,
+    rejectReasonId: draft.rejectReasonId,
+    rejectDetail: draft.rejectDetail,
+    reviewCount: draft.reviewCount,
+    opsId: draft.opsId,
+  })
 }
 
 export async function getReviewListApi(params: PaginationParams & {
   result?: ReviewResult
   riskLevel?: RiskLevel
 }): Promise<PaginationResponse<ReviewRecord>> {
-  return Promise.resolve({
-    list: [],
-    total: 0,
+  const q: any = { page: params.page, perPage: params.perPage }
+  if (params.keyword) q.keyword = params.keyword
+  const resp = await get<any>('/reviews', q)
+  const list: any[] = resp?.data || []
+  return {
+    list: list.map((d: any) => ({
+      id: String(d.id ?? ''),
+      emailId: String(d.emailDraftId ?? d.emailId ?? ''),
+      emailSubject: d.subject || '',
+      reviewerId: d.ops?.id ? String(d.ops.id) : '',
+      reviewerName: d.ops?.fullName || d.ops?.username || '',
+      result: (d.status === 'approved' ? 'approved' : d.status === 'rejected' ? 'rejected' : 'modified') as ReviewResult,
+      comments: d.rejectDetail || '',
+      riskLevelAfter: (d.riskLevel || 'none') as RiskLevel,
+      createdAt: d.createdAt || d.approvedAt || d.rejectedAt || new Date().toISOString(),
+    })),
+    total: resp?.pagination?.total ?? list.length,
     page: params.page,
-    pageSize: params.pageSize,
-  })
+    pageSize: params.perPage,
+  }
 }
 
 export async function getReviewDetailApi(id: string): Promise<ReviewRecord> {
-  return Promise.resolve({
+  const resp = await get<any>(`/reviews/${id}`)
+  return {
     id,
     emailId: '',
     emailSubject: '',
@@ -104,12 +133,13 @@ export async function getReviewDetailApi(id: string): Promise<ReviewRecord> {
     comments: '',
     riskLevelAfter: 'none',
     createdAt: new Date().toISOString(),
-  })
+    ...resp,
+  }
 }
 
 export async function getPendingReviewCountApi(): Promise<{ count: number }> {
   try {
-    const resp = await get<any>('/reviews', { page: 1, perPage: 1, status: 'submitted' })
+    const resp = await get<any>('/reviews', { page: 1, perPage: 1, status: 'reviewing' })
     return { count: resp?.pagination?.total ?? 0 }
   } catch {
     return { count: 0 }
@@ -126,9 +156,9 @@ export async function createReviewApi(params: {
   if (params.result === 'approved' || params.result === 'modified') {
     await approveReviewApi(params.emailId, params.modifications)
   } else {
-    await rejectReviewApi(params.emailId, 'manual_reject', params.comments)
+    await rejectReviewApi(params.emailId, 'OTHER', params.comments)
   }
-  return Promise.resolve({
+  return {
     id: `review_${Date.now()}`,
     emailId: params.emailId,
     emailSubject: '',
@@ -139,7 +169,7 @@ export async function createReviewApi(params: {
     modifications: params.modifications,
     riskLevelAfter: params.riskLevelAfter,
     createdAt: new Date().toISOString(),
-  })
+  }
 }
 
 export async function batchReviewApi(params: {
@@ -154,12 +184,12 @@ export async function batchReviewApi(params: {
       if (params.result === 'approved' || params.result === 'modified') {
         await approveReviewApi(id)
       } else {
-        await rejectReviewApi(id, 'batch_reject', params.comments)
+        await rejectReviewApi(id, 'OTHER', params.comments)
       }
       successCount++
     } catch {
-      // ignore individual errors
+      // ignore
     }
   }
-  return Promise.resolve({ successCount })
+  return { successCount }
 }

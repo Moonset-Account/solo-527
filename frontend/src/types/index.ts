@@ -1,12 +1,13 @@
-export type UserRole = 'admin' | 'reviewer' | 'operator'
+export type UserRole = 'admin' | 'ops' | 'sales'
 
 export interface User {
   id: string
   username: string
   password?: string
-  name: string
+  fullName: string
   email: string
   role: UserRole
+  isActive: boolean
   avatar?: string
   department?: string
   createdAt: string

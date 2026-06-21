@@ -17,8 +17,8 @@ export function useAuth() {
 
   async function login(params: LoginParams, redirect?: string) {
     try {
-      await authStore.login(params)
-      message.success(`欢迎回来，${authStore.user?.name}！`)
+      const user = await authStore.login(params)
+      message.success(`欢迎回来，${user.fullName}！`)
       router.push(redirect || '/dashboard')
       return true
     } catch (e) {

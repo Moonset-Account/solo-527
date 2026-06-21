@@ -449,12 +449,14 @@ function submitReview() {
             subject: emailSubject.value,
             content: emailContent.value,
           })
-          await submitForReviewApi(currentDraft.value.id)
-          currentDraft.value.status = 'pending_review'
+          const updated = await submitForReviewApi(currentDraft.value.id)
+          currentDraft.value = updated
           await fetchDrafts()
           message.success('已提交复核队列')
         }
-      } catch {
+      } catch (e) {
+        const err = e as Error
+        message.error(err.message || '提交复核失败')
       }
     }
   })

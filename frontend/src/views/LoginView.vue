@@ -133,9 +133,9 @@ const form = reactive({
 })
 
 const presetAccounts = [
-  { key: 'admin', label: '系统管理员', username: 'admin', password: 'admin123', desc: 'admin / admin123', bgClass: 'bg-gradient-to-br from-deep-blue-500 to-deep-blue-700' },
-  { key: 'reviewer', label: '复核员', username: 'reviewer', password: 'review123', desc: 'reviewer / review123', bgClass: 'bg-gradient-to-br from-amber-gold-500 to-amber-gold-700' },
-  { key: 'operator', label: '运营人员', username: 'operator', password: 'operate123', desc: 'operator / operate123', bgClass: 'bg-gradient-to-br from-emerald-500 to-emerald-700' }
+  { key: 'admin', label: '系统管理员', username: 'admin', password: 'password123', desc: 'admin / password123 · 全权限含统计看板', bgClass: 'bg-gradient-to-br from-deep-blue-500 to-deep-blue-700' },
+  { key: 'ops', label: '运营复核员', username: 'ops01', password: 'password123', desc: 'ops01 / password123 · 复核+知识+话术', bgClass: 'bg-gradient-to-br from-amber-gold-500 to-amber-gold-700' },
+  { key: 'sales', label: '销售专员', username: 'sales01', password: 'password123', desc: 'sales01 / password123 · 销售工作台', bgClass: 'bg-gradient-to-br from-emerald-500 to-emerald-700' }
 ]
 
 const rules: FormRules = {

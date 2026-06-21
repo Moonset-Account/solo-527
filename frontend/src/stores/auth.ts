@@ -1,14 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { User, LoginParams } from '@/types'
-import { mockUsers } from '@/mock/data'
+import { loginApi, logoutApi, getUserInfoApi } from '@/api/modules/auth'
+
+const TOKEN_KEY = 'auth_token'
+const USER_KEY = 'auth_user'
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(localStorage.getItem('auth_token'))
+  const token = ref<string | null>(localStorage.getItem(TOKEN_KEY))
   const user = ref<User | null>(null)
 
   if (token.value) {
-    const savedUser = localStorage.getItem('auth_user')
+    const savedUser = localStorage.getItem(USER_KEY)
     if (savedUser) {
       try {
         user.value = JSON.parse(savedUser)
@@ -22,33 +25,40 @@ export const useAuthStore = defineStore('auth', () => {
   const userRole = computed(() => user.value?.role || null)
 
   async function login(params: LoginParams) {
-    await new Promise(resolve => setTimeout(resolve, 500))
+    const res = await loginApi(params)
 
-    const foundUser = mockUsers.find(
-      u => u.username === params.username && u.password === params.password
-    )
+    token.value = res.token
+    user.value = res.user
 
-    if (!foundUser) {
-      throw new Error('用户名或密码错误')
-    }
+    localStorage.setItem(TOKEN_KEY, res.token)
+    localStorage.setItem(USER_KEY, JSON.stringify(res.user))
 
-    const { password, ...safeUser } = foundUser
-    const mockToken = `mock_token_${Date.now()}_${safeUser.id}`
-
-    token.value = mockToken
-    user.value = safeUser
-
-    localStorage.setItem('auth_token', mockToken)
-    localStorage.setItem('auth_user', JSON.stringify(safeUser))
-
-    return safeUser
+    return res.user
   }
 
-  function logout() {
-    token.value = null
-    user.value = null
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('auth_user')
+  async function logout() {
+    try {
+      if (token.value) await logoutApi()
+    } catch {
+      // ignore
+    } finally {
+      token.value = null
+      user.value = null
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(USER_KEY)
+    }
+  }
+
+  async function reloadUser() {
+    if (token.value) {
+      try {
+        const u = await getUserInfoApi()
+        user.value = u
+        localStorage.setItem(USER_KEY, JSON.stringify(u))
+      } catch {
+        // ignore
+      }
+    }
   }
 
   function hasRole(roles: string | string[]) {
@@ -66,6 +76,7 @@ export const useAuthStore = defineStore('auth', () => {
     userRole,
     login,
     logout,
+    reloadUser,
     hasRole
   }
 })

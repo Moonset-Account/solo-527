@@ -241,7 +241,7 @@ const selected = computed(() => {
 async function fetchLists() {
   try {
     const [p, a, r] = await Promise.all([
-      getPendingReviewListApi({ page: 1, perPage: 200, status: 'submitted' }),
+      getPendingReviewListApi({ page: 1, perPage: 200, status: 'reviewing' }),
       getPendingReviewListApi({ page: 1, perPage: 200, status: 'approved' }),
       getPendingReviewListApi({ page: 1, perPage: 200, status: 'rejected' }),
     ])
@@ -304,16 +304,18 @@ async function approveEmail() {
 }
 
 const rejectOptions: Array<DropdownOption | DropdownGroupOption | DropdownDividerOption> = [
-  { label: '绝对化用语', key: 'abs_language' },
-  { label: '违规承诺收益', key: 'promise_profit' },
-  { label: '缺少风险提示', key: 'missing_risk' },
+  { label: '内容语气不当', key: 'CONTENT_TONE' },
+  { label: '合规风险', key: 'COMPLIANCE_RISK' },
+  { label: '格式错误', key: 'FORMAT_ERROR' },
+  { label: '数据不准确', key: 'DATA_INACCURATE' },
+  { label: '信息缺失', key: 'MISSING_INFO' },
   { type: 'divider' as const },
-  { label: '自定义原因...', key: 'custom' }
+  { label: '其他原因...', key: 'OTHER' }
 ]
 
 function handleRejectSelect(key: string | number) {
   if (!selected.value) return
-  rejectData.reasons = key === 'custom' ? [] : [String(key)]
+  rejectData.reasons = key === 'OTHER' ? [] : [String(key)]
   rejectData.remark = ''
   rejectModalVisible.value = true
 }

@@ -79,7 +79,7 @@ const routes: RouteRecordRaw[] = [
           title: '复核工作台',
           icon: 'check-circle',
           requiresAuth: true,
-          roles: ['admin', 'reviewer']
+          roles: ['admin', 'ops']
         }
       },
       {
@@ -90,7 +90,7 @@ const routes: RouteRecordRaw[] = [
           title: '风险样本库',
           icon: 'alert-triangle',
           requiresAuth: true,
-          roles: ['admin', 'reviewer']
+          roles: ['admin', 'ops']
         }
       },
       {

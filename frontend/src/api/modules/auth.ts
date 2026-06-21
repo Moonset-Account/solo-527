@@ -1,37 +1,40 @@
 import { post, get } from '../http'
 import type { LoginParams, LoginResponse, User } from '@/types'
-import { mockUsers, mockResponse } from '@/mock/data'
 
 export async function loginApi(params: LoginParams): Promise<LoginResponse> {
-  const foundUser = mockUsers.find(
-    u => u.username === params.username && u.password === params.password
-  )
-
-  if (!foundUser) {
-    throw new Error('用户名或密码错误')
+  const data = await post<any>('/auth/login', params)
+  const user: User = {
+    id: String(data.user.id ?? ''),
+    username: data.user.username || '',
+    fullName: data.user.fullName || data.user.full_name || '',
+    email: data.user.email || '',
+    role: data.user.role as User['role'],
+    isActive: Boolean(data.user.isActive ?? data.user.is_active ?? true),
+    createdAt: data.user.createdAt || data.user.created_at || new Date().toISOString(),
   }
-
-  const { password, ...safeUser } = foundUser
-  const token = `mock_token_${Date.now()}_${safeUser.id}`
-
-  return mockResponse<LoginResponse>({
-    token,
-    user: safeUser as User
-  }, 500)
+  return {
+    token: String(data.token || ''),
+    user,
+  }
 }
 
 export async function logoutApi(): Promise<void> {
-  return mockResponse<void>(undefined, 200)
+  await post<any>('/auth/logout', {})
 }
 
 export async function getUserInfoApi(): Promise<User> {
-  const savedUser = localStorage.getItem('auth_user')
-  if (savedUser) {
-    return mockResponse<User>(JSON.parse(savedUser), 300)
+  const data = await get<any>('/auth/me')
+  return {
+    id: String(data.id ?? ''),
+    username: data.username || '',
+    fullName: data.fullName || data.full_name || '',
+    email: data.email || '',
+    role: data.role as User['role'],
+    isActive: Boolean(data.isActive ?? data.is_active ?? true),
+    createdAt: data.createdAt || data.created_at || new Date().toISOString(),
   }
-  throw new Error('用户未登录')
 }
 
 export async function changePasswordApi(params: { oldPassword: string; newPassword: string }): Promise<void> {
-  return mockResponse<void>(undefined, 400)
+  await post<any>('/auth/change-password', params)
 }

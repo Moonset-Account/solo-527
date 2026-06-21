@@ -46,11 +46,11 @@
         <div class="bg-white/5 rounded-xl p-3 backdrop-blur-sm">
           <div class="flex items-center">
             <div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-gold-400 to-amber-gold-600 flex items-center justify-center font-bold text-deep-blue-900 flex-shrink-0 text-sm">
-              {{ user?.name?.charAt(0) || 'U' }}
+              {{ user?.fullName?.charAt(0) || 'U' }}
             </div>
             <transition name="fade">
               <div v-if="!collapsed" class="ml-3 min-w-0 flex-1">
-                <p class="text-sm font-medium truncate">{{ user?.name }}</p>
+                <p class="text-sm font-medium truncate">{{ user?.fullName }}</p>
                 <p class="text-xs text-white/50 truncate">{{ roleText }}</p>
               </div>
             </transition>
@@ -139,10 +139,10 @@
           <NDropdown :options="userMenuOptions" @select="handleUserMenuSelect">
             <button class="flex items-center px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-all">
               <div class="w-8 h-8 rounded-full bg-gradient-to-br from-deep-blue-500 to-deep-blue-700 flex items-center justify-center text-white font-bold text-sm">
-                {{ user?.name?.charAt(0) || 'U' }}
+                {{ user?.fullName?.charAt(0) || 'U' }}
               </div>
               <div class="ml-2.5 text-left hidden sm:block">
-                <p class="text-sm font-medium text-slate-800 leading-tight">{{ user?.name }}</p>
+                <p class="text-sm font-medium text-slate-800 leading-tight">{{ user?.fullName }}</p>
                 <p class="text-xs text-slate-400 leading-tight">{{ user?.department }}</p>
               </div>
               <NIcon :size="14" class="ml-2 text-slate-400"><CaretDownOutlined /></NIcon>
@@ -201,17 +201,17 @@ const user = computed(() => authStore.user)
 const toggleCollapsed = () => appStore.toggleCollapsed()
 
 const roleText = computed(() => {
-  const map: Record<string, string> = { admin: '系统管理员', reviewer: '复核员', operator: '运营' }
+  const map: Record<string, string> = { admin: '系统管理员', ops: '运营复核员', sales: '销售专员' }
   return map[user.value?.role || ''] || '用户'
 })
 
 const allMenuItems = [
-  { path: '/dashboard', label: '销售工作台', icon: DashboardOutlined, roles: ['admin', 'reviewer', 'operator'] },
-  { path: '/knowledge', label: '知识库管理', icon: BookOutlined, roles: ['admin', 'reviewer', 'operator'] },
-  { path: '/templates', label: '话术版本中心', icon: MessageOutlined, roles: ['admin', 'reviewer', 'operator'] },
-  { path: '/prompts', label: '提示词版本中心', icon: CodeOutlined, roles: ['admin'] },
-  { path: '/reviews', label: '复核工作台', icon: CheckCircleOutlined, roles: ['admin', 'reviewer'], badge: '3' },
-  { path: '/risks', label: '风险样本库', icon: WarningOutlined, roles: ['admin', 'reviewer'] },
+  { path: '/dashboard', label: '销售工作台', icon: DashboardOutlined, roles: ['admin', 'ops', 'sales'] },
+  { path: '/knowledge', label: '知识库管理', icon: BookOutlined, roles: ['admin', 'ops', 'sales'] },
+  { path: '/templates', label: '话术版本中心', icon: MessageOutlined, roles: ['admin', 'ops', 'sales'] },
+  { path: '/prompts', label: '提示词版本中心', icon: CodeOutlined, roles: ['admin', 'ops'] },
+  { path: '/reviews', label: '复核工作台', icon: CheckCircleOutlined, roles: ['admin', 'ops'] },
+  { path: '/risks', label: '风险样本库', icon: WarningOutlined, roles: ['admin', 'ops'] },
   { path: '/analytics', label: '统计分析看板', icon: BarChartOutlined, roles: ['admin'] },
   { path: '/logs', label: '操作日志', icon: FileTextOutlined, roles: ['admin'] }
 ]
