@@ -242,7 +242,7 @@ router.post('/init-defaults', requireAuth, requireRole(['admin']), async (req, r
         code: 'material_type',
         name: '素材类型',
         type: 'select',
-        system: true,
+        system: false,
         items: [
           { id: '1', label: '图片', value: 'image', sort: 0 },
           { id: '2', label: '视频', value: 'video', sort: 1 },

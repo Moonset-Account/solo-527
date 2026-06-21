@@ -36,6 +36,7 @@ export default function MaterialDetail() {
         category: data.category,
         source: data.source,
         author: data.author,
+        type: data.type,
       });
     } catch (err) {
       console.error("加载素材详情失败:", err);
@@ -219,6 +220,18 @@ export default function MaterialDetail() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="form-group">
+                      <label className="form-label">类型</label>
+                      <select
+                        className="form-select"
+                        value={editForm.type || ""}
+                        onChange={e => setEditForm({ ...editForm, type: e.target.value })}
+                      >
+                        {typeOptions.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
                       <label className="form-label">分类</label>
                       <input
                         type="text"
@@ -227,6 +240,8 @@ export default function MaterialDetail() {
                         onChange={e => setEditForm({ ...editForm, category: e.target.value })}
                       />
                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="form-group">
                       <label className="form-label">来源</label>
                       <input
@@ -236,15 +251,15 @@ export default function MaterialDetail() {
                         onChange={e => setEditForm({ ...editForm, source: e.target.value })}
                       />
                     </div>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">作者</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={editForm.author}
-                      onChange={e => setEditForm({ ...editForm, author: e.target.value })}
-                    />
+                    <div className="form-group">
+                      <label className="form-label">作者</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={editForm.author}
+                        onChange={e => setEditForm({ ...editForm, author: e.target.value })}
+                      />
+                    </div>
                   </div>
                   <button className="btn btn-primary" onClick={handleSaveEdit}>
                     保存修改
