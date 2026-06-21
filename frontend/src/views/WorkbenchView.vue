@@ -7,7 +7,7 @@
       </div>
       <div class="flex items-center space-x-2">
         <NTag :bordered="false" type="success" round>
-          <NIcon size={12} class="mr-1"><CheckCircleOutlined /></NIcon>
+          <NIcon :size="12" class="mr-1"><CheckCircleOutlined /></NIcon>
           AI系统正常
         </NTag>
       </div>
@@ -18,7 +18,7 @@
         <NCard class="!rounded-2xl shadow-sm" title="客户背景录入" size="large">
           <template #header-extra>
             <NButton size="small" text type="primary" @click="resetForm">
-              <NIcon size={14} class="mr-1"><ReloadOutlined /></NIcon>
+              <NIcon :size="14" class="mr-1"><ReloadOutlined /></NIcon>
               重置
             </NButton>
           </template>
@@ -43,7 +43,7 @@
               />
             </NFormItem>
             <NFormItem label="沟通阶段">
-              <NSteps v-model:current="customerForm.stage" :status="stepStatus" class="!overflow-x-auto">
+              <NSteps v-model:current="customerForm.stage" class="!overflow-x-auto">
                 <NStep title="初步接触" description="首次建立联系" />
                 <NStep title="需求跟进" description="深入了解需求" />
                 <NStep title="商务谈判" description="方案报价阶段" />
@@ -87,7 +87,7 @@
               @click="generateEmail"
             >
               <span class="flex items-center justify-center space-x-2">
-                <NIcon size={18}><ThunderboltOutlined /></NIcon>
+                <NIcon :size="18"><ThunderboltOutlined /></NIcon>
                 <span>📧 生成邮件草稿</span>
               </span>
             </NButton>
@@ -109,30 +109,28 @@
             </div>
           </template>
           <template #header-extra>
-            <template v-if="currentDraft">
-              <div class="flex items-center space-x-2">
-                <NButton size="small" quaternary @click="copyContent">
-                  <NIcon size={14} class="mr-1"><CopyOutlined /></NIcon>
-                  复制
-                </NButton>
-                <NButton size="small" quaternary @click="exportEml">
-                  <NIcon size={14} class="mr-1"><DownloadOutlined /></NIcon>
-                  导出EML
-                </NButton>
-                <NButton size="small" quaternary type="warning" @click="regenerateEmail">
-                  <NIcon size={14} class="mr-1"><ReloadOutlined /></NIcon>
-                  重新生成
-                </NButton>
-                <NButton size="small" type="primary" @click="submitReview">
-                  <NIcon size={14} class="mr-1"><SendOutlined /></NIcon>
-                  提交复核
-                </NButton>
-              </div>
-            </template>
+            <div v-if="currentDraft" class="flex items-center space-x-2">
+              <NButton size="small" quaternary @click="copyContent">
+                <NIcon :size="14" class="mr-1"><CopyOutlined /></NIcon>
+                复制
+              </NButton>
+              <NButton size="small" quaternary @click="exportEml">
+                <NIcon :size="14" class="mr-1"><DownloadOutlined /></NIcon>
+                导出EML
+              </NButton>
+              <NButton size="small" quaternary type="warning" @click="regenerateEmail">
+                <NIcon :size="14" class="mr-1"><ReloadOutlined /></NIcon>
+                重新生成
+              </NButton>
+              <NButton size="small" type="primary" @click="submitReview">
+                <NIcon :size="14" class="mr-1"><SendOutlined /></NIcon>
+                提交复核
+              </NButton>
+            </div>
           </template>
           <div v-if="!currentDraft" class="py-16 text-center">
             <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
-              <NIcon size={36} color="#CBD5E1"><MailOutlined /></NIcon>
+              <NIcon :size="36" color="#CBD5E1"><MailOutlined /></NIcon>
             </div>
             <p class="text-slate-400">填写左侧信息后点击生成按钮</p>
             <p class="text-xs text-slate-300 mt-1">AI 将根据知识库匹配最相关的内容</p>
@@ -153,7 +151,7 @@
             </div>
             <div v-if="citedSources.length > 0">
               <label class="block text-xs text-slate-500 mb-2 font-medium flex items-center">
-                <NIcon size={12} class="mr-1"><BookOutlined /></NIcon>
+                <NIcon :size="12" class="mr-1"><BookOutlined /></NIcon>
                 引用来源（共 {{ citedSources.length }} 条）
               </label>
               <div class="flex flex-wrap gap-2">
@@ -180,7 +178,7 @@
             :row-props="(row) => ({
               class: currentDraft?.id === row.id ? '!bg-deep-blue-50/50 cursor-pointer' : 'cursor-pointer hover:!bg-slate-50'
             })"
-            @update:page="(p) => draftPagination.page = p"
+            @update:page="onDraftPageChange"
           />
         </NCard>
       </div>
@@ -189,7 +187,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, h } from 'vue'
+import { ref, reactive, h, onMounted } from 'vue'
 import {
   NCard, NForm, NFormItem, NInput, NButton, NIcon, NSelect, NSlider,
   NSteps, NStep, NDataTable, NTag, useMessage, useDialog, type DataTableColumns, type SelectOption
@@ -201,8 +199,9 @@ import {
 import StatusTag from '@/components/business/StatusTag.vue'
 import CitedSourceBubble from '@/components/business/CitedSourceBubble.vue'
 import { usePageTitle } from '@/composables/usePageTitle'
-import { mockEmails, mockTemplates, mockKnowledge } from '@/mock/data'
-import type { EmailDraft, KnowledgeBase } from '@/types'
+import { generateEmailApi, getEmailListApi, getEmailDetailApi, submitForReviewApi, updateEmailApi } from '@/api/modules/emails'
+import { getTemplateListApi } from '@/api/modules/templates'
+import type { EmailDraft, KnowledgeBase, TemplateStatus } from '@/types'
 
 usePageTitle('销售工作台')
 
@@ -220,7 +219,6 @@ const customerForm = reactive({
   temperature: 0.7
 })
 
-const stepStatus = computed(() => (['process', 'wait', 'wait', 'wait'] as const))
 const tempMarks: Record<number, string> = { 0: '严谨', 0.5: '平衡', 1: '创意' }
 
 const industryOptions: SelectOption[] = [
@@ -242,9 +240,7 @@ const scaleOptions: SelectOption[] = [
   { label: '集团 (5000人以上)', value: 'enterprise' }
 ]
 
-const templateOptions: SelectOption[] = computed(() =>
-  mockTemplates.filter(t => t.status === 'active').map(t => ({ label: t.name, value: t.id }))
-)
+const templateOptions = ref<SelectOption[]>([])
 
 const generating = ref(false)
 const currentDraft = ref<EmailDraft | null>(null)
@@ -253,16 +249,12 @@ const emailContent = ref('')
 const citedSources = ref<KnowledgeBase[]>([])
 const srcSimilarities = ref<number[]>([])
 
-const allDrafts = computed(() => mockEmails.filter(e =>
-  e.status !== 'sent' || Date.now() - new Date(e.createdAt).getTime() < 7 * 86400000
-).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
-
-const draftList = computed(() => allDrafts.value)
+const draftList = ref<EmailDraft[]>([])
 
 const draftPagination = reactive({
   page: 1,
   pageSize: 5,
-  itemCount: allDrafts.value.length
+  itemCount: 0
 })
 
 const draftColumns: DataTableColumns<EmailDraft> = [
@@ -312,79 +304,108 @@ function resetForm() {
   customerForm.temperature = 0.7
 }
 
+async function fetchTemplates() {
+  try {
+    const resp = await getTemplateListApi({ page: 1, pageSize: 100, status: 'active' })
+    templateOptions.value = (resp.list as unknown as TemplateStatus[]).map(t => ({
+      label: `${t.name} (v${t.version})`,
+      value: t.id
+    }))
+  } catch {
+    templateOptions.value = []
+  }
+}
+
+async function fetchDrafts() {
+  try {
+    const resp = await getEmailListApi({ page: draftPagination.page, pageSize: draftPagination.pageSize })
+    draftList.value = resp.list
+    draftPagination.itemCount = resp.total
+  } catch {
+    draftList.value = []
+    draftPagination.itemCount = 0
+  }
+}
+
+function onDraftPageChange(page: number) {
+  draftPagination.page = page
+  fetchDrafts()
+}
+
+function mapCitedSources(result: EmailDraft): KnowledgeBase[] {
+  const srcs = (result as unknown as { citedSources?: Array<{ knowledgeId?: string; id?: string; title?: string; excerpt?: string; similarity?: number }> }).citedSources || []
+  if (srcs.length === 0) {
+    return []
+  }
+  return srcs.map((s) => ({
+    id: String(s.knowledgeId ?? s.id ?? Math.random()),
+    title: s.title || '知识库条目',
+    category: 'product' as const,
+    content: s.excerpt || '',
+    tags: [],
+    version: 'v1.0',
+    status: 'active' as const,
+    createdBy: '',
+    createdAt: '',
+    updatedAt: '',
+  }))
+}
+
+function mapSimilarities(result: EmailDraft): number[] {
+  const srcs = (result as unknown as { citedSources?: Array<{ similarity?: number }> }).citedSources || []
+  if (srcs.length === 0) {
+    return []
+  }
+  return srcs.map((s) => s.similarity ?? (0.75 + Math.random() * 0.2))
+}
+
 async function generateEmail() {
   if (!customerForm.company) {
     message.warning('请先填写公司名称')
     return
   }
   generating.value = true
-  await new Promise(r => setTimeout(r, 1800))
-  const id = 'email_gen_' + Date.now()
-  const industry = customerForm.industry ? customerForm.industry : '相关行业'
-  const company = customerForm.company || '贵公司'
-  const stageText = ['初步接触', '需求跟进', '商务谈判', '成交维护'][customerForm.stage]
-  const template = mockTemplates.find(t => t.id === customerForm.templateId)
+  try {
+    const result = await generateEmailApi({
+      company: customerForm.company,
+      industry: customerForm.industry,
+      scale: customerForm.scale,
+      painPoints: customerForm.painPoints,
+      stage: customerForm.stage,
+      lastNote: customerForm.lastNote,
+      templateId: customerForm.templateId,
+      temperature: customerForm.temperature,
+    } as unknown as Parameters<typeof generateEmailApi>[0])
 
-  currentDraft.value = {
-    id,
-    subject: `关于与${company}合作的${stageText}阶段沟通方案`,
-    recipient: '',
-    recipientName: '',
-    content: '',
-    status: 'ai_generated',
-    priority: 'normal',
-    category: template?.category || 'marketing',
-    templateId: customerForm.templateId || undefined,
-    riskLevel: 'low',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    currentDraft.value = result
+    emailSubject.value = result.subject
+    emailContent.value = result.content
+    citedSources.value = mapCitedSources(result)
+    srcSimilarities.value = mapSimilarities(result)
+
+    await fetchDrafts()
+    message.success('邮件草稿已生成！')
+  } catch {
+  } finally {
+    generating.value = false
   }
-
-  emailSubject.value = currentDraft.value.subject
-  emailContent.value = `尊敬的${company}负责人：
-
-您好！
-
-很高兴能与贵司建立联系。我们关注到贵司在${industry}领域的发展，希望能有机会为您提供专业的金融服务方案。
-
-${customerForm.painPoints ? `针对贵司可能面临的${customerForm.painPoints.split('\n').map(x => x.trim()).filter(Boolean).join('、')}等问题，我们有成熟的解决方案。` : '针对贵司在行业中常见的痛点和挑战，我们准备了以下方案介绍。'}
-
-【方案亮点】
-• 智能现金管理工具，提升资金使用效率
-• 定制化理财配置，匹配企业风险偏好
-• 专属客户经理，7×24小时响应服务
-
-${customerForm.lastNote ? `补充说明：${customerForm.lastNote}` : ''}
-
-我们非常期待与贵司的进一步沟通，可根据您的实际需求进行定制化方案调整。
-
-如有兴趣，请随时回复本邮件或直接联系我。
-
-祝您工作顺利！
-
-客户经理 李明
-手机：138-xxxx-xxxx
-邮箱：liming@company.com`
-
-  citedSources.value = [mockKnowledge[0], mockKnowledge[2], mockKnowledge[1]].slice(0, 2 + Math.floor(Math.random() * 2))
-  srcSimilarities.value = citedSources.value.map(() => 0.7 + Math.random() * 0.25)
-
-  generating.value = false
-  message.success('邮件草稿已生成！')
 }
 
 function regenerateEmail() {
   generateEmail()
 }
 
-function loadDraft(draft: EmailDraft) {
-  currentDraft.value = draft
-  emailSubject.value = draft.subject
-  emailContent.value = draft.content
-  const ids = draft.knowledgeIds || []
-  citedSources.value = mockKnowledge.filter(k => ids.includes(k.id))
-  srcSimilarities.value = citedSources.value.map(() => 0.75 + Math.random() * 0.2)
-  message.info('已加载草稿')
+async function loadDraft(draft: EmailDraft) {
+  try {
+    const result = await getEmailDetailApi(draft.id)
+    currentDraft.value = result
+    emailSubject.value = result.subject
+    emailContent.value = result.content
+    citedSources.value = mapCitedSources(result)
+    srcSimilarities.value = mapSimilarities(result)
+    message.info('已加载草稿')
+  } catch {
+  }
 }
 
 async function copyContent() {
@@ -413,17 +434,33 @@ function submitReview() {
     message.warning('请填写完整的邮件内容')
     return
   }
+  if (!currentDraft.value) {
+    return
+  }
   dialog.warning({
     title: '提交复核',
     content: '提交后邮件将进入复核队列，确认提交吗？',
     positiveText: '确认提交',
     negativeText: '取消',
-    onPositiveClick: () => {
-      if (currentDraft.value) {
-        currentDraft.value.status = 'pending_review'
+    onPositiveClick: async () => {
+      try {
+        if (currentDraft.value) {
+          await updateEmailApi(currentDraft.value.id, {
+            subject: emailSubject.value,
+            content: emailContent.value,
+          })
+          await submitForReviewApi(currentDraft.value.id)
+          currentDraft.value.status = 'pending_review'
+          await fetchDrafts()
+          message.success('已提交复核队列')
+        }
+      } catch {
       }
-      message.success('已提交复核队列')
     }
   })
 }
+
+onMounted(async () => {
+  await Promise.all([fetchTemplates(), fetchDrafts()])
+})
 </script>

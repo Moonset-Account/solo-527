@@ -524,6 +524,7 @@ export const mockEmails: EmailDraft[] = [
     generatedBy: 'user_003',
     sentBy: 'user_003',
     createdAt: '2026-06-19T14:00:00.000Z',
+    updatedAt: '2026-06-19T15:00:00.000Z',
     sentAt: '2026-06-19T15:00:00.000Z'
   },
   {
@@ -544,6 +545,7 @@ export const mockEmails: EmailDraft[] = [
     generatedBy: 'user_003',
     reviewedBy: 'user_002',
     createdAt: '2026-06-16T11:00:00.000Z',
+    updatedAt: '2026-06-16T14:00:00.000Z',
     reviewedAt: '2026-06-16T14:00:00.000Z'
   },
   {
@@ -557,7 +559,8 @@ export const mockEmails: EmailDraft[] = [
     category: 'marketing',
     riskLevel: 'none',
     generatedBy: 'user_003',
-    createdAt: '2026-06-20T11:00:00.000Z'
+    createdAt: '2026-06-20T11:00:00.000Z',
+    updatedAt: '2026-06-20T11:00:00.000Z'
   },
   {
     id: 'email_013',
@@ -570,7 +573,8 @@ export const mockEmails: EmailDraft[] = [
     category: 'notification',
     riskLevel: 'low',
     generatedBy: 'user_003',
-    createdAt: '2026-06-20T09:00:00.000Z'
+    createdAt: '2026-06-20T09:00:00.000Z',
+    updatedAt: '2026-06-20T09:00:00.000Z'
   },
   {
     id: 'email_014',
@@ -585,6 +589,7 @@ export const mockEmails: EmailDraft[] = [
     generatedBy: 'system',
     sentBy: 'system',
     createdAt: '2026-06-18T08:00:00.000Z',
+    updatedAt: '2026-06-18T08:05:00.000Z',
     sentAt: '2026-06-18T08:05:00.000Z'
   },
   {
@@ -598,7 +603,8 @@ export const mockEmails: EmailDraft[] = [
     category: 'event',
     riskLevel: 'none',
     generatedBy: 'user_003',
-    createdAt: '2026-06-20T17:00:00.000Z'
+    createdAt: '2026-06-20T17:00:00.000Z',
+    updatedAt: '2026-06-20T17:00:00.000Z'
   }
 ]
 

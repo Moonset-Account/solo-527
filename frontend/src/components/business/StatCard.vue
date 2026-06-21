@@ -22,7 +22,7 @@
             class="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full"
             :class="momClass"
           >
-            <NIcon size={12} class="mr-0.5">
+            <NIcon :size="12" class="mr-0.5">
               <ArrowUpOutlined v-if="mom >= 0" />
               <ArrowDownOutlined v-else />
             </NIcon>
@@ -46,7 +46,7 @@
     <div class="mt-4" v-else-if="showProgress">
       <NProgress
         :percentage="Number(value)"
-        :color="progressGradient"
+        :gradient="progressGradient"
         :stroke-width="8"
         :show-indicator="false"
         type="line"
@@ -115,9 +115,8 @@ const momClass = computed(() => {
 const themeVars = useThemeVars()
 
 const progressGradient = computed(() => ({
-  '0%': '#0B4F8C',
-  '50%': '#1469B9',
-  '100%': '#D4A853'
+  from: '#0B4F8C',
+  to: '#D4A853'
 }))
 
 const miniChartOption = computed(() => ({
@@ -131,10 +130,9 @@ const miniChartOption = computed(() => ({
   tooltip: {
     trigger: 'axis',
     confine: true,
-    textStyle: { fontSize: 11 },
+    textStyle: { fontSize: 11, color: '#fff' },
     backgroundColor: 'rgba(11,79,140,0.95)',
-    borderWidth: 0,
-    textStyle: { color: '#fff' }
+    borderWidth: 0
   },
   series: [
     {

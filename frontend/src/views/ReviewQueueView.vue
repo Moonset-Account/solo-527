@@ -79,7 +79,7 @@
         <div v-if="!selected" class="flex-1 flex items-center justify-center">
           <div class="text-center">
             <div class="w-24 h-24 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
-              <NIcon size={44} color="#CBD5E1"><MailOutlined /></NIcon>
+              <NIcon :size="44" color="#CBD5E1"><MailOutlined /></NIcon>
             </div>
             <p class="text-slate-400 font-medium">请从左侧列表选择待复核的邮件</p>
           </div>
@@ -94,11 +94,11 @@
               </div>
               <div class="flex items-center gap-4 text-xs text-slate-500 flex-wrap">
                 <span class="flex items-center">
-                  <NIcon size={12} class="mr-1"><UserOutlined /></NIcon>
+                  <NIcon :size="12" class="mr-1"><UserOutlined /></NIcon>
                   收件人：{{ selected.recipient }}
                 </span>
                 <span class="flex items-center">
-                  <NIcon size={12} class="mr-1"><ClockCircleOutlined /></NIcon>
+                  <NIcon :size="12" class="mr-1"><ClockCircleOutlined /></NIcon>
                   生成于 {{ formatTime(selected.createdAt) }}
                 </span>
                 <span>销售：{{ getSalesName(selected) }}</span>
@@ -109,7 +109,7 @@
           <div class="flex-1 overflow-y-auto p-5 space-y-5 min-h-0">
             <div>
               <label class="block text-xs text-slate-500 font-bold mb-2 flex items-center">
-                <NIcon size={12} class="mr-1"><FileTextOutlined /></NIcon>
+                <NIcon :size="12" class="mr-1"><FileTextOutlined /></NIcon>
                 邮件正文
               </label>
               <div class="bg-slate-50/60 border border-slate-100 rounded-xl p-4 whitespace-pre-wrap text-sm text-slate-700 leading-relaxed">
@@ -119,7 +119,7 @@
 
             <div v-if="selected.aiSuggestion">
               <label class="block text-xs text-slate-500 font-bold mb-2 flex items-center">
-                <NIcon size={12} class="mr-1"><BulbOutlined /></NIcon>
+                <NIcon :size="12" class="mr-1"><BulbOutlined /></NIcon>
                 AI 智能建议
               </label>
               <div class="bg-gradient-to-r from-amber-gold-50 to-white border border-amber-gold-200/60 rounded-xl p-4 text-sm text-slate-700">
@@ -129,7 +129,7 @@
 
             <div>
               <label class="block text-xs text-slate-500 font-bold mb-2 flex items-center">
-                <NIcon size={12} class="mr-1"><EditOutlined /></NIcon>
+                <NIcon :size="12" class="mr-1"><EditOutlined /></NIcon>
                 复核编辑（支持修改后通过）
               </label>
               <DiffViewer
@@ -151,12 +151,12 @@
             <div class="flex items-center space-x-3">
               <NDropdown :options="rejectOptions" trigger="click" @select="handleRejectSelect">
                 <NButton type="error" size="medium" class="shadow-md">
-                  <NIcon size={14} class="mr-1.5"><CloseCircleOutlined /></NIcon>
+                  <NIcon :size="14" class="mr-1.5"><CloseCircleOutlined /></NIcon>
                   驳回
                 </NButton>
               </NDropdown>
               <NButton type="primary" size="medium" class="!px-6 shadow-md" @click="approveEmail">
-                <NIcon size={14} class="mr-1.5"><CheckCircleOutlined /></NIcon>
+                <NIcon :size="14" class="mr-1.5"><CheckCircleOutlined /></NIcon>
                 ✅ 一键通过
               </NButton>
             </div>
@@ -178,7 +178,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, h, watch, defineComponent, PropType } from 'vue'
+import { ref, reactive, computed, h, watch, defineComponent, PropType, onMounted } from 'vue'
 import {
   NCard, NTabs, NTabPane, NButton, NIcon, NModal, NDropdown, useMessage, useDialog,
   type DropdownOption, type DropdownGroupOption, type DropdownDividerOption
@@ -191,7 +191,7 @@ import StatusTag from '@/components/business/StatusTag.vue'
 import DiffViewer from '@/components/business/DiffViewer.vue'
 import RejectReasonSelector from '@/components/business/RejectReasonSelector.vue'
 import { usePageTitle } from '@/composables/usePageTitle'
-import { mockEmails } from '@/mock/data'
+import { getPendingReviewListApi, approveReviewApi, rejectReviewApi } from '@/api/modules/reviews'
 import type { EmailDraft } from '@/types'
 
 usePageTitle('复核工作台')
@@ -199,7 +199,9 @@ usePageTitle('复核工作台')
 const message = useMessage()
 const dialog = useDialog()
 
-const allEmails = ref<EmailDraft[]>([...mockEmails])
+const pendingEmails = ref<EmailDraft[]>([])
+const approvedEmails = ref<EmailDraft[]>([])
+const rejectedEmails = ref<EmailDraft[]>([])
 const activeTab = ref<'pending' | 'approved' | 'rejected'>('pending')
 const selectedId = ref<string | null>(null)
 const modifiedContent = ref('')
@@ -208,29 +210,49 @@ const rejectReason = ref<string | null>(null)
 const rejectData = reactive({ reasons: [] as string[], remark: '' })
 
 watch(selectedId, (id) => {
-  const s = allEmails.value.find(e => e.id === id)
+  const allList = [...pendingEmails.value, ...approvedEmails.value, ...rejectedEmails.value]
+  const s = allList.find(e => e.id === id)
   if (s) modifiedContent.value = s.content
 })
 
-const pendingList = computed(() => allEmails.value.filter(e => e.status === 'pending_review' || e.status === 'ai_generated'))
-const approvedList = computed(() => allEmails.value.filter(e => e.status === 'approved' || e.status === 'sent'))
-const rejectedList = computed(() => allEmails.value.filter(e => e.status === 'rejected'))
+const pendingList = computed(() => pendingEmails.value)
+const approvedList = computed(() => approvedEmails.value)
+const rejectedList = computed(() => rejectedEmails.value)
 
-const pendingCount = computed(() => pendingList.value.length)
+const pendingCount = computed(() => pendingEmails.value.length)
 const approvedTodayCount = computed(() =>
-  approvedList.value.filter(e => isToday(e.reviewedAt || e.createdAt)).length
+  approvedEmails.value.filter(e => isToday(e.reviewedAt || e.createdAt)).length
 )
 const rejectedTodayCount = computed(() =>
-  rejectedList.value.filter(e => isToday(e.reviewedAt || e.createdAt)).length
+  rejectedEmails.value.filter(e => isToday(e.reviewedAt || e.createdAt)).length
 )
 
 const currentList = computed(() => {
-  if (activeTab.value === 'pending') return pendingList.value
-  if (activeTab.value === 'approved') return approvedList.value
-  return rejectedList.value
+  if (activeTab.value === 'pending') return pendingEmails.value
+  if (activeTab.value === 'approved') return approvedEmails.value
+  return rejectedEmails.value
 })
 
-const selected = computed(() => allEmails.value.find(e => e.id === selectedId.value) || null)
+const selected = computed(() => {
+  const allList = [...pendingEmails.value, ...approvedEmails.value, ...rejectedEmails.value]
+  return allList.find(e => e.id === selectedId.value) || null
+})
+
+async function fetchLists() {
+  try {
+    const [p, a, r] = await Promise.all([
+      getPendingReviewListApi({ page: 1, perPage: 200, status: 'submitted' }),
+      getPendingReviewListApi({ page: 1, perPage: 200, status: 'approved' }),
+      getPendingReviewListApi({ page: 1, perPage: 200, status: 'rejected' }),
+    ])
+    pendingEmails.value = p.list
+    approvedEmails.value = a.list
+    rejectedEmails.value = r.list
+  } catch (e) {
+  }
+}
+
+onMounted(fetchLists)
 
 function isToday(iso: string) {
   const d = new Date(iso)
@@ -249,15 +271,16 @@ function getSalesInitial(email: EmailDraft) {
 function getSalesName(email: EmailDraft) {
   if (!email.generatedBy) return '系统'
   if (email.generatedBy === 'system') return '系统'
+  if (typeof email.generatedBy === 'number') return `销售-${email.generatedBy}`
   const map: Record<string, string> = { user_001: '系统管理员', user_002: '张复核', user_003: '李运营' }
-  return map[email.generatedBy] || email.generatedBy
+  return map[email.generatedBy] || String(email.generatedBy)
 }
 
 function selectEmail(id: string) {
   selectedId.value = id
 }
 
-function approveEmail() {
+async function approveEmail() {
   if (!selected.value) return
   dialog.success({
     title: '确认通过',
@@ -266,15 +289,16 @@ function approveEmail() {
       : '确认通过此邮件复核？通过后邮件状态将更新为"已通过"。',
     positiveText: '确认通过',
     negativeText: '取消',
-    onPositiveClick: () => {
-      selected.value!.status = 'approved'
-      selected.value!.reviewedBy = 'user_002'
-      selected.value!.reviewedAt = new Date().toISOString()
-      if (modifiedContent.value !== selected.value!.content) {
-        selected.value!.content = modifiedContent.value
-      }
-      message.success('复核通过')
-      selectedId.value = null
+    onPositiveClick: async () => {
+      try {
+        await approveReviewApi(
+          selected.value!.id,
+          modifiedContent.value !== selected.value!.content ? modifiedContent.value : undefined
+        )
+        message.success('复核通过')
+        selectedId.value = null
+        await fetchLists()
+      } catch {}
     }
   })
 }
@@ -294,18 +318,20 @@ function handleRejectSelect(key: string | number) {
   rejectModalVisible.value = true
 }
 
-function confirmReject() {
+async function confirmReject() {
   if (!selected.value) return
   if (rejectData.reasons.length === 0 && !rejectData.remark.trim()) {
     message.warning('请至少选择一个驳回原因或填写备注')
     return
   }
-  selected.value.status = 'rejected'
-  selected.value.reviewedBy = 'user_002'
-  selected.value.reviewedAt = new Date().toISOString()
-  rejectModalVisible.value = false
-  message.success('已驳回，销售将收到通知')
-  selectedId.value = null
+  try {
+    const code = rejectData.reasons[0] || 'OTHER'
+    await rejectReviewApi(selected.value.id, code, rejectData.remark)
+    rejectModalVisible.value = false
+    message.success('已驳回，销售将收到通知')
+    selectedId.value = null
+    await fetchLists()
+  } catch {}
 }
 
 function quickFix() {

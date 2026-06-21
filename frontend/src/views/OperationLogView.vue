@@ -7,7 +7,7 @@
       </div>
       <div class="flex items-center space-x-2">
         <NButton>
-          <NIcon size={14} class="mr-1.5"><DownloadOutlined /></NIcon>
+          <NIcon :size="14" class="mr-1.5"><DownloadOutlined /></NIcon>
           导出日志
         </NButton>
       </div>
@@ -26,7 +26,7 @@
         />
         <div class="flex items-center space-x-2">
           <NButton quaternary @click="resetFilters">
-            <NIcon size={14} class="mr-1"><ReloadOutlined /></NIcon>
+            <NIcon :size="14" class="mr-1"><ReloadOutlined /></NIcon>
             重置
           </NButton>
         </div>
@@ -40,7 +40,7 @@
             :key="log.id"
             :type="log.status === 'success' ? 'success' : 'error'"
           >
-            <template #dot>
+            <template #icon>
               <div
                 class="relative z-10 w-7 h-7 rounded-full flex items-center justify-center shadow-md"
                 :class="log.status === 'success' ? 'bg-deep-blue-50' : 'bg-red-50'"
@@ -49,7 +49,7 @@
                   class="w-5 h-5 rounded-full flex items-center justify-center"
                   :class="log.status === 'success' ? 'bg-deep-blue-500' : 'bg-red-500'"
                 >
-                  <NIcon size={11} color="#fff">
+                  <NIcon :size="11" color="#fff">
                     <component :is="actionIcon(log.action)" />
                   </NIcon>
                 </div>
@@ -64,7 +64,7 @@
                   <div class="min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
                       <span class="font-medium text-slate-800 text-sm">{{ log.userName }}</span>
-                      <NTag size="tiny" :bordered="false" round :color="moduleTagColor(log.module)">
+                      <NTag size="tiny" :bordered="false" round :type="moduleTagColor(log.module)">
                         {{ moduleText(log.module) }}
                       </NTag>
                       <span class="text-sm text-deep-blue-700 font-medium">
@@ -78,7 +78,7 @@
                 </div>
                 <div class="flex items-center gap-3 flex-shrink-0">
                   <span class="text-xs text-slate-400 flex items-center">
-                    <NIcon size={11} class="mr-1"><GlobalOutlined /></NIcon>
+                    <NIcon :size="11" class="mr-1"><GlobalOutlined /></NIcon>
                     {{ log.ip || '内部操作' }}
                   </span>
                   <span class="text-xs text-slate-500">{{ formatTime(log.createdAt) }}</span>
@@ -106,7 +106,7 @@
                 :on-click="() => toggleExpand(log.id)"
                 class="ml-10"
               >
-                <NIcon size={12} class="mr-1">
+                <NIcon :size="12" class="mr-1">
                   <CaretDownOutlined v-if="!expandedIds.has(log.id)" />
                   <CaretUpOutlined v-else />
                 </NIcon>
@@ -151,7 +151,7 @@
 
         <div v-if="filteredLogs.length === 0" class="py-16 text-center -ml-8">
           <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
-            <NIcon size={36} color="#CBD5E1"><FileTextOutlined /></NIcon>
+            <NIcon :size="36" color="#CBD5E1"><FileTextOutlined /></NIcon>
           </div>
           <p class="text-slate-400">暂无符合条件的操作日志</p>
         </div>
@@ -197,7 +197,7 @@ const expandedIds = ref<Set<string>>(new Set())
 
 const pagination = reactive({ page: 1, pageSize: 10 })
 
-const userOptions: SelectOption[] = computed(() => {
+const userOptions = computed<SelectOption[]>(() => {
   const users = new Set(allLogs.value.map(l => l.userName))
   return Array.from(users).map(u => ({ label: u, value: u }))
 })
@@ -219,19 +219,19 @@ const actionText = (a: LogAction) => actionMap[a] || a
 const moduleText = (m: LogModule) => moduleMap[m] || m
 
 const moduleTagColor = (m: LogModule) => {
-  const map: Record<string, { type: any }> = {
-    auth: { type: 'info' as const },
-    knowledge: { type: 'success' as const },
-    template: { type: 'warning' as const },
-    prompt: { type: 'info' as const },
-    email: { type: 'default' as const },
-    review: { type: 'warning' as const },
-    risk: { type: 'error' as const },
-    user: { type: 'success' as const },
-    system: { type: 'info' as const },
-    analytics: { type: 'success' as const }
+  const map: Record<string, 'default' | 'success' | 'warning' | 'error' | 'info'> = {
+    auth: 'info',
+    knowledge: 'success',
+    template: 'warning',
+    prompt: 'info',
+    email: 'default',
+    review: 'warning',
+    risk: 'error',
+    user: 'success',
+    system: 'info',
+    analytics: 'success'
   }
-  return map[m] || { type: 'default' as const }
+  return map[m] || 'default'
 }
 
 const actionIcon = (a: LogAction) => {

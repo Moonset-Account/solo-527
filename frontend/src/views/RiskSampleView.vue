@@ -7,11 +7,11 @@
       </div>
       <div class="flex items-center space-x-2">
         <NTag :bordered="false" type="error" round>
-          <NIcon size={12} class="mr-1"><AlertTriangleOutlined /></NIcon>
+          <NIcon :size="12" class="mr-1"><WarningOutlined /></NIcon>
           待处理 {{ pendingCount }}
         </NTag>
         <NButton>
-          <NIcon size={14} class="mr-1.5"><DownloadOutlined /></NIcon>
+          <NIcon :size="14" class="mr-1.5"><DownloadOutlined /></NIcon>
           导出样本
         </NButton>
       </div>
@@ -51,9 +51,9 @@
                 <div class="flex items-center gap-2 min-w-0 flex-1 mr-2">
                   <NTag
                     size="small"
-                    round
+                    :round="true"
                     :bordered="false"
-                    :color="reasonTagColor(sample)"
+                    :type="reasonTagType(sample)"
                     class="!truncate"
                   >
                     {{ sample.riskType }}
@@ -108,7 +108,7 @@
 
       <div v-if="filteredSamples.length === 0" class="py-16 text-center">
         <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
-          <NIcon size={36} color="#CBD5E1"><SearchOutlined /></NIcon>
+          <NIcon :size="36" color="#CBD5E1"><SearchOutlined /></NIcon>
         </div>
         <p class="text-slate-400">没有符合条件的风险样本</p>
       </div>
@@ -125,118 +125,116 @@
     </NCard>
 
     <NDrawer v-model:show="drawerVisible" :width="720" placement="right" title="风险样本详情" :show-icon="false">
-      <template v-if="currentSample">
-        <div class="space-y-5">
-          <div class="flex items-start justify-between p-4 bg-slate-50 rounded-xl">
-            <div class="min-w-0 pr-4">
-              <h3 class="font-charter font-bold text-deep-blue-900 truncate mb-2">{{ currentSample.emailSubject }}</h3>
-              <div class="flex items-center gap-2 flex-wrap">
-                <StatusTag :status="currentSample.riskLevel" type="risk" size="small" />
-                <NTag size="small" round :bordered="false" type="warning">{{ currentSample.riskType }}</NTag>
-                <span class="text-xs text-slate-400">检测于 {{ formatFull(currentSample.detectedAt) }}</span>
+      <div v-if="currentSample" class="space-y-5">
+        <div class="flex items-start justify-between p-4 bg-slate-50 rounded-xl">
+          <div class="min-w-0 pr-4">
+            <h3 class="font-charter font-bold text-deep-blue-900 truncate mb-2">{{ currentSample.emailSubject }}</h3>
+            <div class="flex items-center gap-2 flex-wrap">
+              <StatusTag :status="currentSample.riskLevel" type="risk" size="small" />
+              <NTag size="small" :round="true" :bordered="false" type="warning">{{ currentSample.riskType }}</NTag>
+              <span class="text-xs text-slate-400">检测于 {{ formatFull(currentSample.detectedAt) }}</span>
+            </div>
+          </div>
+          <NTag
+            :bordered="false"
+            size="large"
+            :round="true"
+            :type="currentSample.handled ? 'success' : 'warning'"
+          >
+            {{ currentSample.handled ? '已处理' : '待处理' }}
+          </NTag>
+        </div>
+
+        <div>
+          <p class="text-xs text-slate-500 font-bold mb-2">风险描述</p>
+          <p class="text-sm text-slate-700 leading-relaxed p-4 bg-red-50/60 rounded-xl border border-red-100">
+            {{ currentSample.description }}
+          </p>
+        </div>
+
+        <div>
+          <p class="text-xs text-slate-500 font-bold mb-2">原始违规内容</p>
+          <NCode
+            :code="currentSample.originalContent"
+            language="text"
+            :trim="false"
+            word-wrap
+          />
+        </div>
+
+        <div v-if="currentSample.suggestedContent">
+          <p class="text-xs text-slate-500 font-bold mb-2">AI 建议的合规替换</p>
+          <NCode
+            :code="currentSample.suggestedContent"
+            language="text"
+            :trim="false"
+            word-wrap
+            class="!bg-emerald-50/60 !border !border-emerald-200"
+          />
+        </div>
+
+        <div v-if="sampleReviewRecord">
+          <p class="text-xs text-slate-500 font-bold mb-3">来源邮件信息</p>
+          <NCard embedded size="small">
+            <div class="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p class="text-xs text-slate-400">收件人</p>
+                <p class="text-slate-700 font-medium mt-0.5">{{ sampleReviewRecord.recipient }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-400">风险条目</p>
+                <p class="text-slate-700 font-medium mt-0.5">{{ sampleReviewRecord.riskItems?.length || 0 }} 项</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-400">生成人</p>
+                <p class="text-slate-700 font-medium mt-0.5">{{ getSalesName(sampleReviewRecord.generatedBy) }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-400">最终状态</p>
+                <StatusTag :status="sampleReviewRecord.status" type="email" size="small" />
               </div>
             </div>
-            <NTag
-              :bordered="false"
-              size="large"
-              round
-              :type="currentSample.handled ? 'success' : 'warning'"
+          </NCard>
+        </div>
+
+        <div>
+          <p class="text-xs text-slate-500 font-bold mb-3">处理历史</p>
+          <NTimeline>
+            <NTimelineItem type="warning" title="风险检测">
+              <div class="text-xs text-slate-500">{{ formatFull(currentSample.detectedAt) }}</div>
+              <div class="text-sm text-slate-700 mt-1">AI 风险检测引擎识别到 {{ currentSample.riskType }}</div>
+            </NTimelineItem>
+            <NTimelineItem
+              v-if="currentSample.handled"
+              type="success"
+              :title="currentSample.handlerComment ? '已处理' : '处理完成'"
             >
-              {{ currentSample.handled ? '已处理' : '待处理' }}
-            </NTag>
-          </div>
-
-          <div>
-            <p class="text-xs text-slate-500 font-bold mb-2">风险描述</p>
-            <p class="text-sm text-slate-700 leading-relaxed p-4 bg-red-50/60 rounded-xl border border-red-100">
-              {{ currentSample.description }}
-            </p>
-          </div>
-
-          <div>
-            <p class="text-xs text-slate-500 font-bold mb-2">原始违规内容</p>
-            <NCode
-              :code="currentSample.originalContent"
-              language="text"
-              :trim="false"
-              word-wrap
-            />
-          </div>
-
-          <div v-if="currentSample.suggestedContent">
-            <p class="text-xs text-slate-500 font-bold mb-2">AI 建议的合规替换</p>
-            <NCode
-              :code="currentSample.suggestedContent"
-              language="text"
-              :trim="false"
-              word-wrap
-              class="!bg-emerald-50/60 !border !border-emerald-200"
-            />
-          </div>
-
-          <div v-if="sampleReviewRecord">
-            <p class="text-xs text-slate-500 font-bold mb-3">来源邮件信息</p>
-            <NCard embedded size="small">
-              <div class="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p class="text-xs text-slate-400">收件人</p>
-                  <p class="text-slate-700 font-medium mt-0.5">{{ sampleReviewRecord.recipient }}</p>
-                </div>
-                <div>
-                  <p class="text-xs text-slate-400">风险条目</p>
-                  <p class="text-slate-700 font-medium mt-0.5">{{ sampleReviewRecord.riskItems?.length || 0 }} 项</p>
-                </div>
-                <div>
-                  <p class="text-xs text-slate-400">生成人</p>
-                  <p class="text-slate-700 font-medium mt-0.5">{{ getSalesName(sampleReviewRecord.generatedBy) }}</p>
-                </div>
-                <div>
-                  <p class="text-xs text-slate-400">最终状态</p>
-                  <StatusTag :status="sampleReviewRecord.status" type="email" size="small" />
-                </div>
+              <div class="text-xs text-slate-500">{{ currentSample.handledAt ? formatFull(currentSample.handledAt) : '' }}</div>
+              <div v-if="currentSample.handlerComment" class="text-sm text-slate-700 mt-1">
+                {{ currentSample.handlerComment }}
               </div>
-            </NCard>
-          </div>
-
-          <div>
-            <p class="text-xs text-slate-500 font-bold mb-3">处理历史</p>
-            <NTimeline>
-              <NTimelineItem type="warning" title="风险检测">
-                <div class="text-xs text-slate-500">{{ formatFull(currentSample.detectedAt) }}</div>
-                <div class="text-sm text-slate-700 mt-1">AI 风险检测引擎识别到 {{ currentSample.riskType }}</div>
-              </NTimelineItem>
-              <NTimelineItem
-                v-if="currentSample.handled"
-                type="success"
-                :title="currentSample.handlerComment ? '已处理' : '处理完成'"
-              >
-                <div class="text-xs text-slate-500">{{ currentSample.handledAt ? formatFull(currentSample.handledAt) : '' }}</div>
-                <div v-if="currentSample.handlerComment" class="text-sm text-slate-700 mt-1">
-                  {{ currentSample.handlerComment }}
-                </div>
-              </NTimelineItem>
-            </NTimeline>
+            </NTimelineItem>
+          </NTimeline>
+        </div>
+      </div>
+      <template #footer>
+        <div v-if="currentSample" class="flex justify-between items-center">
+          <NButton :disabled="currentSample.handled" type="warning" @click="markAsTraining(currentSample)">
+            <NIcon :size="14" class="mr-1.5"><BookOutlined /></NIcon>
+            标记为训练负例
+          </NButton>
+          <div class="flex items-center space-x-2">
+            <NButton @click="drawerVisible = false">关闭</NButton>
+            <NButton
+              v-if="!currentSample.handled"
+              type="primary"
+              @click="handleSample(currentSample)"
+            >
+              <NIcon :size="14" class="mr-1.5"><CheckOutlined /></NIcon>
+              标记处理完成
+            </NButton>
           </div>
         </div>
-        <template #footer>
-          <div class="flex justify-between items-center">
-            <NButton :disabled="currentSample.handled" type="warning" @click="markAsTraining(currentSample)">
-              <NIcon size={14} class="mr-1.5"><BookOutlined /></NIcon>
-              标记为训练负例
-            </NButton>
-            <div class="flex items-center space-x-2">
-              <NButton @click="drawerVisible = false">关闭</NButton>
-              <NButton
-                v-if="!currentSample.handled"
-                type="primary"
-                @click="handleSample(currentSample)"
-              >
-                <NIcon size={14} class="mr-1.5"><CheckOutlined /></NIcon>
-                标记处理完成
-              </NButton>
-            </div>
-          </div>
-        </template>
       </template>
     </NDrawer>
   </div>
@@ -250,7 +248,7 @@ import {
   type SelectOption
 } from 'naive-ui'
 import {
-  AlertTriangleOutlined, DownloadOutlined, SearchOutlined, BookOutlined, CheckOutlined
+  WarningOutlined, DownloadOutlined, SearchOutlined, BookOutlined, CheckOutlined
 } from '@vicons/antd'
 import StatusTag from '@/components/business/StatusTag.vue'
 import { usePageTitle } from '@/composables/usePageTitle'
@@ -335,10 +333,10 @@ function levelBarClass(level: RiskLevel) {
   }
 }
 
-function reasonTagColor(s: RiskSample) {
-  if (s.riskLevel === 'critical' || s.riskLevel === 'high') return { type: 'error' as const }
-  if (s.riskLevel === 'medium') return { type: 'warning' as const }
-  return { type: 'info' as const }
+function reasonTagType(s: RiskSample): 'error' | 'warning' | 'info' {
+  if (s.riskLevel === 'critical' || s.riskLevel === 'high') return 'error'
+  if (s.riskLevel === 'medium') return 'warning'
+  return 'info'
 }
 
 function formatDate(iso: string) {

@@ -6,7 +6,7 @@
     >
       <div class="h-16 flex items-center px-5 border-b border-white/10">
         <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-gold-400 to-amber-gold-600 flex items-center justify-center shadow-lg flex-shrink-0">
-          <NIcon size={20} color="#fff"><MailOutlined /></NIcon>
+          <NIcon :size="20" color="#fff"><MailOutlined /></NIcon>
         </div>
         <transition name="fade">
           <span v-if="!collapsed" class="ml-3 font-charter text-xl font-bold tracking-wide whitespace-nowrap">
@@ -61,7 +61,7 @@
               @click="handleLogout"
               class="mt-3 w-full flex items-center justify-center px-3 py-2 rounded-lg bg-white/5 hover:bg-red-500/20 text-white/70 hover:text-red-300 text-xs transition-all"
             >
-              <NIcon size={14} class="mr-1.5"><LogoutOutlined /></NIcon>
+              <NIcon :size="14" class="mr-1.5"><LogoutOutlined /></NIcon>
               退出登录
             </button>
           </transition>
@@ -78,7 +78,7 @@
           @click="toggleCollapsed"
           class="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-deep-blue-600 transition-all"
         >
-          <NIcon size={18}>
+          <NIcon :size="18">
             <MenuOutlined v-if="collapsed" />
             <MenuFoldOutlined v-else />
           </NIcon>
@@ -105,7 +105,7 @@
           <NPopover trigger="hover" placement="bottom-end">
             <template #trigger>
               <button class="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-deep-blue-600 transition-all relative">
-                <NIcon size={18}><BellOutlined /></NIcon>
+                <NIcon :size="18"><BellOutlined /></NIcon>
                 <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
               </button>
             </template>
@@ -145,7 +145,7 @@
                 <p class="text-sm font-medium text-slate-800 leading-tight">{{ user?.name }}</p>
                 <p class="text-xs text-slate-400 leading-tight">{{ user?.department }}</p>
               </div>
-              <NIcon size={14} class="ml-2 text-slate-400"><CaretDownOutlined /></NIcon>
+              <NIcon :size="14" class="ml-2 text-slate-400"><CaretDownOutlined /></NIcon>
             </button>
           </NDropdown>
         </div>
@@ -174,7 +174,7 @@ import {
   MessageOutlined,
   CodeOutlined,
   CheckCircleOutlined,
-  AlertTriangleOutlined,
+  WarningOutlined,
   BarChartOutlined,
   FileTextOutlined,
   MailOutlined,
@@ -211,7 +211,7 @@ const allMenuItems = [
   { path: '/templates', label: '话术版本中心', icon: MessageOutlined, roles: ['admin', 'reviewer', 'operator'] },
   { path: '/prompts', label: '提示词版本中心', icon: CodeOutlined, roles: ['admin'] },
   { path: '/reviews', label: '复核工作台', icon: CheckCircleOutlined, roles: ['admin', 'reviewer'], badge: '3' },
-  { path: '/risks', label: '风险样本库', icon: AlertTriangleOutlined, roles: ['admin', 'reviewer'] },
+  { path: '/risks', label: '风险样本库', icon: WarningOutlined, roles: ['admin', 'reviewer'] },
   { path: '/analytics', label: '统计分析看板', icon: BarChartOutlined, roles: ['admin'] },
   { path: '/logs', label: '操作日志', icon: FileTextOutlined, roles: ['admin'] }
 ]

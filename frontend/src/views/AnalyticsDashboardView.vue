@@ -7,142 +7,146 @@
       </div>
       <div class="flex items-center space-x-2">
         <NSelect v-model:value="timeRange" :options="rangeOptions" style="width: 160px" />
-        <NButton>
-          <NIcon size={14} class="mr-1.5"><ReloadOutlined /></NIcon>
+        <NButton @click="handleRefresh">
+          <NIcon :size="14" class="mr-1.5"><ReloadOutlined /></NIcon>
           刷新
         </NButton>
         <NButton type="primary">
-          <NIcon size={14} class="mr-1.5"><DownloadOutlined /></NIcon>
+          <NIcon :size="14" class="mr-1.5"><DownloadOutlined /></NIcon>
           导出报表
         </NButton>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-      <StatCard
-        title="总调用量（月）"
-        :value="analytics.totalCalls"
-        :mom="analytics.totalCallsMom"
-        :icon="BarChartOutlined"
-        :trend-data="analytics.callsTrend"
-        icon-bg-class="bg-deep-blue-50"
-        icon-color="#0B4F8C"
-      />
-      <StatCard
-        title="AI 命中率"
-        :value="analytics.hitRate"
-        suffix="%"
-        :show-progress="true"
-        progress-hint="模型识别准确率"
-        :mom="0.5"
-        :icon="TargetOutlined"
-        :use-gradient="true"
-        icon-bg-class="bg-emerald-50"
-        icon-color="#059669"
-      />
-      <StatCard
-        title="平均单次成本"
-        :value="analytics.avgCost"
-        suffix="元"
-        :mom="-3.2"
-        :icon="WalletOutlined"
-        icon-bg-class="bg-amber-gold-50"
-        icon-color="#D4A853"
-      />
-      <StatCard
-        title="驳回率"
-        :value="analytics.rejectionRate"
-        suffix="%"
-        :mom="-8.5"
-        :icon="ThunderboltOutlined"
-        icon-bg-class="bg-red-50"
-        icon-color="#DC2626"
-      />
-    </div>
+    <NSkeleton v-if="analytics.loading.value" :rounded="true" />
 
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
-      <NCard class="!rounded-2xl shadow-sm xl:col-span-1" size="large">
-        <template #header>
-          <div class="flex items-center">
-            <h3 class="font-charter font-bold text-deep-blue-900">成本拆解趋势</h3>
-          </div>
-        </template>
-        <template #header-extra>
-          <span class="text-xs text-slate-400">近 30 天</span>
-        </template>
-        <div class="h-72">
-          <v-chart :option="costStackOption" autoresize autoresize-root />
-        </div>
-      </NCard>
+    <template v-else>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+        <StatCard
+          title="总调用量（月）"
+          :value="analytics.summary.value.totalCalls"
+          :mom="analytics.summary.value.totalCallsMom"
+          :icon="BarChartOutlined"
+          :trend-data="analytics.buildMiniTrendData('calls')"
+          icon-bg-class="bg-deep-blue-50"
+          icon-color="#0B4F8C"
+        />
+        <StatCard
+          title="AI 命中率"
+          :value="analytics.summary.value.hitRate"
+          suffix="%"
+          :show-progress="true"
+          progress-hint="模型识别准确率"
+          :mom="analytics.summary.value.hitRateMom"
+          :icon="DashboardOutlined"
+          :use-gradient="true"
+          icon-bg-class="bg-emerald-50"
+          icon-color="#059669"
+        />
+        <StatCard
+          title="平均单次成本"
+          :value="analytics.summary.value.avgCost"
+          suffix="元"
+          :mom="analytics.summary.value.avgCostMom"
+          :icon="WalletOutlined"
+          icon-bg-class="bg-amber-gold-50"
+          icon-color="#D4A853"
+        />
+        <StatCard
+          title="驳回率"
+          :value="analytics.summary.value.rejectionRate"
+          suffix="%"
+          :mom="analytics.summary.value.rejectionRateMom"
+          :icon="ThunderboltOutlined"
+          icon-bg-class="bg-red-50"
+          icon-color="#DC2626"
+        />
+      </div>
 
-      <NCard class="!rounded-2xl shadow-sm xl:col-span-1" size="large">
-        <template #header>
-          <div class="flex items-center">
-            <h3 class="font-charter font-bold text-deep-blue-900">驳回原因分布</h3>
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <NCard class="!rounded-2xl shadow-sm xl:col-span-1" size="large">
+          <template #header>
+            <div class="flex items-center">
+              <h3 class="font-charter font-bold text-deep-blue-900">成本拆解趋势</h3>
+            </div>
+          </template>
+          <template #header-extra>
+            <span class="text-xs text-slate-400">近 30 天</span>
+          </template>
+          <div class="h-72">
+            <v-chart :option="costStackOption" autoresize autoresize-root />
           </div>
-        </template>
-        <template #header-extra>
-          <NTag type="warning" size="small" :bordered="false" round>南丁格尔玫瑰图</NTag>
-        </template>
-        <div class="h-72">
-          <v-chart :option="rejectPieOption" autoresize autoresize-root />
-        </div>
-      </NCard>
+        </NCard>
 
-      <NCard class="!rounded-2xl shadow-sm xl:col-span-1" size="large">
-        <template #header>
-          <div class="flex items-center">
-            <h3 class="font-charter font-bold text-deep-blue-900">各版本命中率</h3>
+        <NCard class="!rounded-2xl shadow-sm xl:col-span-1" size="large">
+          <template #header>
+            <div class="flex items-center">
+              <h3 class="font-charter font-bold text-deep-blue-900">驳回原因分布</h3>
+            </div>
+          </template>
+          <template #header-extra>
+            <NTag type="warning" size="small" :bordered="false" round>南丁格尔玫瑰图</NTag>
+          </template>
+          <div class="h-72">
+            <v-chart :option="rejectPieOption" autoresize autoresize-root />
           </div>
-        </template>
-        <template #header-extra>
-          <span class="text-xs text-slate-400">横向对比</span>
-        </template>
-        <div class="h-72">
-          <v-chart :option="versionBarOption" autoresize autoresize-root />
-        </div>
-      </NCard>
-    </div>
+        </NCard>
 
-    <div class="grid grid-cols-1 xl:grid-cols-5 gap-5">
-      <NCard class="!rounded-2xl shadow-sm xl:col-span-3" size="large">
-        <template #header>
-          <div class="flex items-center">
-            <h3 class="font-charter font-bold text-deep-blue-900">复核人员成本热力图</h3>
+        <NCard class="!rounded-2xl shadow-sm xl:col-span-1" size="large">
+          <template #header>
+            <div class="flex items-center">
+              <h3 class="font-charter font-bold text-deep-blue-900">各版本命中率</h3>
+            </div>
+          </template>
+          <template #header-extra>
+            <span class="text-xs text-slate-400">横向对比</span>
+          </template>
+          <div class="h-72">
+            <v-chart :option="versionBarOption" autoresize autoresize-root />
           </div>
-        </template>
-        <template #header-extra>
-          <span class="text-xs text-slate-400">近 14 天 · 单位：元</span>
-        </template>
-        <div class="h-72">
-          <v-chart :option="heatmapOption" autoresize autoresize-root />
-        </div>
-      </NCard>
+        </NCard>
+      </div>
 
-      <NCard class="!rounded-2xl shadow-sm xl:col-span-2" size="large">
-        <template #header>
-          <div class="flex items-center">
-            <h3 class="font-charter font-bold text-deep-blue-900">TOP 5 驳回原因</h3>
+      <div class="grid grid-cols-1 xl:grid-cols-5 gap-5">
+        <NCard class="!rounded-2xl shadow-sm xl:col-span-3" size="large">
+          <template #header>
+            <div class="flex items-center">
+              <h3 class="font-charter font-bold text-deep-blue-900">复核人员成本热力图</h3>
+            </div>
+          </template>
+          <template #header-extra>
+            <span class="text-xs text-slate-400">近 14 天 · 单位：元</span>
+          </template>
+          <div class="h-72">
+            <v-chart :option="heatmapOption" autoresize autoresize-root />
           </div>
-        </template>
-        <template #header-extra>
-          <span class="text-xs text-slate-400">气泡散点图</span>
-        </template>
-        <div class="h-72">
-          <v-chart :option="scatterOption" autoresize autoresize-root />
-        </div>
-      </NCard>
-    </div>
+        </NCard>
+
+        <NCard class="!rounded-2xl shadow-sm xl:col-span-2" size="large">
+          <template #header>
+            <div class="flex items-center">
+              <h3 class="font-charter font-bold text-deep-blue-900">TOP 5 驳回原因</h3>
+            </div>
+          </template>
+          <template #header-extra>
+            <span class="text-xs text-slate-400">气泡散点图</span>
+          </template>
+          <div class="h-72">
+            <v-chart :option="scatterOption" autoresize autoresize-root />
+          </div>
+        </NCard>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
-  NCard, NButton, NIcon, NSelect, NTag, type SelectOption
+  NCard, NButton, NIcon, NSelect, NTag, NSkeleton, type SelectOption
 } from 'naive-ui'
 import {
-  BarChartOutlined, TargetOutlined, WalletOutlined, ThunderboltOutlined,
+  BarChartOutlined, DashboardOutlined, WalletOutlined, ThunderboltOutlined,
   ReloadOutlined, DownloadOutlined
 } from '@vicons/antd'
 import VChart from 'vue-echarts'
@@ -177,9 +181,40 @@ const rangeOptions: SelectOption[] = [
   { label: '本年度', value: 'y' }
 ]
 
-const costStackArea = computed(() =>
-  analytics.buildCostStackAreaData(analytics.data.value.dailyStats, analytics.data.value.costStats)
-)
+function computeDateRange(range: string): { startDate?: string; endDate?: string } {
+  const end = new Date()
+  const start = new Date()
+  switch (range) {
+    case '7d':
+      start.setDate(start.getDate() - 7)
+      break
+    case '30d':
+      start.setDate(start.getDate() - 30)
+      break
+    case 'q':
+      start.setMonth(Math.floor(start.getMonth() / 3) * 3, 1)
+      break
+    case 'y':
+      start.setMonth(0, 1)
+      break
+    default:
+      start.setDate(start.getDate() - 30)
+  }
+  return {
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10)
+  }
+}
+
+function handleRefresh() {
+  analytics.loadAll(computeDateRange(timeRange.value))
+}
+
+watch(timeRange, (val) => {
+  analytics.loadAll(computeDateRange(val))
+})
+
+const costStackArea = computed(() => analytics.buildCostStackAreaData())
 const costStackOption = computed(() => ({
   tooltip: { trigger: 'axis', axisPointer: { type: 'cross', label: { backgroundColor: '#6a7985' } } },
   legend: {
@@ -190,7 +225,7 @@ const costStackOption = computed(() => ({
   xAxis: {
     type: 'category',
     boundaryGap: false,
-    data: costStackArea.value.dates.map((d: string) => d.slice(5)),
+    data: costStackArea.value.dates,
     axisLabel: { color: '#94a3b8', fontSize: 10 }
   },
   yAxis: { type: 'value', axisLabel: { color: '#94a3b8', fontSize: 10 } },
@@ -203,11 +238,13 @@ const costStackOption = computed(() => ({
       showSymbol: false,
       lineStyle: { width: 0 },
       areaStyle: {
-        color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+        color: {
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
           colorStops: [
             { offset: 0, color: 'rgba(5,150,105,0.7)' },
             { offset: 1, color: 'rgba(5,150,105,0.05)' }
-          ] }
+          ]
+        }
       },
       emphasis: { focus: 'series' },
       data: costStackArea.value.approved
@@ -220,11 +257,13 @@ const costStackOption = computed(() => ({
       showSymbol: false,
       lineStyle: { width: 0 },
       areaStyle: {
-        color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+        color: {
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
           colorStops: [
             { offset: 0, color: 'rgba(220,38,38,0.55)' },
             { offset: 1, color: 'rgba(220,38,38,0.05)' }
-          ] }
+          ]
+        }
       },
       data: costStackArea.value.rejected
     },
@@ -236,11 +275,13 @@ const costStackOption = computed(() => ({
       showSymbol: false,
       lineStyle: { width: 2, color: '#0B4F8C' },
       areaStyle: {
-        color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+        color: {
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
           colorStops: [
             { offset: 0, color: 'rgba(11,79,140,0.35)' },
             { offset: 1, color: 'rgba(11,79,140,0.02)' }
-          ] }
+          ]
+        }
       },
       data: costStackArea.value.used
     }

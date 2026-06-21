@@ -6,7 +6,7 @@
         <p class="mt-1 text-sm text-slate-500">维护合规政策、产品介绍、话术文档等知识条目</p>
       </div>
       <NButton type="primary" size="medium" @click="openDrawer()">
-        <NIcon size={16} class="mr-1.5"><PlusOutlined /></NIcon>
+        <NIcon :size="16" class="mr-1.5"><PlusOutlined /></NIcon>
         新增条目
       </NButton>
     </div>
@@ -20,7 +20,7 @@
         <NSelect v-model:value="filterStatus" :options="statusOptions" placeholder="状态筛选" clearable />
         <div class="flex items-center space-x-2">
           <NButton quaternary @click="resetFilters">
-            <NIcon size={14} class="mr-1"><ReloadOutlined /></NIcon>
+            <NIcon :size="14" class="mr-1"><ReloadOutlined /></NIcon>
             重置
           </NButton>
         </div>
@@ -126,7 +126,10 @@ const statusOptions: SelectOption[] = [
   { label: '已归档', value: 'archived' }
 ]
 
-const categoryText = (v: KnowledgeCategory) => categoryOptions.find(o => o.value === v)?.label || v
+const categoryText = (v: KnowledgeCategory): string => {
+  const opt = categoryOptions.find(o => o.value === v)
+  return opt ? (String(opt.label ?? '')) : v
+}
 
 const allData = ref<KnowledgeBase[]>([...mockKnowledge])
 
@@ -162,13 +165,13 @@ const columns: DataTableColumns<KnowledgeBase> = [
     key: 'tags',
     minWidth: 200,
     render: (row) => h('div', { class: 'flex flex-wrap gap-1 max-w-[320px]' },
-      row.tags.slice(0, 4).map(t => h(NTag, { key: t, size: 'tiny', round, type: 'info', bordered: false }, { default: () => t })).concat(
-        row.tags.length > 4 ? [h(NTag, { key: 'more', size: 'tiny', round, type: 'default', bordered: false }, { default: () => `+${row.tags.length - 4}` })] : []
+      row.tags.slice(0, 4).map(t => h(NTag, { key: t, size: 'tiny', round: true, type: 'info', bordered: false }, { default: () => t })).concat(
+        row.tags.length > 4 ? [h(NTag, { key: 'more', size: 'tiny', round: true, type: 'default', bordered: false }, { default: () => `+${row.tags.length - 4}` })] : []
       )
     )
   },
   { title: '状态', key: 'status', width: 100, render: (row) => h(StatusTag, { status: row.status, type: 'knowledge', size: 'small' }) },
-  { title: '版本', key: 'version', width: 80, render: (row) => h(NTag, { size: 'tiny', type: 'success', round, bordered: false }, { default: () => `v${row.version}` }) },
+  { title: '版本', key: 'version', width: 80, render: (row) => h(NTag, { size: 'tiny', type: 'success', round: true, bordered: false }, { default: () => `v${row.version}` }) },
   { title: '创建人', key: 'createdBy', width: 110, render: (row) => h('span', { class: 'text-sm text-slate-600' }, getCreatorName(row.createdBy)) },
   {
     title: '创建时间',

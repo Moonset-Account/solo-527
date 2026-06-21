@@ -3,6 +3,17 @@ import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import type { ApiResponse } from '@/types'
 
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    showLoading?: boolean
+    loadingText?: string
+  }
+  interface AxiosRequestConfig {
+    showLoading?: boolean
+    loadingText?: string
+  }
+}
+
 const service: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 30000,
@@ -21,7 +32,7 @@ service.interceptors.request.use(
     }
 
     if (config.showLoading !== false) {
-      appStore.setLoading(true, (config as { loadingText?: string }).loadingText || '加载中...')
+      appStore.setLoading(true, config.loadingText || '加载中...')
     }
 
     return config
@@ -53,7 +64,7 @@ service.interceptors.response.use(
       return Promise.reject(new Error(message))
     }
 
-    return res as unknown as AxiosResponse
+    return res.data as unknown as AxiosResponse
   },
   (error) => {
     const appStore = useAppStore()

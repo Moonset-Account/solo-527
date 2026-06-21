@@ -4,13 +4,13 @@
   >
     <NTag
       :bordered="false"
-      :color="tagColor"
+      :type="tagType"
       class="cursor-pointer transition-all hover:shadow-md hover:scale-[1.02]"
       round
       size="medium"
     >
       <div class="flex items-center">
-        <NIcon size={14} class="mr-1.5 opacity-80">
+        <NIcon :size="14" class="mr-1.5 opacity-80">
           <FileTextOutlined />
         </NIcon>
         <span class="font-medium text-sm">{{ source.title }}</span>
@@ -81,10 +81,10 @@ defineEmits<{
 
 const similarityPercent = computed(() => Math.round(props.similarity * 100))
 
-const tagColor = computed(() => {
+const tagType = computed(() => {
   const s = props.similarity
-  if (s >= 0.9) return { type: 'success' as const }
-  if (s >= 0.75) return { type: 'warning' as const }
-  return { type: 'info' as const }
+  if (s >= 0.9) return 'success' as const
+  if (s >= 0.75) return 'warning' as const
+  return 'info' as const
 })
 </script>

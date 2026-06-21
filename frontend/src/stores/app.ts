@@ -59,6 +59,7 @@ export const useAppStore = defineStore('app', () => {
     toggleDark,
     toggleCollapsed,
     setLoading,
-    setLocale
+    setLocale,
+    restoreFromStorage
   }
 })

@@ -17,17 +17,17 @@
       </p>
       <div class="flex items-center justify-center gap-3 flex-wrap">
         <NButton type="primary" size="large" @click="goHome">
-          <NIcon size={16} class="mr-1.5"><HomeOutlined /></NIcon>
+          <NIcon :size="16" class="mr-1.5"><HomeOutlined /></NIcon>
           返回工作台
         </NButton>
         <NButton size="large" @click="goBack">
-          <NIcon size={16} class="mr-1.5"><ArrowLeftOutlined /></NIcon>
+          <NIcon :size="16" class="mr-1.5"><ArrowLeftOutlined /></NIcon>
           返回上一页
         </NButton>
       </div>
       <div class="mt-10 p-5 bg-white rounded-2xl shadow-sm border border-slate-100 text-left">
         <p class="text-xs text-slate-400 font-bold mb-3 flex items-center">
-          <NIcon size={12} class="mr-1"><InfoCircleOutlined /></NIcon>
+          <NIcon :size="12" class="mr-1"><InfoCircleOutlined /></NIcon>
           您可以尝试：
         </p>
         <ul class="text-sm text-slate-600 space-y-2">

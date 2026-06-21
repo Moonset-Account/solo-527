@@ -3,12 +3,12 @@
     :bordered="false"
     :type="tagType"
     :color="customColor"
-    round
+    :round="true"
     :size="size"
     class="font-medium"
   >
-    <template v-if="icon" #icon>
-      <NIcon :size="size === 'small' ? 12 : 14">
+    <template #icon>
+      <NIcon v-if="icon" :size="size === 'small' ? 12 : 14">
         <component :is="icon" />
       </NIcon>
     </template>
@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { computed, type Component } from 'vue'
-import { NTag, NIcon } from 'naive-ui'
+import { NTag, NIcon, type TagColor } from 'naive-ui'
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
@@ -31,6 +31,8 @@ import {
 } from '@vicons/antd'
 import type { EmailStatus, RiskLevel } from '@/types'
 
+type TagType = 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error'
+
 interface Props {
   status: string
   type?: 'email' | 'risk' | 'knowledge' | 'template' | 'prompt'
@@ -42,59 +44,63 @@ const props = withDefaults(defineProps<Props>(), {
   size: 'medium'
 })
 
-const emailConfig: Record<EmailStatus, { text: string; icon: Component; type: any; color?: any }> = {
-  draft: { text: '草稿', icon: FileTextOutlined, type: 'default' },
-  ai_generated: { text: 'AI生成', icon: ThunderboltOutlined, type: 'info' },
-  pending_review: { text: '待复核', icon: ClockCircleOutlined, type: 'warning' },
-  approved: { text: '已通过', icon: CheckCircleOutlined, type: 'success' },
-  sent: { text: '已发送', icon: SendOutlined, type: 'success', color: { type: 'info' as const } },
-  rejected: { text: '已驳回', icon: CloseCircleOutlined, type: 'error' }
+interface ConfigItem { text: string; icon: Component; tagType?: TagType; color?: TagColor | string }
+
+const emailConfig: Record<EmailStatus, ConfigItem> = {
+  draft: { text: '草稿', icon: FileTextOutlined, tagType: 'default' },
+  ai_generated: { text: 'AI生成', icon: ThunderboltOutlined, tagType: 'info' },
+  pending_review: { text: '待复核', icon: ClockCircleOutlined, tagType: 'warning' },
+  approved: { text: '已通过', icon: CheckCircleOutlined, tagType: 'success' },
+  sent: { text: '已发送', icon: SendOutlined, tagType: 'info' },
+  rejected: { text: '已驳回', icon: CloseCircleOutlined, tagType: 'error' }
 }
 
-const riskConfig: Record<RiskLevel, { text: string; icon: Component; color: any }> = {
-  none: { text: '无风险', icon: CheckCircleOutlined, color: { type: 'success' as const } },
-  low: { text: '低风险', icon: WarningOutlined, color: { type: 'info' as const } },
-  medium: { text: '中风险', icon: WarningOutlined, color: { type: 'warning' as const } },
-  high: { text: '高风险', icon: WarningOutlined, color: { type: 'error' as const } },
-  critical: { text: '严重风险', icon: WarningOutlined, color: { color: { text: '#fff', border: '#DC2626', close: '#fff' }, value: 'rgba(220,38,38,0.9)' } }
-}
-
-const knowledgeConfig: Record<string, { text: string; icon: Component; type: any }> = {
-  active: { text: '启用中', icon: CheckCircleOutlined, type: 'success' },
-  draft: { text: '草稿', icon: FileTextOutlined, type: 'default' },
-  archived: { text: '已归档', icon: SyncOutlined, type: 'info' },
-  testing: { text: '测试中', icon: SyncOutlined, type: 'warning' },
-  deprecated: { text: '已废弃', icon: CloseCircleOutlined, type: 'error' }
-}
-
-const tagType = computed(() => {
-  if (props.type === 'email') return emailConfig[props.status as EmailStatus]?.type || 'default'
-  return undefined
-})
-
-const customColor = computed(() => {
-  if (props.type === 'risk') return riskConfig[props.status as RiskLevel]?.color
-  if (props.type === 'email' && emailConfig[props.status as EmailStatus]?.color) {
-    return emailConfig[props.status as EmailStatus].color
+const riskConfig: Record<RiskLevel, ConfigItem> = {
+  none: { text: '无风险', icon: CheckCircleOutlined, tagType: 'success' },
+  low: { text: '低风险', icon: WarningOutlined, tagType: 'info' },
+  medium: { text: '中风险', icon: WarningOutlined, tagType: 'warning' },
+  high: { text: '高风险', icon: WarningOutlined, tagType: 'error' },
+  critical: {
+    text: '严重风险',
+    icon: WarningOutlined,
+    color: '#DC2626'
   }
-  if (props.type === 'knowledge') return knowledgeConfig[props.status]?.type
-  if (props.type === 'template' || props.type === 'prompt') return knowledgeConfig[props.status]?.type
-  return undefined
+}
+
+const knowledgeConfig: Record<string, ConfigItem> = {
+  active: { text: '启用中', icon: CheckCircleOutlined, tagType: 'success' },
+  draft: { text: '草稿', icon: FileTextOutlined, tagType: 'default' },
+  archived: { text: '已归档', icon: SyncOutlined, tagType: 'info' },
+  testing: { text: '测试中', icon: SyncOutlined, tagType: 'warning' },
+  deprecated: { text: '已废弃', icon: CloseCircleOutlined, tagType: 'error' }
+}
+
+function resolveConfig(): ConfigItem | undefined {
+  const s = props.status
+  switch (props.type) {
+    case 'email': return emailConfig[s as EmailStatus]
+    case 'risk': return riskConfig[s as RiskLevel]
+    case 'knowledge':
+    case 'template':
+    case 'prompt':
+      return knowledgeConfig[s]
+    default: return undefined
+  }
+}
+
+const tagType = computed<TagType | undefined>(() => {
+  return resolveConfig()?.tagType
 })
 
-const icon = computed(() => {
-  if (props.type === 'email') return emailConfig[props.status as EmailStatus]?.icon
-  if (props.type === 'risk') return riskConfig[props.status as RiskLevel]?.icon
-  if (props.type === 'knowledge') return knowledgeConfig[props.status]?.icon
-  if (props.type === 'template' || props.type === 'prompt') return knowledgeConfig[props.status]?.icon
-  return undefined
+const customColor = computed<TagColor | string | undefined>(() => {
+  return resolveConfig()?.color
 })
 
-const displayText = computed(() => {
-  if (props.type === 'email') return emailConfig[props.status as EmailStatus]?.text || props.status
-  if (props.type === 'risk') return riskConfig[props.status as RiskLevel]?.text || props.status
-  if (props.type === 'knowledge') return knowledgeConfig[props.status]?.text || props.status
-  if (props.type === 'template' || props.type === 'prompt') return knowledgeConfig[props.status]?.text || props.status
-  return props.status
+const icon = computed<Component | undefined>(() => {
+  return resolveConfig()?.icon
+})
+
+const displayText = computed<string>(() => {
+  return resolveConfig()?.text || props.status
 })
 </script>

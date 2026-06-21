@@ -8,7 +8,7 @@
       <div class="flex items-center space-x-2">
         <NSelect v-model:value="diffMode" :options="diffOptions" placeholder="Diff对比" style="width: 200px" clearable @update:value="handleDiffChange" />
         <NButton type="primary" @click="openNewVersion">
-          <NIcon size={16} class="mr-1.5"><PlusOutlined /></NIcon>
+          <NIcon :size="16" class="mr-1.5"><PlusOutlined /></NIcon>
           创建新版本
         </NButton>
       </div>
@@ -19,10 +19,10 @@
         <div class="p-4 border-b border-slate-100">
           <p class="text-sm font-medium text-slate-600 mb-3">话术模板列表 ({{ templates.length }})</p>
           <NInput v-model:value="searchKeyword" size="small" placeholder="搜索模板名称..." clearable>
-            <template #prefix><NIcon size={14}><SearchOutlined /></NIcon></template>
+            <template #prefix><NIcon :size="14"><SearchOutlined /></NIcon></template>
           </NInput>
         </div>
-        <NList bordered={false} class="!p-0">
+        <NList :bordered="false" class="!p-0">
           <NListItem
             v-for="t in filteredTemplates"
             :key="t.id"
@@ -41,73 +41,66 @@
                 </NIcon>
               </div>
             </template>
-            <NListItemMeta>
-              <template #title>
-                <div class="flex items-center justify-between w-full">
-                  <span class="font-medium text-sm text-slate-800 truncate">{{ t.name }}</span>
-                  <StatusTag v-if="selectedId === t.id" :status="t.status" type="template" size="small" />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between w-full">
+                <span class="font-medium text-sm text-slate-800 truncate">{{ t.name }}</span>
+                <StatusTag v-if="selectedId === t.id" :status="t.status" type="template" size="small" />
+              </div>
+              <div class="mt-1.5 flex items-center justify-between w-full">
+                <div class="flex items-center space-x-2">
+                  <NTag size="tiny" :bordered="false" type="info" :round="true">{{ categoryText(t.category) }}</NTag>
+                  <span class="text-xs text-slate-400">v{{ t.version }}</span>
                 </div>
-              </template>
-              <template #description>
-                <div class="mt-1.5 flex items-center justify-between w-full">
-                  <div class="flex items-center space-x-2">
-                    <NTag size="tiny" :bordered="false" type="info" round>{{ categoryText(t.category) }}</NTag>
-                    <span class="text-xs text-slate-400">v{{ t.version }}</span>
-                  </div>
-                </div>
-                <p class="text-xs text-slate-400 mt-1.5 truncate">{{ t.description }}</p>
-              </template>
-            </NListItemMeta>
+              </div>
+              <p class="text-xs text-slate-400 mt-1.5 truncate">{{ t.description }}</p>
+            </div>
           </NListItem>
         </NList>
       </NCard>
 
       <NCard class="!rounded-2xl shadow-sm xl:col-span-2" size="large">
+        <template #header>
+          <div v-if="selected" class="flex items-center justify-between w-full pr-4">
+            <div>
+              <h3 class="font-charter font-bold text-lg text-deep-blue-900">{{ selected.name }}</h3>
+              <div class="flex items-center space-x-3 mt-1">
+                <StatusTag :status="selected.status" type="template" size="small" />
+                <span class="text-xs text-slate-400">v{{ selected.version }}</span>
+                <span class="text-xs text-slate-400">· {{ categoryText(selected.category) }}</span>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2">
+              <NButton v-if="selected.status !== 'active'" size="small" type="success" @click="publishVersion">
+                <NIcon :size="14" class="mr-1"><CloudUploadOutlined /></NIcon>
+                发布
+              </NButton>
+              <NButton v-else size="small" type="warning" @click="rollbackVersion">
+                <NIcon :size="14" class="mr-1"><RollbackOutlined /></NIcon>
+                回滚
+              </NButton>
+              <NButton size="small" @click="openNewVersion(selected)">
+                <NIcon :size="14" class="mr-1"><CopyOutlined /></NIcon>
+                新建版本
+              </NButton>
+            </div>
+          </div>
+          <h3 v-else class="font-charter font-bold text-lg text-deep-blue-900">话术详情</h3>
+        </template>
+
+        <template #header-extra>
+          <div v-if="selected" class="flex items-center pr-4">
+            <label class="text-xs text-slate-500 mr-2 whitespace-nowrap">灰度比例</label>
+            <NSlider v-model:value="grayPercent" :min="0" :max="100" class="!w-32" />
+            <span class="ml-2 text-xs font-medium text-deep-blue-600 w-10 text-right">{{ grayPercent }}%</span>
+          </div>
+        </template>
+
         <template v-if="selected">
-          <template #header>
-            <div class="flex items-center justify-between w-full pr-4">
-              <div>
-                <h3 class="font-charter font-bold text-lg text-deep-blue-900">{{ selected.name }}</h3>
-                <div class="flex items-center space-x-3 mt-1">
-                  <StatusTag :status="selected.status" type="template" size="small" />
-                  <span class="text-xs text-slate-400">v{{ selected.version }}</span>
-                  <span class="text-xs text-slate-400">· {{ categoryText(selected.category) }}</span>
-                </div>
-              </div>
-              <div class="flex items-center space-x-2">
-                <template v-if="selected.status !== 'active'">
-                  <NButton size="small" type="success" @click="publishVersion">
-                    <NIcon size={14} class="mr-1"><CloudUploadOutlined /></NIcon>
-                    发布
-                  </NButton>
-                </template>
-                <template v-else>
-                  <NButton size="small" type="warning" @click="rollbackVersion">
-                    <NIcon size={14} class="mr-1"><RollbackOutlined /></NIcon>
-                    回滚
-                  </NButton>
-                </template>
-                <NButton size="small" @click="openNewVersion(selected)">
-                  <NIcon size={14} class="mr-1"><CopyOutlined /></NIcon>
-                  新建版本
-                </NButton>
-              </div>
-            </div>
-          </template>
-
-          <template #header-extra>
-            <div class="flex items-center pr-4">
-              <label class="text-xs text-slate-500 mr-2 whitespace-nowrap">灰度比例</label>
-              <NSlider v-model:value="grayPercent" :min="0" :max="100" class="!w-32" />
-              <span class="ml-2 text-xs font-medium text-deep-blue-600 w-10 text-right">{{ grayPercent }}%</span>
-            </div>
-          </template>
-
           <div v-if="diffMode" class="space-y-4">
             <div class="bg-slate-50 rounded-xl px-4 py-2.5 flex items-center justify-between">
               <span class="text-sm text-slate-500">
                 对比：<span class="font-medium text-slate-700">v{{ selected.version }}</span>
-                <NIcon size={12} class="mx-2"><SwapOutlined /></NIcon>
+                <NIcon :size="12" class="mx-2"><SwapOutlined /></NIcon>
                 <span class="font-medium text-slate-700">v{{ diffMode }}</span>
               </span>
               <NButton size="tiny" quaternary @click="diffMode = null">退出对比</NButton>
@@ -131,7 +124,7 @@
                   v-for="v in (selected.variables.length > 0 ? selected.variables : ['无变量'])"
                   :key="v"
                   size="small"
-                  round
+                  :round="true"
                   :type="selected.variables.length > 0 ? 'warning' : 'default'"
                   :bordered="false"
                 >
@@ -152,7 +145,7 @@
                       <p class="text-sm font-medium text-slate-800">
                         v{{ v.version }}
                         <span v-if="idx === 0" class="ml-2">
-                          <NTag size="tiny" type="success" :bordered="false" round>当前版本</NTag>
+                          <NTag size="tiny" type="success" :bordered="false" :round="true">当前版本</NTag>
                         </span>
                       </p>
                       <p class="text-xs text-slate-400 mt-1">{{ formatDate(v.createdAt) }} · {{ getCreatorName(v.createdBy) }}</p>
@@ -169,7 +162,7 @@
         </template>
         <div v-else class="py-20 text-center">
           <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
-            <NIcon size={36} color="#CBD5E1"><FileTextOutlined /></NIcon>
+            <NIcon :size="36" color="#CBD5E1"><FileTextOutlined /></NIcon>
           </div>
           <p class="text-slate-400">请选择左侧的话术模板查看详情</p>
         </div>
@@ -217,7 +210,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, h } from 'vue'
 import {
-  NCard, NButton, NIcon, NInput, NList, NListItem, NListItemMeta, NTag,
+  NCard, NButton, NIcon, NInput, NList, NListItem, NTag,
   NDrawer, NForm, NFormItem, NDynamicTags, NSelect, NSlider,
   NTimeline, NTimelineItem, useMessage, useDialog, type SelectOption
 } from 'naive-ui'
@@ -253,7 +246,7 @@ const categoryMap: Record<string, string> = {
 }
 const categoryText = (v: string) => categoryMap[v] || v
 const categorySelectOptions: SelectOption[] = Object.entries(categoryMap).map(([value, label]) => ({ label, value }))
-const diffOptions: SelectOption[] = computed(() => {
+const diffOptions = computed<SelectOption[]>(() => {
   if (!selected.value) return []
   const cur = versions.value
   return cur.slice(1).map(v => ({ label: `对比 v${v.version}`, value: v.version }))

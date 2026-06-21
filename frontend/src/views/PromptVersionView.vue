@@ -6,7 +6,7 @@
         <p class="mt-1 text-sm text-slate-500">管理大模型提示词的版本迭代、发布与灰度策略</p>
       </div>
       <NButton type="primary" @click="openDrawer()">
-        <NIcon size={16} class="mr-1.5"><PlusOutlined /></NIcon>
+        <NIcon :size="16" class="mr-1.5"><PlusOutlined /></NIcon>
         创建新版本
       </NButton>
     </div>
@@ -21,7 +21,7 @@
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 mb-2">
             <NTag type="warning" size="large" round :bordered="false" class="!px-3 !py-1.5">
-              <NIcon size={14} class="mr-1"><StarOutlined /></NIcon>
+              <NIcon :size="14" class="mr-1"><StarOutlined /></NIcon>
               当前生效版本
             </NTag>
             <NTag type="info" size="small" round :bordered="false">{{ active?.model }}</NTag>
@@ -228,7 +228,7 @@ const StatItem = defineComponent({
 const columns: DataTableColumns<PromptVersion> = [
   { title: '版本号', key: 'version', width: 110, render: (row) => h('span', { class: 'font-mono font-bold text-deep-blue-700' }, `v${row.version}`) },
   { title: '名称', key: 'name', width: 200, ellipsis: { tooltip: true }, render: (row) => h('span', { class: 'font-medium text-slate-800' }, row.name) },
-  { title: '模型', key: 'model', width: 130, render: (row) => h(NTag, { size: 'small', type: 'info', round, bordered: false }, { default: () => row.model }) },
+  { title: '模型', key: 'model', width: 130, render: (row) => h(NTag, { size: 'small', type: 'info', round: true, bordered: false }, { default: () => row.model }) },
   { title: '状态', key: 'status', width: 100, render: (row) => h(StatusTag, { status: row.status, type: 'prompt', size: 'small' }) },
   {
     title: '准确率',

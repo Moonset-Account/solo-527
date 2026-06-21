@@ -223,7 +223,7 @@ export interface AnalyticsData {
 }
 
 export type LogAction = 'login' | 'logout' | 'create' | 'update' | 'delete' | 'approve' | 'reject' | 'generate' | 'send' | 'review' | 'export'
-export type LogModule = 'auth' | 'knowledge' | 'template' | 'prompt' | 'email' | 'review' | 'risk' | 'user' | 'system'
+export type LogModule = 'auth' | 'knowledge' | 'template' | 'prompt' | 'email' | 'review' | 'risk' | 'user' | 'analytics' | 'system'
 
 export interface OperationLog {
   id: string

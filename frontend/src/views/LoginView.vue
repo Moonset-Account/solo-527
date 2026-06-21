@@ -9,7 +9,7 @@
         <div class="absolute -bottom-20 -left-20 w-56 h-56 rounded-full bg-deep-blue-400/20 blur-2xl"></div>
         <div class="relative z-10">
           <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-amber-gold-400 to-amber-gold-600 flex items-center justify-center shadow-xl mb-4">
-            <NIcon size={32} color="#0B4F8C"><MailOutlined /></NIcon>
+            <NIcon :size="32" color="#0B4F8C"><MailOutlined /></NIcon>
           </div>
           <h1 class="font-charter text-2xl font-bold text-white tracking-wide">
             销售邮件知识检索助手
@@ -54,7 +54,7 @@
 
         <div class="mb-5">
           <p class="text-xs text-slate-400 mb-2.5 flex items-center">
-            <NIcon size={12} class="mr-1"><InfoCircleOutlined /></NIcon>
+            <NIcon :size="12" class="mr-1"><InfoCircleOutlined /></NIcon>
             选择测试账号快速登录：
           </p>
           <NRadioGroup v-model:value="selectedPreset" @update:value="applyPreset">
@@ -93,7 +93,7 @@
           @click="handleSubmit"
         >
           <span class="flex items-center justify-center">
-            <NIcon size={16} class="mr-2"><LoginOutlined /></NIcon>
+            <NIcon :size="16" class="mr-2"><LoginOutlined /></NIcon>
             登 录
           </span>
         </NButton>
