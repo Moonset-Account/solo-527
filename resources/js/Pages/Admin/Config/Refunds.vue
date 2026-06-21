@@ -43,11 +43,11 @@
         <div class="flex flex-wrap items-center gap-2 mb-4">
           <div v-for="(cfg, key) in quickFilters" :key="key"
                @click="setFilter('status', filters.status === key ? null : key)"
-               :class="['px-4 py-1.5 rounded-full text-sm font-medium cursor-pointer transition-all",
+               :class="['px-4 py-1.5 rounded-full text-sm font-medium cursor-pointer transition-all',
                  filters.status === key ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' :
                  'bg-gray-100 text-gray-700 hover:bg-gray-200']">
             {{ cfg.label }}
-            <span :class="['ml-1.5 text-xs', filters.status === key ? 'text-indigo-200' : 'text-gray-500']">({{ cfg.count })</span>
+            <span :class="['ml-1.5 text-xs', filters.status === key ? 'text-indigo-200' : 'text-gray-500']">({{ cfg.count }})</span>
           </div>
         </div>
 
@@ -209,11 +209,14 @@ const quickFilters = vueComputed(() => ({
   rejected: { label: '已拒绝', count: props.stats.rejected },
 }));
 
-const modalTitle = vueComputed(() => ({
-  approve: '审核退款申请',
-  process: '执行退款',
-  complete: '完成退款'
-}[currentAction.value] || '处理');
+const modalTitle = vueComputed(() => {
+  const map = {
+    approve: '审核退款申请',
+    process: '执行退款',
+    complete: '完成退款'
+  };
+  return map[currentAction.value] || '处理';
+});
 
 function applyFilters() {
   router.visit(route('admin.config.refunds.index'), { data: localFilters, preserveState: true });

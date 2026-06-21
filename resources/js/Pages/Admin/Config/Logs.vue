@@ -97,7 +97,7 @@
                       l.method === 'POST' ? 'bg-green-100 text-green-700' :
                       l.method === 'PUT' || l.method === 'PATCH' ? 'bg-amber-100 text-amber-700' :
                       'bg-red-100 text-red-700'
-                    ]]">{{ l.method }}</span>
+                    ]">{{ l.method }}</span>
                   </div>
                   <div v-if="l.ip" class="text-gray-500 mt-1 font-mono">{{ l.ip }}</div>
                 </td>

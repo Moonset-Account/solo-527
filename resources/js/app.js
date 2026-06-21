@@ -3,7 +3,7 @@ import { createInertiaApp } from '@inertiajs/vue3'
 import { createPinia } from 'pinia'
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
 import Layout from './Components/Layout.vue'
-import './css/app.css'
+import '../css/app.css'
 
 createInertiaApp({
     title: (title) => `${title} - ${window.appName || '行业峰会复盘看板'}`,
