@@ -295,11 +295,9 @@ function UploadModal({ onClose, onSuccess }) {
                   value={formData.type}
                   onChange={e => setFormData({ ...formData, type: e.target.value })}
                 >
-                  <option value="image">图片</option>
-                  <option value="video">视频</option>
-                  <option value="audio">音频</option>
-                  <option value="document">文档</option>
-                  <option value="other">其他</option>
+                  {typeOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
                 </select>
               </div>
               <div className="form-group">

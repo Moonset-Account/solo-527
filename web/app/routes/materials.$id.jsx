@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "@remix-run/react";
 import { api } from "~/utils/api";
+import { useDictionary } from "~/utils/useDictionary";
 import dayjs from "dayjs";
 
 export default function MaterialDetail() {
@@ -16,6 +17,8 @@ export default function MaterialDetail() {
   const [activeTab, setActiveTab] = useState("info");
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
+
+  const { options: typeOptions, getLabel: getTypeLabelDict } = useDictionary("material_type");
 
   useEffect(() => {
     loadMaterial();
@@ -139,7 +142,7 @@ export default function MaterialDetail() {
 
           <div className="flex justify-between items-center mb-3">
             <span className="text-muted">类型</span>
-            <span>{getTypeLabel(material.type)}</span>
+            <span>{getTypeLabelDict(material.type) || material.type}</span>
           </div>
 
           {material.fileName && (
@@ -436,11 +439,6 @@ export default function MaterialDetail() {
       )}
     </div>
   );
-}
-
-function getTypeLabel(type) {
-  const map = { image: "图片", video: "视频", audio: "音频", document: "文档", other: "其他" };
-  return map[type] || type;
 }
 
 function getStatusLabel(status) {

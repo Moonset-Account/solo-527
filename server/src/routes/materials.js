@@ -150,6 +150,8 @@ router.put('/:id', requireAuth, async (req, res, next) => {
       return res.status(404).json({ error: '素材不存在' });
     }
 
+    const snapshot = { ...oldMaterial.toObject() };
+
     const updates = req.body;
     delete updates._id;
     delete updates.uploader;
@@ -160,8 +162,8 @@ router.put('/:id', requireAuth, async (req, res, next) => {
     await oldMaterial.save();
 
     const changes = compareAndGetChanges(
-      oldMaterial,
-      { ...oldMaterial.toObject(), ...updates },
+      snapshot,
+      oldMaterial.toObject(),
       Object.keys(updates)
     );
 
