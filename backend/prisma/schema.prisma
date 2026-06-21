@@ -1,0 +1,365 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  name      String
+  role      String   @default("staff")
+  avatar    String?
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  operationLogs OperationLog[]
+  createdReminders Reminder[] @relation("CreatedReminders")
+  handledReminders Reminder[] @relation("HandledReminders")
+  batchImports BatchImport[]
+}
+
+model Member {
+  id            Int      @id @default(autoincrement())
+  memberNo      String   @unique
+  name          String
+  phone         String   @unique
+  gender        String?
+  birthday      DateTime?
+  avatar        String?
+  level         String   @default("普通")
+  totalSpent    Decimal  @default(0) @db.Decimal(10, 2)
+  points        Int      @default(0)
+  status        String   @default("active")
+  lastVisitAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  memberTreatments MemberTreatment[]
+  appointments     Appointment[]
+  reminders        Reminder[]
+  operationLogs    OperationLog[]
+  portfolioItems   PortfolioItem[]
+  commissions      Commission[]
+}
+
+model Treatment {
+  id           Int      @id @default(autoincrement())
+  name         String
+  category     String?
+  price        Decimal  @db.Decimal(10, 2)
+  duration     Int?
+  description  String?
+  image        String?
+  totalSessions Int     @default(1)
+  validDays    Int?
+  status       String   @default("active")
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberTreatments MemberTreatment[]
+  appointmentItems AppointmentItem[]
+  portfolioItems   PortfolioItem[]
+  commissions      Commission[]
+  reminderRules    ReminderRule[]
+}
+
+model MemberTreatment {
+  id              Int      @id @default(autoincrement())
+  memberId        Int
+  treatmentId     Int
+  totalSessions   Int
+  usedSessions    Int      @default(0)
+  remainingSessions Int
+  purchasePrice   Decimal  @db.Decimal(10, 2)
+  purchaseDate    DateTime @default(now())
+  expireDate      DateTime?
+  consultantId    Int?
+  status          String   @default("active")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  member     Member     @relation(fields: [memberId], references: [id])
+  treatment  Treatment  @relation(fields: [treatmentId], references: [id])
+  consultant Consultant? @relation(fields: [consultantId], references: [id])
+
+  @@index([memberId])
+  @@index([treatmentId])
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  category    String?
+  sku         String   @unique
+  unit        String
+  price       Decimal  @db.Decimal(10, 2)
+  cost        Decimal? @db.Decimal(10, 2)
+  stock       Int      @default(0)
+  minStock    Int      @default(0)
+  maxStock    Int?
+  image       String?
+  description String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stockLogs     StockLog[]
+  damageReports DamageReport[]
+  batchImports  BatchImportItem[]
+}
+
+model StockLog {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  type        String
+  quantity    Int
+  beforeStock Int
+  afterStock  Int
+  reason      String?
+  operatorId  Int?
+  relatedId   Int?
+  relatedType String?
+  remark      String?
+  createdAt   DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+  @@index([type])
+}
+
+model DamageReport {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  quantity    Int
+  reason      String
+  reporterId  Int
+  status      String   @default("pending")
+  approverId  Int?
+  approvedAt  DateTime?
+  remark      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product  Product @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+  @@index([status])
+}
+
+model Consultant {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String?
+  avatar    String?
+  level     String   @default("初级")
+  commissionRate Decimal @default(0) @db.Decimal(5, 2)
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberTreatments MemberTreatment[]
+  appointments     Appointment[]
+  commissions      Commission[]
+}
+
+model Commission {
+  id            Int      @id @default(autoincrement())
+  consultantId  Int
+  treatmentId   Int?
+  memberId      Int?
+  amount        Decimal  @db.Decimal(10, 2)
+  type          String
+  relatedId     Int?
+  relatedType   String?
+  status        String   @default("pending")
+  settleDate    DateTime?
+  remark        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  consultant Consultant @relation(fields: [consultantId], references: [id])
+  treatment  Treatment? @relation(fields: [treatmentId], references: [id])
+  member     Member?    @relation(fields: [memberId], references: [id])
+
+  @@index([consultantId])
+  @@index([status])
+}
+
+model Appointment {
+  id              Int      @id @default(autoincrement())
+  memberId        Int
+  consultantId    Int?
+  appointmentDate DateTime
+  startTime       String
+  endTime         String
+  status          String   @default("pending")
+  totalAmount     Decimal  @default(0) @db.Decimal(10, 2)
+  actualAmount    Decimal? @db.Decimal(10, 2)
+  remark          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  member     Member          @relation(fields: [memberId], references: [id])
+  consultant Consultant?     @relation(fields: [consultantId], references: [id])
+  items      AppointmentItem[]
+
+  @@index([memberId])
+  @@index([appointmentDate])
+  @@index([status])
+}
+
+model AppointmentItem {
+  id            Int      @id @default(autoincrement())
+  appointmentId Int
+  treatmentId   Int
+  quantity      Int      @default(1)
+  unitPrice     Decimal  @db.Decimal(10, 2)
+  subtotal      Decimal  @db.Decimal(10, 2)
+  isConsumed    Boolean  @default(false)
+  consumedAt    DateTime?
+  remark        String?
+  createdAt     DateTime @default(now())
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+  treatment   Treatment   @relation(fields: [treatmentId], references: [id])
+
+  @@index([appointmentId])
+  @@index([treatmentId])
+}
+
+model ReminderRule {
+  id           Int      @id @default(autoincrement())
+  name         String
+  type         String
+  treatmentId  Int?
+  daysBefore   Int
+  urgencyLevel String   @default("normal")
+  template     String?
+  isEnabled    Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  treatment Treatment? @relation(fields: [treatmentId], references: [id])
+  reminders Reminder[]
+
+  @@index([type])
+  @@index([treatmentId])
+}
+
+model Reminder {
+  id           Int      @id @default(autoincrement())
+  memberId     Int
+  ruleId       Int?
+  type         String
+  title        String
+  content      String
+  urgencyLevel String   @default("normal")
+  status       String   @default("pending")
+  relatedId    Int?
+  relatedType  String?
+  createdById  Int?
+  handledById  Int?
+  handledAt    DateTime?
+  handleRemark String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  member    Member  @relation(fields: [memberId], references: [id])
+  rule      ReminderRule? @relation(fields: [ruleId], references: [id])
+  createdBy User?   @relation("CreatedReminders", fields: [createdById], references: [id])
+  handledBy User?   @relation("HandledReminders", fields: [handledById], references: [id])
+
+  @@index([memberId])
+  @@index([status])
+  @@index([urgencyLevel])
+}
+
+model OperationLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int?
+  memberId    Int?
+  action      String
+  module      String
+  targetId    Int?
+  targetType  String?
+  detail      String?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  user   User?   @relation(fields: [userId], references: [id])
+  member Member? @relation(fields: [memberId], references: [id])
+
+  @@index([userId])
+  @@index([module])
+  @@index([createdAt])
+}
+
+model PortfolioItem {
+  id          Int      @id @default(autoincrement())
+  memberId    Int
+  treatmentId Int?
+  title       String
+  description String?
+  image       String
+  beforeImage String?
+  afterImage  String?
+  sortOrder   Int      @default(0)
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  member    Member    @relation(fields: [memberId], references: [id])
+  treatment Treatment? @relation(fields: [treatmentId], references: [id])
+
+  @@index([memberId])
+  @@index([treatmentId])
+}
+
+model BatchImport {
+  id           Int      @id @default(autoincrement())
+  type         String
+  fileName     String
+  filePath     String
+  totalCount   Int      @default(0)
+  successCount Int      @default(0)
+  failCount    Int      @default(0)
+  status       String   @default("processing")
+  operatorId   Int
+  errorFile    String?
+  remark       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  operator User             @relation(fields: [operatorId], references: [id])
+  items    BatchImportItem[]
+
+  @@index([type])
+  @@index([status])
+}
+
+model BatchImportItem {
+  id         Int      @id @default(autoincrement())
+  importId   Int
+  rowNumber  Int
+  productId  Int?
+  data       String?  @db.Text
+  status     String   @default("pending")
+  errorMsg   String?
+  createdAt  DateTime @default(now())
+
+  import  BatchImport @relation(fields: [importId], references: [id])
+  product Product?    @relation(fields: [productId], references: [id])
+
+  @@index([importId])
+  @@index([status])
+}
