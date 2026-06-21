@@ -129,9 +129,55 @@ export default function NewOrderPage() {
     setItems(items.filter((i) => i.id !== id));
   };
 
-  const handleSubmit = () => {
-    alert('订单创建成功！');
-    router.push('/orders');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!customerId || !vehicleId || !repairType || !faultDescription || !estimatedDelivery) {
+      alert('请填写完整订单信息');
+      return;
+    }
+    if (items.length === 0) {
+      alert('请至少添加一个项目');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId,
+          vehicleId,
+          repairType,
+          faultDescription,
+          estimatedDelivery: new Date(estimatedDelivery).toISOString(),
+          items: items.map((item) => ({
+            type: item.type,
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+          })),
+          processes: defaultProcesses.map((p, idx) => ({
+            step: idx + 1,
+            name: p.name,
+            description: p.description,
+          })),
+        }),
+      });
+
+      if (res.ok) {
+        const order = await res.json();
+        router.push(`/orders/${order.id}`);
+      } else {
+        const err = await res.json();
+        alert(err.error || '创建订单失败');
+      }
+    } catch {
+      alert('网络错误，请重试');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -386,9 +432,9 @@ export default function NewOrderPage() {
                 </div>
 
                 <div className="space-y-2 pt-2">
-                  <Button className="w-full" size="lg" onClick={handleSubmit}>
+                  <Button className="w-full" size="lg" onClick={handleSubmit} disabled={submitting}>
                     <Save className="w-4 h-4 mr-2" />
-                    创建订单
+                    {submitting ? '提交中...' : '创建订单'}
                   </Button>
                   <Button variant="outline" className="w-full" onClick={() => router.back()}>
                     取消

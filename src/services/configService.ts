@@ -19,11 +19,11 @@ export const configService = {
   },
 
   async updateMetricConfig(key: string, data: {
-    name?: string;
+    name: string;
     description?: string;
-    formula?: string;
-    unit?: string;
-    category?: string;
+    formula: string;
+    unit: string;
+    category: string;
   }) {
     const config = await prisma.metricConfig.upsert({
       where: { key },

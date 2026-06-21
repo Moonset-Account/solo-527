@@ -172,8 +172,46 @@ export default function InventoryPage() {
     return { label: '正常', variant: 'success' as const, icon: TrendingUp };
   };
 
-  const handleExport = (type: 'excel' | 'csv') => {
-    alert(`导出${type === 'excel' ? 'Excel' : 'CSV'}文件：库存周转数据`);
+  const handleExport = async (type: 'excel' | 'csv') => {
+    try {
+      const format = type === 'excel' ? 'xlsx' : 'csv';
+      const res = await fetch(`/api/parts/export?format=${format}`);
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || '导出失败');
+        return;
+      }
+
+      if (format === 'xlsx') {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `parts-${new Date().toISOString().slice(0, 10)}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } else {
+        const data = await res.json();
+        const csvContent = [
+          Object.keys(data[0] || {}).join(','),
+          ...data.map((row: Record<string, unknown>) => Object.values(row).join(','))
+        ].join('\n');
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `parts-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
+    } catch {
+      alert('导出失败，请检查网络连接');
+    }
   };
 
   return (
