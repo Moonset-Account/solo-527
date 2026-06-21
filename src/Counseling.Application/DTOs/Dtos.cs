@@ -302,12 +302,55 @@ public class CrossDepartmentReportDto
     public DateTime EndDate { get; set; }
     public decimal OverallAttendanceRate { get; set; }
     public int TotalAppointments { get; set; }
+    public int TotalCompleted { get; set; }
     public int TotalCheckedIn { get; set; }
     public int TotalNoShow { get; set; }
     public int TotalCancelled { get; set; }
     public List<StoreClosureDto> StoreClosures { get; set; } = new();
     public List<AppointmentDto> RecentProcessedRecords { get; set; } = new();
     public List<StatisticsDailyDto> DailyStatistics { get; set; } = new();
+    public List<RefundRecordDto> RefundRecords { get; set; } = new();
+    public List<ServiceItemDto> ServiceItems { get; set; } = new();
+    public List<WaitlistReminderDto> WaitlistReminders { get; set; } = new();
+    public List<ServiceItemStatsDto> ServiceItemStats { get; set; } = new();
+    public RefundSummaryDto RefundSummary { get; set; } = new();
+    public decimal TotalRevenue { get; set; }
+    public decimal TotalRefundAmount { get; set; }
+}
+
+public class ServiceItemStatsDto
+{
+    public int ServiceItemId { get; set; }
+    public string ServiceItemName { get; set; } = string.Empty;
+    public int AppointmentCount { get; set; }
+    public int CompletedCount { get; set; }
+    public decimal Revenue { get; set; }
+    public int WaitlistCount { get; set; }
+}
+
+public class RefundSummaryDto
+{
+    public int TotalRefundCount { get; set; }
+    public int PendingCount { get; set; }
+    public int ApprovedCount { get; set; }
+    public int RejectedCount { get; set; }
+    public int CompletedCount { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal CompletedAmount { get; set; }
+}
+
+public class WaitlistReminderDto
+{
+    public int Id { get; set; }
+    public int ClientId { get; set; }
+    public string ClientName { get; set; } = string.Empty;
+    public int ServiceItemId { get; set; }
+    public string ServiceItemName { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+    public int Priority { get; set; }
+    public bool Notified { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public bool IsActive { get; set; }
 }
 
 public class ApiResponse

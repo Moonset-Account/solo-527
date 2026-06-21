@@ -287,6 +287,17 @@ public class WaitlistService : IWaitlistService
         return dtos;
     }
 
+    public async Task<List<WaitlistItemDto>> GetAllActiveAsync()
+    {
+        var items = await _waitlistRepository.GetAllActiveAsync();
+        var dtos = new List<WaitlistItemDto>();
+        foreach (var item in items)
+        {
+            dtos.Add(await MapToDto(item));
+        }
+        return dtos;
+    }
+
     public async Task<WaitlistItemDto> CreateAsync(WaitlistCreateDto dto, string createdBy)
     {
         var serviceItem = await _serviceItemRepository.GetByIdAsync(dto.ServiceItemId);

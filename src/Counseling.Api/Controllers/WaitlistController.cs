@@ -97,7 +97,7 @@ public class WaitlistController : ControllerBase
             });
 
         if (string.IsNullOrWhiteSpace(dto.Reason))
-            return BadRequest(new ApiResponse<WaitlistItemDto>>
+            return BadRequest(new ApiResponse<WaitlistItemDto>
             {
                 Success = false,
                 Message = "请填写加入候补的原因，方便我们优先安排",
@@ -105,7 +105,7 @@ public class WaitlistController : ControllerBase
             });
 
         var result = await _waitlistService.CreateAsync(dto, "system");
-        return Ok(new ApiResponse<WaitlistItemDto>>
+        return Ok(new ApiResponse<WaitlistItemDto>
         {
             Success = true,
             Message = "已成功加入候补队列，有空位时我们会第一时间通知您",

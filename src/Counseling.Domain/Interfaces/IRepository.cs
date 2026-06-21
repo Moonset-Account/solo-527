@@ -74,6 +74,7 @@ public interface IWaitlistItemRepository : IRepository<WaitlistItem>
     Task<List<WaitlistItem>> GetActiveByServiceItemIdAsync(int serviceItemId);
     Task<List<WaitlistItem>> GetByClientIdAsync(int clientId);
     Task<List<WaitlistItem>> GetActiveByDateAsync(DateTime date);
+    Task<List<WaitlistItem>> GetAllActiveAsync();
 }
 
 public interface IReminderRepository : IRepository<Reminder>

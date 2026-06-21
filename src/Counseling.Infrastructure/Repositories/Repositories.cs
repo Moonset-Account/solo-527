@@ -341,6 +341,18 @@ public class WaitlistItemRepository : Repository<WaitlistItem>, IWaitlistItemRep
             .ThenBy(w => w.CreatedAt)
             .ToListAsync();
     }
+
+    public async Task<List<WaitlistItem>> GetAllActiveAsync()
+    {
+        return await _dbSet
+            .Include(w => w.Client)
+            .Include(w => w.ServiceItem)
+            .Include(w => w.PreferredCounselor)
+            .Where(w => w.IsActive)
+            .OrderBy(w => w.Priority)
+            .ThenBy(w => w.CreatedAt)
+            .ToListAsync();
+    }
 }
 
 public class ReminderRepository : Repository<Reminder>, IReminderRepository
@@ -451,27 +463,30 @@ public class StatisticsRepository : IStatisticsRepository
             .Where(a => a.AppointmentDate >= start && a.AppointmentDate < end)
             .ToListAsync();
 
-        var checkedInCount = appointments.Count(a => a.Status == AppointmentStatus.CheckedIn || a.Status == AppointmentStatus.Completed);
+        var confirmedCount = appointments.Count(a => a.Status == AppointmentStatus.Completed);
+        var pendingCheckInCount = appointments.Count(a => a.Status == AppointmentStatus.CheckedIn);
         var noShowCount = appointments.Count(a => a.Status == AppointmentStatus.NoShow);
         var cancelledCount = appointments.Count(a => a.Status == AppointmentStatus.Cancelled);
         var totalAppointments = appointments.Count;
 
         var refunds = await _context.RefundRecords
-            .Where(r => r.CreatedAt >= start && r.CreatedAt < end && r.Status == RefundStatus.Completed)
+            .Where(r => r.CreatedAt >= start && r.CreatedAt < end)
             .ToListAsync();
+
+        var completedRefunds = refunds.Where(r => r.Status == RefundStatus.Completed).ToList();
 
         return new StatisticsDaily
         {
             Date = date.Date,
             TotalAppointments = totalAppointments,
-            CheckedInCount = checkedInCount,
+            CheckedInCount = confirmedCount,
             NoShowCount = noShowCount,
             CancelledCount = cancelledCount,
-            AttendanceRate = totalAppointments > 0 ? (decimal)checkedInCount / totalAppointments * 100 : 0,
-            Revenue = appointments.Where(a => a.Status == AppointmentStatus.CheckedIn || a.Status == AppointmentStatus.Completed).Sum(a => a.Price),
+            AttendanceRate = totalAppointments > 0 ? (decimal)confirmedCount / totalAppointments * 100 : 0,
+            Revenue = appointments.Where(a => a.Status == AppointmentStatus.Completed).Sum(a => a.Price),
             NewClients = 0,
-            RefundCount = refunds.Count,
-            RefundAmount = refunds.Sum(r => r.Amount)
+            RefundCount = completedRefunds.Count,
+            RefundAmount = completedRefunds.Sum(r => r.Amount)
         };
     }
 
@@ -496,8 +511,8 @@ public class StatisticsRepository : IStatisticsRepository
         var total = appointments.Count;
         if (total == 0) return 0;
 
-        var checkedIn = appointments.Count(a => a.Status == AppointmentStatus.CheckedIn || a.Status == AppointmentStatus.Completed);
-        return (decimal)checkedIn / total * 100;
+        var completed = appointments.Count(a => a.Status == AppointmentStatus.Completed);
+        return (decimal)completed / total * 100;
     }
 
     public async Task<int> GetTotalAppointmentsAsync(DateTime startDate, DateTime endDate)

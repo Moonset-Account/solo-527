@@ -19,6 +19,10 @@ import {
   ShopOutlined,
   ClockCircleOutlined,
   FileTextOutlined,
+  DollarOutlined,
+  TeamOutlined,
+  AppstoreOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -29,6 +33,9 @@ import type {
   StoreClosureDto,
   AppointmentDto,
   AppointmentStatus,
+  RefundStatus,
+  ServiceItemStatsDto,
+  WaitlistReminderDto,
 } from '../types';
 
 const { RangePicker } = DatePicker;
@@ -40,7 +47,14 @@ const statusMap: Record<AppointmentStatus, { text: string; color: string }> = {
   2: { text: '已到店', color: 'green' },
   3: { text: '已爽约', color: 'red' },
   4: { text: '已取消', color: 'default' },
-  5: { text: '已完成', color: 'purple' },
+  5: { text: '已完成(确认)', color: 'purple' },
+};
+
+const refundStatusMap: Record<RefundStatus, { text: string; color: string }> = {
+  0: { text: '待处理', color: 'orange' },
+  1: { text: '已通过', color: 'blue' },
+  2: { text: '已拒绝', color: 'red' },
+  3: { text: '已完成', color: 'green' },
 };
 
 function StatisticsPage() {
@@ -239,39 +253,216 @@ function StatisticsPage() {
             {crossReport && (
               <>
                 <Row gutter={24} style={{ marginBottom: 24 }}>
-                  <Col span={8}>
-                    <Card size="small">
+                  <Col span={6}>
+                    <Card style={{ background: 'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)' }}>
                       <Statistic
-                        title="整体到店率"
+                        title={<span style={{ color: '#fff' }}>整体到店率(确认后)</span>}
                         value={crossReport.overallAttendanceRate}
                         precision={2}
                         suffix="%"
-                        valueStyle={{ color: '#52c41a', fontSize: 28, fontWeight: 700 }}
+                        valueStyle={{ color: '#fff', fontSize: 28, fontWeight: 700 }}
                       />
                     </Card>
                   </Col>
-                  <Col span={8}>
+                  <Col span={6}>
                     <Card size="small">
-                      <Statistic title="总预约数" value={crossReport.totalAppointments} />
+                      <Statistic title="总预约数" value={crossReport.totalAppointments} prefix={<CalendarOutlined />} />
+                      <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+                        已确认完成: <b style={{ color: '#722ed1' }}>{crossReport.totalCompleted}</b>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#888' }}>
+                        已到店待确认: <b style={{ color: '#52c41a' }}>{crossReport.totalCheckedIn}</b>
+                      </div>
                     </Card>
                   </Col>
-                  <Col span={8}>
+                  <Col span={6}>
                     <Card size="small">
-                      <Statistic title="总到店数" value={crossReport.totalCheckedIn} />
+                      <Statistic
+                        title="营收"
+                        value={crossReport.totalRevenue}
+                        precision={2}
+                        prefix="¥"
+                        valueStyle={{ color: '#1890ff' }}
+                      />
+                    </Card>
+                  </Col>
+                  <Col span={6}>
+                    <Card size="small">
+                      <Statistic
+                        title="退款总额"
+                        value={crossReport.totalRefundAmount}
+                        precision={2}
+                        prefix="¥"
+                        valueStyle={{ color: '#ff4d4f' }}
+                      />
+                      <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+                        退款笔数: <b>{crossReport.refundSummary?.totalRefundCount || 0}</b>
+                      </div>
                     </Card>
                   </Col>
                 </Row>
 
+                <Row gutter={24} style={{ marginBottom: 16 }}>
+                  <Col span={6}>
+                    <Card size="small" style={{ background: '#fff7e6', border: '1px solid #ffd591' }}>
+                      <Statistic
+                        title="爽约数"
+                        value={crossReport.totalNoShow}
+                        valueStyle={{ color: '#d46b08' }}
+                        prefix={<ExclamationCircleOutlined />}
+                      />
+                    </Card>
+                  </Col>
+                  <Col span={6}>
+                    <Card size="small" style={{ background: '#f6ffed', border: '1px solid #b7eb8f' }}>
+                      <Statistic
+                        title="退款(待处理)"
+                        value={crossReport.refundSummary?.pendingCount || 0}
+                        valueStyle={{ color: '#389e0d' }}
+                        prefix={<DollarOutlined />}
+                      />
+                    </Card>
+                  </Col>
+                  <Col span={6}>
+                    <Card size="small" style={{ background: '#e6f7ff', border: '1px solid #91d5ff' }}>
+                      <Statistic
+                        title="候补队列"
+                        value={crossReport.waitlistReminders?.length || 0}
+                        valueStyle={{ color: '#096dd9' }}
+                        prefix={<TeamOutlined />}
+                      />
+                    </Card>
+                  </Col>
+                  <Col span={6}>
+                    <Card size="small" style={{ background: '#f9f0ff', border: '1px solid #d3adf7' }}>
+                      <Statistic
+                        title="服务项目"
+                        value={crossReport.serviceItems?.length || 0}
+                        valueStyle={{ color: '#531dab' }}
+                        prefix={<AppstoreOutlined />}
+                      />
+                    </Card>
+                  </Col>
+                </Row>
+
+                <Divider orientation="left">
+                  <DollarOutlined /> 退款明细
+                </Divider>
+                <Card size="small" style={{ marginBottom: 16 }}>
+                  {crossReport.refundRecords && crossReport.refundRecords.length > 0 ? (
+                    <Table
+                      size="small"
+                      dataSource={crossReport.refundRecords}
+                      rowKey="id"
+                      pagination={false}
+                      columns={[
+                        { title: '退款单号', dataIndex: 'id', width: 80 },
+                        { title: '预约号', dataIndex: 'appointmentNo', width: 120 },
+                        { title: '客户', dataIndex: 'clientName', width: 100 },
+                        {
+                          title: '金额',
+                          dataIndex: 'amount',
+                          width: 100,
+                          render: (v) => `¥${v.toFixed(2)}`,
+                        },
+                        {
+                          title: '状态',
+                          dataIndex: 'status',
+                          width: 100,
+                          render: (v) => (
+                            <Tag color={refundStatusMap[v as RefundStatus].color}>
+                              {refundStatusMap[v as RefundStatus].text}
+                            </Tag>
+                          ),
+                        },
+                        { title: '原因', dataIndex: 'reason' },
+                        {
+                          title: '申请时间',
+                          dataIndex: 'createdAt',
+                          width: 160,
+                          render: (v) => dayjs(v).format('YYYY-MM-DD HH:mm'),
+                        },
+                      ]}
+                    />
+                  ) : (
+                    <p style={{ color: '#999', textAlign: 'center', padding: 20 }}>该时段无退款记录</p>
+                  )}
+                </Card>
+
+                <Divider orientation="left">
+                  <AppstoreOutlined /> 服务项目统计
+                </Divider>
+                <Card size="small" style={{ marginBottom: 16 }}>
+                  {crossReport.serviceItemStats && crossReport.serviceItemStats.length > 0 ? (
+                    <Table
+                      size="small"
+                      dataSource={crossReport.serviceItemStats}
+                      rowKey="serviceItemId"
+                      pagination={false}
+                      columns={[
+                        { title: '服务项目', dataIndex: 'serviceItemName' },
+                        { title: '预约数', dataIndex: 'appointmentCount', width: 80 },
+                        {
+                          title: '完成数',
+                          dataIndex: 'completedCount',
+                          width: 80,
+                          render: (v) => <span style={{ color: '#52c41a', fontWeight: 600 }}>{v}</span>,
+                        },
+                        {
+                          title: '营收',
+                          dataIndex: 'revenue',
+                          width: 100,
+                          render: (v) => `¥${v.toFixed(2)}`,
+                        },
+                        { title: '候补人数', dataIndex: 'waitlistCount', width: 100 },
+                      ]}
+                    />
+                  ) : (
+                    <p style={{ color: '#999', textAlign: 'center', padding: 20 }}>暂无服务项目数据</p>
+                  )}
+                </Card>
+
+                <Divider orientation="left">
+                  <TeamOutlined /> 候补队列提醒
+                </Divider>
+                <Card size="small" style={{ marginBottom: 16 }}>
+                  {crossReport.waitlistReminders && crossReport.waitlistReminders.length > 0 ? (
+                    <Table
+                      size="small"
+                      dataSource={crossReport.waitlistReminders}
+                      rowKey="id"
+                      pagination={false}
+                      columns={[
+                        { title: '编号', dataIndex: 'id', width: 60 },
+                        { title: '客户', dataIndex: 'clientName', width: 100 },
+                        { title: '服务项目', dataIndex: 'serviceItemName', width: 120 },
+                        { title: '加入原因', dataIndex: 'reason' },
+                        { title: '优先级', dataIndex: 'priority', width: 80 },
+                        {
+                          title: '通知状态',
+                          dataIndex: 'notified',
+                          width: 100,
+                          render: (v) => (v ? <Tag color="green">已通知</Tag> : <Tag color="orange">待通知</Tag>),
+                        },
+                        {
+                          title: '加入时间',
+                          dataIndex: 'createdAt',
+                          width: 160,
+                          render: (v) => dayjs(v).format('YYYY-MM-DD HH:mm'),
+                        },
+                      ]}
+                    />
+                  ) : (
+                    <p style={{ color: '#999', textAlign: 'center', padding: 20 }}>暂无候补提醒</p>
+                  )}
+                </Card>
+
+                <Divider orientation="left">
+                  <ShopOutlined /> 临时关店 & <FileTextOutlined /> 最近处理记录
+                </Divider>
                 <Row gutter={24}>
                   <Col span={12}>
-                    <Card
-                      title={
-                        <span>
-                          <ShopOutlined /> 临时关店记录
-                        </span>
-                      }
-                      size="small"
-                    >
+                    <Card title={<span><ShopOutlined /> 临时关店记录</span>} size="small">
                       {crossReport.storeClosures.length > 0 ? (
                         <List
                           size="small"
@@ -301,18 +492,11 @@ function StatisticsPage() {
                     </Card>
                   </Col>
                   <Col span={12}>
-                    <Card
-                      title={
-                        <span>
-                          <FileTextOutlined /> 最近处理记录
-                        </span>
-                      }
-                      size="small"
-                    >
+                    <Card title={<span><FileTextOutlined /> 最近处理记录</span>} size="small">
                       {crossReport.recentProcessedRecords.length > 0 ? (
                         <List
                           size="small"
-                          dataSource={crossReport.recentProcessedRecords.slice(0, 8)}
+                          dataSource={crossReport.recentProcessedRecords.slice(0, 10)}
                           renderItem={(item: AppointmentDto) => (
                             <List.Item>
                               <List.Item.Meta

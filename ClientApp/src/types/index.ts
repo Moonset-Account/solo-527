@@ -218,12 +218,52 @@ export interface CrossDepartmentReportDto {
   endDate: string;
   overallAttendanceRate: number;
   totalAppointments: number;
+  totalCompleted: number;
   totalCheckedIn: number;
   totalNoShow: number;
   totalCancelled: number;
   storeClosures: StoreClosureDto[];
   recentProcessedRecords: AppointmentDto[];
   dailyStatistics: StatisticsDailyDto[];
+  refundRecords: RefundRecordDto[];
+  serviceItems: ServiceItemDto[];
+  waitlistReminders: WaitlistReminderDto[];
+  serviceItemStats: ServiceItemStatsDto[];
+  refundSummary: RefundSummaryDto;
+  totalRevenue: number;
+  totalRefundAmount: number;
+}
+
+export interface ServiceItemStatsDto {
+  serviceItemId: number;
+  serviceItemName: string;
+  appointmentCount: number;
+  completedCount: number;
+  revenue: number;
+  waitlistCount: number;
+}
+
+export interface RefundSummaryDto {
+  totalRefundCount: number;
+  pendingCount: number;
+  approvedCount: number;
+  rejectedCount: number;
+  completedCount: number;
+  totalAmount: number;
+  completedAmount: number;
+}
+
+export interface WaitlistReminderDto {
+  id: number;
+  clientId: number;
+  clientName: string;
+  serviceItemId: number;
+  serviceItemName: string;
+  reason: string;
+  priority: number;
+  notified: boolean;
+  createdAt: string;
+  isActive: boolean;
 }
 
 export interface PagedResult<T> {

@@ -221,17 +221,29 @@ public class StatisticsService : IStatisticsService
     private readonly IStatisticsRepository _statisticsRepository;
     private readonly IStoreClosureService _storeClosureService;
     private readonly IAppointmentService _appointmentService;
+    private readonly IRefundService _refundService;
+    private readonly IServiceItemService _serviceItemService;
+    private readonly IWaitlistService _waitlistService;
+    private readonly IUserService _userService;
     private readonly ICacheService _cache;
 
     public StatisticsService(
         IStatisticsRepository statisticsRepository,
         IStoreClosureService storeClosureService,
         IAppointmentService appointmentService,
+        IRefundService refundService,
+        IServiceItemService serviceItemService,
+        IWaitlistService waitlistService,
+        IUserService userService,
         ICacheService cache)
     {
         _statisticsRepository = statisticsRepository;
         _storeClosureService = storeClosureService;
         _appointmentService = appointmentService;
+        _refundService = refundService;
+        _serviceItemService = serviceItemService;
+        _waitlistService = waitlistService;
+        _userService = userService;
         _cache = cache;
     }
 
@@ -269,24 +281,84 @@ public class StatisticsService : IStatisticsService
         var recentRecords = await _appointmentService.GetByDateRangeAsync(
             endDate.AddDays(-7) > startDate ? endDate.AddDays(-7) : startDate,
             endDate);
+        var allAppointments = await _appointmentService.GetByDateRangeAsync(startDate, endDate);
+        var refundRecords = await _refundService.GetByDateRangeAsync(startDate, endDate);
+        var serviceItems = await _serviceItemService.GetAllAsync();
+        var waitlistItems = await _waitlistService.GetAllActiveAsync();
 
         var totalAppointments = dailyStats.Sum(d => d.TotalAppointments);
-        var totalCheckedIn = dailyStats.Sum(d => d.CheckedInCount);
+        var totalCompleted = dailyStats.Sum(d => d.CheckedInCount);
+        var totalCheckedIn = allAppointments.Count(a => a.Status == AppointmentStatus.CheckedIn);
         var totalNoShow = dailyStats.Sum(d => d.NoShowCount);
         var totalCancelled = dailyStats.Sum(d => d.CancelledCount);
+        var totalRevenue = dailyStats.Sum(d => d.Revenue);
+
+        var refundSummary = new RefundSummaryDto
+        {
+            TotalRefundCount = refundRecords.Count,
+            PendingCount = refundRecords.Count(r => r.Status == RefundStatus.Pending),
+            ApprovedCount = refundRecords.Count(r => r.Status == RefundStatus.Approved),
+            RejectedCount = refundRecords.Count(r => r.Status == RefundStatus.Rejected),
+            CompletedCount = refundRecords.Count(r => r.Status == RefundStatus.Completed),
+            TotalAmount = refundRecords.Sum(r => r.Amount),
+            CompletedAmount = refundRecords.Where(r => r.Status == RefundStatus.Completed).Sum(r => r.Amount)
+        };
+
+        var serviceItemStats = new List<ServiceItemStatsDto>();
+        foreach (var si in serviceItems)
+        {
+            var siAppts = allAppointments.Where(a => a.ServiceItemId == si.Id).ToList();
+            var siCompleted = siAppts.Count(a => a.Status == AppointmentStatus.Completed);
+            var siWaitlist = waitlistItems.Count(w => w.ServiceItemId == si.Id);
+            serviceItemStats.Add(new ServiceItemStatsDto
+            {
+                ServiceItemId = si.Id,
+                ServiceItemName = si.Name,
+                AppointmentCount = siAppts.Count,
+                CompletedCount = siCompleted,
+                Revenue = siAppts.Where(a => a.Status == AppointmentStatus.Completed).Sum(a => a.Price),
+                WaitlistCount = siWaitlist
+            });
+        }
+
+        var users = await _userService.GetAllAsync();
+        var clientDict = users.ToDictionary(u => u.Id, u => u.FullName);
+        var serviceDict = serviceItems.ToDictionary(s => s.Id, s => s.Name);
+
+        var waitlistReminders = waitlistItems.Select(w => new WaitlistReminderDto
+        {
+            Id = w.Id,
+            ClientId = w.ClientId,
+            ClientName = clientDict.TryGetValue(w.ClientId, out var cn) ? cn : "未知客户",
+            ServiceItemId = w.ServiceItemId,
+            ServiceItemName = serviceDict.TryGetValue(w.ServiceItemId, out var sn) ? sn : "未知服务",
+            Reason = w.Reason,
+            Priority = w.Priority,
+            Notified = w.Notified,
+            CreatedAt = w.CreatedAt,
+            IsActive = w.IsActive
+        }).ToList();
 
         var report = new CrossDepartmentReportDto
         {
             StartDate = startDate.Date,
             EndDate = endDate.Date,
-            OverallAttendanceRate = totalAppointments > 0 ? (decimal)totalCheckedIn / totalAppointments * 100 : 0,
+            OverallAttendanceRate = totalAppointments > 0 ? (decimal)totalCompleted / totalAppointments * 100 : 0,
             TotalAppointments = totalAppointments,
+            TotalCompleted = totalCompleted,
             TotalCheckedIn = totalCheckedIn,
             TotalNoShow = totalNoShow,
             TotalCancelled = totalCancelled,
             StoreClosures = storeClosures,
             RecentProcessedRecords = recentRecords.Take(20).ToList(),
-            DailyStatistics = dailyStats
+            DailyStatistics = dailyStats,
+            RefundRecords = refundRecords,
+            ServiceItems = serviceItems,
+            WaitlistReminders = waitlistReminders,
+            ServiceItemStats = serviceItemStats,
+            RefundSummary = refundSummary,
+            TotalRevenue = totalRevenue,
+            TotalRefundAmount = refundSummary.CompletedAmount
         };
 
         await _cache.SetAsync(cacheKey, report, TimeSpan.FromHours(1));

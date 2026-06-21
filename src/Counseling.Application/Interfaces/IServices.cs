@@ -100,6 +100,7 @@ public interface IWaitlistService
     Task<List<WaitlistItemDto>> GetActiveByServiceItemIdAsync(int serviceItemId);
     Task<List<WaitlistItemDto>> GetByClientIdAsync(int clientId);
     Task<List<WaitlistItemDto>> GetActiveByDateAsync(DateTime date);
+    Task<List<WaitlistItemDto>> GetAllActiveAsync();
     Task<WaitlistItemDto> CreateAsync(WaitlistCreateDto dto, string createdBy);
     Task MarkNotifiedAsync(int id, string notifiedBy);
     Task DeactivateAsync(int id, string updatedBy);
