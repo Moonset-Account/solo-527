@@ -112,30 +112,37 @@ class FrameworkContractSerializer(serializers.ModelSerializer):
         from datetime import date as date_type
         user = self.context['request'].user
         existing_ids = set()
+        today = date_type.today()
+
         for line_data in price_lines:
             line_id = line_data.get('id')
             spec = line_data['specification']
             unit_price = line_data['unit_price']
-            effective_date = line_data.get('effective_date', contract.start_date)
+            effective_date = line_data.get('effective_date') or contract.start_date or today
+
             if line_id:
                 try:
                     cp = ContractPrice.objects.get(id=line_id, contract=contract)
+                    old_spec_id = cp.specification_id
                     old_price = cp.unit_price
+
                     cp.specification = spec
                     cp.unit_price = unit_price
                     cp.minimum_quantity = line_data.get('minimum_quantity', cp.minimum_quantity)
                     cp.discount_rate = line_data.get('discount_rate', cp.discount_rate)
-                    cp.effective_date = effective_date or cp.effective_date
+                    cp.effective_date = effective_date
                     cp.expiration_date = line_data.get('expiration_date', cp.expiration_date)
                     cp.is_active = line_data.get('is_active', cp.is_active)
                     cp.save()
                     existing_ids.add(cp.id)
-                    if old_price != unit_price:
+
+                    spec_id = spec if isinstance(spec, int) else spec.id
+                    if old_price != unit_price or old_spec_id != spec_id:
                         PriceHistory.objects.create(
                             specification=cp.specification,
                             contract=contract,
                             unit_price=unit_price,
-                            price_date=date_type.today(),
+                            price_date=today,
                             source='contract',
                             change_reason=f'价格调整: 原 {old_price} → {unit_price}',
                             recorded_by=user
@@ -143,27 +150,54 @@ class FrameworkContractSerializer(serializers.ModelSerializer):
                 except ContractPrice.DoesNotExist:
                     continue
             else:
-                cp = ContractPrice.objects.create(
+                existing = ContractPrice.objects.filter(
                     contract=contract,
                     specification=spec,
-                    unit_price=unit_price,
-                    minimum_quantity=line_data.get('minimum_quantity', 0),
-                    discount_rate=line_data.get('discount_rate', 0),
-                    effective_date=effective_date or contract.start_date or date_type.today(),
-                    expiration_date=line_data.get('expiration_date'),
-                    is_active=line_data.get('is_active', True),
-                    created_by=user
-                )
-                existing_ids.add(cp.id)
-                PriceHistory.objects.create(
-                    specification=cp.specification,
-                    contract=contract,
-                    unit_price=cp.unit_price,
-                    price_date=cp.effective_date,
-                    source='contract',
-                    change_reason='合同定价',
-                    recorded_by=user
-                )
+                    effective_date=effective_date
+                ).first()
+                if existing:
+                    old_price = existing.unit_price
+                    existing.unit_price = unit_price
+                    existing.minimum_quantity = line_data.get('minimum_quantity', existing.minimum_quantity)
+                    existing.discount_rate = line_data.get('discount_rate', existing.discount_rate)
+                    existing.expiration_date = line_data.get('expiration_date', existing.expiration_date)
+                    existing.is_active = line_data.get('is_active', True)
+                    existing.save()
+                    existing_ids.add(existing.id)
+                    if old_price != unit_price:
+                        PriceHistory.objects.create(
+                            specification=existing.specification,
+                            contract=contract,
+                            unit_price=unit_price,
+                            price_date=today,
+                            source='contract',
+                            change_reason=f'价格调整: 原 {old_price} → {unit_price}',
+                            recorded_by=user
+                        )
+                else:
+                    cp = ContractPrice.objects.create(
+                        contract=contract,
+                        specification=spec,
+                        unit_price=unit_price,
+                        minimum_quantity=line_data.get('minimum_quantity', 0),
+                        discount_rate=line_data.get('discount_rate', 0),
+                        effective_date=effective_date,
+                        expiration_date=line_data.get('expiration_date'),
+                        is_active=line_data.get('is_active', True),
+                        created_by=user
+                    )
+                    existing_ids.add(cp.id)
+                    PriceHistory.objects.create(
+                        specification=cp.specification,
+                        contract=contract,
+                        unit_price=cp.unit_price,
+                        price_date=cp.effective_date,
+                        source='contract',
+                        change_reason='合同定价',
+                        recorded_by=user
+                    )
+
+        ContractPrice.objects.filter(contract=contract).exclude(id__in=existing_ids).delete()
 
 
 class PriceHistorySerializer(serializers.ModelSerializer):

@@ -159,13 +159,17 @@ class ContractRenewalViewSet(viewsets.ModelViewSet):
         decision = request.data.get('decision')
         reason = request.data.get('decision_reason', '')
         new_contract_id = request.data.get('new_contract')
+
+        if decision not in ['renewed', 'not_renewed', 'pending']:
+            return Response({'error': '无效的决策类型'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if decision == 'renewed' and not new_contract_id:
+            return Response({'error': '续签决策需要指定新合同ID'}, status=status.HTTP_400_BAD_REQUEST)
+
         renewal.decision = decision
         renewal.decision_reason = reason
         renewal.handled_by = request.user
         renewal.handled_date = date.today()
-
-        if decision not in ['renewed', 'not_renewed', 'pending']:
-            return Response({'error': '无效的决策类型'}, status=status.HTTP_400_BAD_REQUEST)
 
         if new_contract_id:
             renewal.new_contract_id = new_contract_id
@@ -175,12 +179,13 @@ class ContractRenewalViewSet(viewsets.ModelViewSet):
                 new_contract = FrameworkContract.objects.filter(id=new_contract_id).first()
                 if new_contract:
                     for price in new_contract.prices.all():
-                        PriceHistory.objects.get_or_create(
+                        price_date = new_contract.start_date or date.today()
+                        PriceHistory.objects.update_or_create(
                             specification=price.specification,
                             contract=new_contract,
-                            unit_price=price.unit_price,
-                            price_date=new_contract.start_date or date.today(),
+                            price_date=price_date,
                             defaults={
+                                'unit_price': price.unit_price,
                                 'source': 'contract',
                                 'change_reason': f'续签合同: {new_contract.contract_number}',
                                 'recorded_by': request.user
@@ -194,6 +199,9 @@ class ContractRenewalViewSet(viewsets.ModelViewSet):
         try:
             from dashboard.tasks import sync_contract_renewal_to_dashboard
             sync_contract_renewal_to_dashboard.delay(renewal.id)
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f'续签同步看板任务启动失败: {e}')
+
         return Response(self.get_serializer(renewal).data)
