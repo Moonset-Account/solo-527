@@ -1,11 +1,11 @@
 import 'reflect-metadata';
 import 'dotenv/config';
-import { DataSource } from 'typeorm';
+import { DataSource, Not } from 'typeorm';
 import { dataSourceOptions } from '../config/data-source';
 import * as bcrypt from 'bcryptjs';
 
 import { User, UserDepartment, UserStatus } from '../entities/user.entity';
-import { Role } from '../entities/role.entity';
+import { Role, RoleCode } from '../entities/role.entity';
 import { Permission } from '../entities/permission.entity';
 import { UserRole } from '../entities/user-role.entity';
 import { RolePermission } from '../entities/role-permission.entity';
@@ -36,50 +36,78 @@ async function run() {
   const callbackRepo = dataSource.getRepository(CallbackLog);
   const numberPoolRepo = dataSource.getRepository(ContractNumberPool);
 
-  const existingCount = await userRepo.count();
   let adminUser: User | null = null;
   let testUsers: User[] = [];
   let testContracts: Contract[] = [];
+  let roles: Role[] = [];
 
-  if (existingCount === 0) {
-    console.log('  → 创建用户和角色...');
-
+  const permCount = await permRepo.count();
+  if (permCount === 0) {
+    console.log('  → 创建权限...');
     const permCodes = [
       'contract:create', 'contract:view', 'contract:update', 'contract:delete', 'contract:archive', 'contract:number:manage',
       'approval:submit', 'approval:review', 'approval:view',
       'file:upload', 'file:download', 'file:permission:manage',
       'user:manage',
     ];
-    const perms: Permission[] = [];
     for (const code of permCodes) {
-      const [resource, action] = code.split(':');
-      const p = permRepo.create({ code, name: code, resource, action, enabled: true });
-      perms.push(await permRepo.save(p));
+      const [module] = code.split(':');
+      const exists = await permRepo.findOne({ where: { code } });
+      if (!exists) {
+        const p = permRepo.create({ code, name: code, module, description: code, sort: 0 });
+        await permRepo.save(p);
+      }
     }
+  }
 
+  const roleCount = await roleRepo.count();
+  if (roleCount === 0) {
+    console.log('  → 创建角色...');
+    const perms = await permRepo.find();
     const roleData = [
-      { code: 'super_admin', name: '超级管理员' },
-      { code: 'legal_admin', name: '法务主管' },
-      { code: 'legal_reviewer', name: '法务审核' },
-      { code: 'finance_reviewer', name: '财务审核' },
-      { code: 'contract_applicant', name: '合同申请人' },
+      { code: RoleCode.SUPER_ADMIN, name: '超级管理员', sort: 0 },
+      { code: RoleCode.LEGAL_ADMIN, name: '法务主管', sort: 1 },
+      { code: RoleCode.APPROVER, name: '法务审核', sort: 2 },
+      { code: RoleCode.CONTRACT_MANAGER, name: '财务审核', sort: 3 },
+      { code: RoleCode.APPLICANT, name: '合同申请人', sort: 4 },
     ];
-    const roles: Role[] = [];
     for (const rd of roleData) {
-      const role = roleRepo.create({ ...rd, description: `系统预置角色: ${rd.name}`, enabled: true });
-      roles.push(await roleRepo.save(role));
-      const rps = perms.map(p => rolePermRepo.create({ roleId: role.id, permissionId: p.id }));
-      await rolePermRepo.save(rps);
+      const exists = await roleRepo.findOne({ where: { code: rd.code } });
+      if (!exists) {
+        const role = roleRepo.create({ ...rd, description: `系统预置角色: ${rd.name}`, enabled: true });
+        const savedRole = await roleRepo.save(role);
+        roles.push(savedRole);
+        const rps = perms.map(p => rolePermRepo.create({ roleId: savedRole.id, permissionId: p.id }));
+        await rolePermRepo.save(rps);
+      }
     }
+  } else {
+    roles = await roleRepo.find({ order: { sort: 'ASC' } });
+  }
+
+  const userCount = await userRepo.count();
+  if (userCount === 0) {
+    console.log('  → 创建用户...');
+    if (roles.length === 0) roles = await roleRepo.find({ order: { sort: 'ASC' } });
 
     const adminPwd = await bcrypt.hash('admin123', 10);
-    adminUser = userRepo.create({
-      username: 'admin', password: adminPwd, realName: '系统管理员',
-      email: 'admin@legal.com', phone: '13800000000', department: 'admin',
-      status: UserStatus.ACTIVE,
-    });
-    adminUser = await userRepo.save(adminUser);
-    await userRoleRepo.save(userRoleRepo.create({ userId: adminUser.id, roleId: roles[0].id }));
+    let adminExists = await userRepo.findOne({ where: { username: 'admin' } });
+    if (!adminExists) {
+      adminUser = userRepo.create({
+        username: 'admin', password: adminPwd, realName: '系统管理员',
+        email: 'admin@legal.com', phone: '13800000000', department: UserDepartment.ADMIN,
+        status: UserStatus.ACTIVE,
+      });
+      adminUser = await userRepo.save(adminUser);
+    } else {
+      adminUser = adminExists;
+    }
+    if (roles.length > 0) {
+      const existingUR = await userRoleRepo.findOne({ where: { userId: adminUser.id, roleId: roles[0].id } });
+      if (!existingUR) {
+        await userRoleRepo.save(userRoleRepo.create({ userId: adminUser.id, roleId: roles[0].id }));
+      }
+    }
 
     const userPwd = await bcrypt.hash('123456', 10);
     const userProfiles = [
@@ -90,17 +118,27 @@ async function run() {
       { username: 'liuhong', realName: '刘红', email: 'liuhong@legal.com', phone: '13800000005', department: UserDepartment.LEGAL, roleIdx: 2 },
     ];
     for (const up of userProfiles) {
-      const u = userRepo.create({
-        ...up, password: userPwd, status: UserStatus.ACTIVE,
-        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${up.realName}`,
-      });
-      const saved = await userRepo.save(u);
-      testUsers.push(saved);
-      await userRoleRepo.save(userRoleRepo.create({ userId: saved.id, roleId: roles[up.roleIdx].id }));
+      const exists = await userRepo.findOne({ where: { username: up.username } });
+      if (!exists) {
+        const u = userRepo.create({
+          ...up, password: userPwd, status: UserStatus.ACTIVE,
+          avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${up.realName}`,
+        });
+        const saved = await userRepo.save(u);
+        testUsers.push(saved);
+        if (roles.length > up.roleIdx) {
+          const existingUR = await userRoleRepo.findOne({ where: { userId: saved.id, roleId: roles[up.roleIdx].id } });
+          if (!existingUR) {
+            await userRoleRepo.save(userRoleRepo.create({ userId: saved.id, roleId: roles[up.roleIdx].id }));
+          }
+        }
+      } else {
+        testUsers.push(exists);
+      }
     }
   } else {
     adminUser = await userRepo.findOne({ where: { username: 'admin' } });
-    testUsers = await userRepo.find({ where: { username: Not('admin') } as any, take: 10 });
+    testUsers = await userRepo.find({ where: { username: Not('admin') }, take: 10 });
   }
 
   const contractCount = await contractRepo.count();
@@ -110,18 +148,18 @@ async function run() {
     const contractsData = [
       { title: '2024年度供应商框架采购合同', contractType: ContractType.PURCHASE, partyA: '北京科技有限公司', partyB: '上海供应链管理有限公司', amount: 5800000, urgency: UrgencyLevel.VERY_URGENT, status: ContractStatus.APPROVING, materialsComplete: true, summary: '2024年度生产原材料集中采购框架协议' },
       { title: '软件开发服务外包合同', contractType: ContractType.SERVICE, partyA: '北京科技有限公司', partyB: '深圳软件技术有限公司', amount: 1280000, urgency: UrgencyLevel.NORMAL, status: ContractStatus.DRAFT, materialsComplete: false, summary: 'ERP系统二期开发外包服务' },
-      { title: '办公场地租赁合同', contractType: ContractType.LEASE, partyA: '北京科技有限公司', partyB: '北京地产运营有限公司', amount: 3200000, urgency: UrgencyLevel.URGENT, status: ContractStatus.APPROVING, materialsComplete: true, summary: '望京SOHO T3-15层办公场地租赁' },
-      { title: '设备维保服务合同', contractType: ContractType.SERVICE, partyA: '北京科技有限公司', partyB: '北京设备服务有限公司', amount: 680000, urgency: UrgencyLevel.NORMAL, status: ContractStatus.SIGNED, materialsComplete: true, summary: '生产设备年度维保服务', rejectionReason: null },
+      { title: '办公场地租赁合同', contractType: ContractType.OTHER, partyA: '北京科技有限公司', partyB: '北京地产运营有限公司', amount: 3200000, urgency: UrgencyLevel.URGENT, status: ContractStatus.APPROVING, materialsComplete: true, summary: '望京SOHO T3-15层办公场地租赁' },
+      { title: '设备维保服务合同', contractType: ContractType.SERVICE, partyA: '北京科技有限公司', partyB: '北京设备服务有限公司', amount: 680000, urgency: UrgencyLevel.NORMAL, status: ContractStatus.SIGNED, materialsComplete: true, summary: '生产设备年度维保服务', rejectionReason: '' },
       { title: '人力资源外包协议', contractType: ContractType.SERVICE, partyA: '北京科技有限公司', partyB: '上海人力资源服务有限公司', amount: 2580000, urgency: UrgencyLevel.NORMAL, status: ContractStatus.ARCHIVED, materialsComplete: true, summary: '2024年人力资源外包服务协议' },
       { title: '品牌营销合作合同', contractType: ContractType.COOPERATION, partyA: '北京科技有限公司', partyB: '上海品牌管理有限公司', amount: 4200000, urgency: UrgencyLevel.URGENT, status: ContractStatus.REJECTED, materialsComplete: false, summary: '品牌联合推广营销合作', rejectionReason: '预算超标，需重新评估ROI' },
       { title: '原材料采购合同', contractType: ContractType.PURCHASE, partyA: '北京科技有限公司', partyB: '宁波材料科技有限公司', amount: 1680000, urgency: UrgencyLevel.NORMAL, status: ContractStatus.SIGNED, materialsComplete: true, summary: '特殊原材料年度采购合同' },
-      { title: '咨询服务合同', contractType: ContractType.SERVICE, partyA: '北京科技有限公司', partyB: '国际咨询管理有限公司', amount: 6800000, urgency: UrgencyLevel.NORMAL, status: ContractStatus.DRAFT, materialsComplete: false, summary: '数字化转型战略咨询服务', rejectionReason: null },
-      { title: 'NDA保密协议', contractType: ContractType.CONFIDENTIAL, partyA: '北京科技有限公司', partyB: '投资合伙人有限公司', amount: 0, urgency: UrgencyLevel.NORMAL, status: ContractStatus.SIGNED, materialsComplete: true, summary: '投融资尽职调查保密协议', rejectionReason: null },
+      { title: '咨询服务合同', contractType: ContractType.SERVICE, partyA: '北京科技有限公司', partyB: '国际咨询管理有限公司', amount: 6800000, urgency: UrgencyLevel.NORMAL, status: ContractStatus.DRAFT, materialsComplete: false, summary: '数字化转型战略咨询服务', rejectionReason: '' },
+      { title: 'NDA保密协议', contractType: ContractType.CONFIDENTIAL, partyA: '北京科技有限公司', partyB: '投资合伙人有限公司', amount: 0, urgency: UrgencyLevel.NORMAL, status: ContractStatus.SIGNED, materialsComplete: true, summary: '投融资尽职调查保密协议', rejectionReason: '' },
       { title: '原材料采购合同', contractType: ContractType.PURCHASE, partyA: '北京科技有限公司', partyB: '鞍山钢铁股份有限公司', amount: 12500000, urgency: UrgencyLevel.URGENT, status: ContractStatus.PENDING, materialsComplete: true, summary: 'Q3生产用特种钢材5000吨采购合同' },
     ];
 
     for (let i = 0; i < contractsData.length; i++) {
-      const data = contractsData[i] as any;
+      const data = contractsData[i];
       const applicant = testUsers[i % testUsers.length];
       const owner = testUsers[(i + 2) % testUsers.length];
       const year = now.getFullYear();
@@ -135,7 +173,7 @@ async function run() {
           { name: '合同正文', required: true, uploaded: true, remark: '已上传' },
           { name: '对方营业执照', required: true, uploaded: data.materialsComplete, remark: data.materialsComplete ? '已核验' : '待补充' },
           { name: '授权委托书', required: true, uploaded: data.materialsComplete, remark: data.materialsComplete ? '已上传' : '待上传' },
-          { name: '报价单/比价表', required: data.amount > 1000000, uploaded: data.amount > 1000000 && data.materialsComplete },
+          { name: '报价单/比价表', required: data.amount > 1000000, uploaded: data.amount > 1000000 && data.materialsComplete, remark: '' },
           { name: '立项审批单', required: true, uploaded: true, remark: '审批通过' },
         ],
         customFields: {
@@ -163,7 +201,7 @@ async function run() {
             nodeName: ['法务审核', '财务审核', '最终审批'][i], nodeType: ApprovalNodeType.SINGLE,
             stepOrder: i + 1, status,
             approvedAt: status === ApprovalStatus.APPROVED ? new Date() : null,
-            opinion: status === ApprovalStatus.APPROVED ? '已审核，材料完整' : null,
+            opinion: status === ApprovalStatus.APPROVED ? '已审核，材料完整' : '',
             signature: status === ApprovalStatus.APPROVED ? { sign: `SIGN_${contract.id}_${approver.id}` } : null,
             durationHours: status === ApprovalStatus.APPROVED ? Math.floor(Math.random() * 24 + 2) : 0,
           });
@@ -285,7 +323,7 @@ async function run() {
       { recipientId: testUsers[1].id, type: NotificationType.APPROVAL_REQUEST, channel: NotificationChannel.IN_APP, title: '【待审批】采购合同等待您的审核', content: `合同《${testContracts[0].title}》已提交审批，请尽快处理`, relatedData: { contractId: testContracts[0].id }, status: NotificationStatus.SENT, sentAt: now },
       { recipientId: testUsers[2].id, type: NotificationType.MATERIAL_INCOMPLETE, channel: NotificationChannel.IN_APP, title: '【材料提醒】合同附件不完整', content: `您提交的《${testContracts[1].title}》缺少营业执照和授权委托书`, relatedData: { contractId: testContracts[1].id }, status: NotificationStatus.SENT, sentAt: now },
       { recipientId: testUsers[2].id, type: NotificationType.CONTRACT_REJECTED, channel: NotificationChannel.EMAIL, title: '【退回通知】合同被财务审核驳回', content: `您的《${testContracts[5].title}》被驳回：预算超标，需重新评估ROI`, relatedData: { contractId: testContracts[5].id }, status: NotificationStatus.SENT, sentAt: now },
-      { recipientId: testUsers[0].id, type: NotificationType.CONFLICT_CREATED, channel: NotificationChannel.DINGTALK, title: '【冲突告警】检测到资源冲突需要处理', content: `租赁合同冲突事件已创建，请及时处理`, relatedData: { conflictId: 'temp' }, status: NotificationStatus.SENT, sentAt: now },
+      { recipientId: testUsers[0].id, type: NotificationType.CONFLICT_CREATED, channel: NotificationChannel.DINGTALK, title: '【冲突告警】检测到资源冲突需要处理', content: `租赁合同冲突事件已创建，请及时处理`, status: NotificationStatus.SENT, sentAt: now },
       { recipientId: adminUser?.id || testUsers[0].id, type: NotificationType.CALLBACK_FAILURE, channel: NotificationChannel.IN_APP, title: '【回调异常】支付回调连续失败2次', content: `支付网关回调失败，已进入重试队列，请关注`, status: NotificationStatus.RETRYING, retryCount: 2, maxRetryCount: 5, failureReason: '对方服务返回503 Service Unavailable', nextRetryAt: new Date(now.getTime() + 120000) },
     ];
     for (const n of notifications) {
@@ -302,7 +340,7 @@ async function run() {
       { requestId: 'CB-INIT-001', callbackType: CallbackType.WEBHOOK, targetUrl: 'https://webhook.example.com/approval', requestPayload: JSON.stringify({ contractId: contract.id, status: 'approved' }), status: CallbackStatus.SUCCESS, responseStatusCode: 200, responseBody: JSON.stringify({ code: 0, message: 'ok' }), durationMs: 235, relatedId: contract.id, relatedType: 'contract', firstAttemptAt: now, lastAttemptAt: now, completedAt: now },
       { requestId: 'CB-INIT-002', callbackType: CallbackType.PAYMENT, targetUrl: 'https://payment-gateway.example.com/notify', requestPayload: JSON.stringify({ orderId: 'PAY20240601001', amount: 5800000 }), status: CallbackStatus.RETRYING, failureReason: '对方服务返回503 Service Unavailable', nextRetryAt: new Date(now.getTime() + 120000), retryCount: 2, relatedId: contract.id, relatedType: 'contract', firstAttemptAt: new Date(now.getTime() - 120000), lastAttemptAt: new Date(now.getTime() - 60000), retryHistory: [{ attempt: 1, time: new Date(now.getTime() - 120000), status: 'failed', statusCode: 503, error: '503 Service Unavailable', durationMs: 5000 }, { attempt: 2, time: new Date(now.getTime() - 60000), status: 'failed', statusCode: 503, error: '503 Service Unavailable', durationMs: 5000 }] },
       { requestId: 'CB-INIT-003', callbackType: CallbackType.ESIGN, targetUrl: 'https://esign.example.com/callback', requestPayload: JSON.stringify({ contractId: contract.id }), status: CallbackStatus.PENDING, relatedId: contract.id, relatedType: 'contract', firstAttemptAt: now },
-      { requestId: 'CB-INIT-004', callbackType: CallbackType.SMS, targetUrl: 'https://sms.example.com/send', requestPayload: JSON.stringify({ phone: '13800000001', content: '您的合同已审批通过' }), status: CallbackStatus.FAILED, failureReason: '短信服务商账户余额不足，请充值后重试', retryCount: 5, maxRetryCount: 5, relatedId: contract.id, relatedType: 'contract', firstAttemptAt: new Date(now.getTime() - 300000), lastAttemptAt: new Date(now.getTime() - 60000), retryHistory: [{ attempt: i, time: new Date(now.getTime() - (5 - i) * 60000), status: 'failed', statusCode: 402, error: 'Insufficient balance', durationMs: 300 } for i in [1, 2, 3, 4, 5]] as any },
+      { requestId: 'CB-INIT-004', callbackType: CallbackType.SMS, targetUrl: 'https://sms.example.com/send', requestPayload: JSON.stringify({ phone: '13800000001', content: '您的合同已审批通过' }), status: CallbackStatus.FAILED, failureReason: '短信服务商账户余额不足，请充值后重试', retryCount: 5, maxRetryCount: 5, relatedId: contract.id, relatedType: 'contract', firstAttemptAt: new Date(now.getTime() - 300000), lastAttemptAt: new Date(now.getTime() - 60000), retryHistory: [1, 2, 3, 4, 5].map(i => ({ attempt: i, time: new Date(now.getTime() - (5 - i) * 60000), status: 'failed', statusCode: 402, error: 'Insufficient balance', durationMs: 300 })) },
     ];
     for (const cb of callbacks) {
       await callbackRepo.save(callbackRepo.create(cb as any));
@@ -316,9 +354,10 @@ async function run() {
     const prefix = `HT-${year}`;
     for (let i = 1; i <= 20; i++) {
       const np = numberPoolRepo.create({
-        prefix: `HT-${year}`, year, sequence: i,
+        prefix: `HT-${year}`, year, seqNo: i,
         contractNo: `${prefix}-${String(i).padStart(5, '0')}`,
         status: i <= 10 ? NumberPoolStatus.USED : (i <= 15 ? NumberPoolStatus.RESERVED : NumberPoolStatus.AVAILABLE),
+        ruleType: 'standard',
       });
       await numberPoolRepo.save(np);
     }
@@ -326,10 +365,6 @@ async function run() {
 
   await dataSource.destroy();
   console.log('✅ 种子数据初始化完成！');
-}
-
-function Not(val: any) {
-  return { $ne: val } as any;
 }
 
 run().catch(e => {
