@@ -1,0 +1,27 @@
+node_modules/
+dist/
+build/
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.log
+.idea/
+.vscode/
+.env
+.env.local
+.env.*.local
+
+# 数据库
+*.mdf
+*.ldf
+
+# 发布
+publish/
+out/
+
+# 临时文件
+*.tmp
+*.temp

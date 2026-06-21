@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Counseling.Api</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Counseling.Application\Counseling.Application.csproj" />
+    <ProjectReference Include="..\Counseling.Domain\Counseling.Domain.csproj" />
+    <ProjectReference Include="..\Counseling.Infrastructure\Counseling.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
