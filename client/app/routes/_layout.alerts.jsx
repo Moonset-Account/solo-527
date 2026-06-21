@@ -75,7 +75,7 @@ export default function Alerts() {
   };
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value, page: 1 });
+    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
     const newParams = new URLSearchParams(searchParams);
     if (value) {
       newParams.set(key, value);

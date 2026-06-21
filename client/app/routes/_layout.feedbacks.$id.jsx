@@ -11,6 +11,7 @@ export default function FeedbackDetail() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showHandleModal, setShowHandleModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [formData, setFormData] = useState({
     status: '',
     reviewComment: '',
@@ -43,6 +44,8 @@ export default function FeedbackDetail() {
         })
       });
       setShowReviewModal(false);
+      setSuccessMessage('审核提交成功！');
+      setTimeout(() => setSuccessMessage(''), 3000);
       loadFeedback();
     } catch (error) {
       alert(error.message);
@@ -59,6 +62,8 @@ export default function FeedbackDetail() {
         })
       });
       setShowHandleModal(false);
+      setSuccessMessage('处理方案保存成功！');
+      setTimeout(() => setSuccessMessage(''), 3000);
       loadFeedback();
     } catch (error) {
       alert(error.message);
@@ -74,6 +79,8 @@ export default function FeedbackDetail() {
         })
       });
       setShowCloseModal(false);
+      setSuccessMessage('反馈已关闭！');
+      setTimeout(() => setSuccessMessage(''), 3000);
       loadFeedback();
     } catch (error) {
       alert(error.message);
@@ -121,6 +128,20 @@ export default function FeedbackDetail() {
 
   return (
     <div>
+      {successMessage && (
+        <div style={{
+          padding: '0.75rem 1rem',
+          marginBottom: '1rem',
+          backgroundColor: '#d1fae5',
+          color: '#065f46',
+          borderRadius: '0.375rem',
+          border: '1px solid #6ee7b7',
+          fontWeight: '500'
+        }}>
+          ✅ {successMessage}
+        </div>
+      )}
+      
       <div style={{ marginBottom: '1rem' }}>
         <Link to="/feedbacks" className="btn btn-sm btn-secondary">
           ← 返回列表
