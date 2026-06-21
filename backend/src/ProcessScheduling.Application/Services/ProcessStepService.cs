@@ -35,10 +35,18 @@ public class ProcessStepService : IProcessStepService
         if (instance.Status == ProcessStepStatus.Completed)
             throw new InvalidOperationException("该工序已完成");
 
+        if (request.EquipmentId == Guid.Empty)
+            throw new InvalidOperationException("请选择有效的设备");
+
+        var equipment = await _unitOfWork.Equipments.GetByIdAsync(request.EquipmentId);
+        if (equipment == null)
+            throw new KeyNotFoundException($"设备 {request.EquipmentId} 不存在");
+
         var previousStatus = instance.Status;
         instance.Status = ProcessStepStatus.InProgress;
         instance.EquipmentId = request.EquipmentId;
         instance.OperatorId = request.OperatorId;
+        instance.ShiftId = equipment.CurrentShiftId;
         instance.StartedAt = DateTime.UtcNow;
         instance.UpdatedAt = DateTime.UtcNow;
 
@@ -50,31 +58,27 @@ public class ProcessStepService : IProcessStepService
             Reason = "扫码开始"
         });
 
-        var equipment = await _unitOfWork.Equipments.GetByIdAsync(request.EquipmentId);
-        if (equipment != null)
-        {
-            var prevEquipStatus = equipment.Status;
-            equipment.Status = EquipmentStatus.Processing;
-            equipment.CurrentWorkOrderCode = instance.WorkOrder?.Code;
-            equipment.UpdatedAt = DateTime.UtcNow;
+        var prevEquipStatus = equipment.Status;
+        equipment.Status = EquipmentStatus.Processing;
+        equipment.CurrentWorkOrderCode = instance.WorkOrder?.Code;
+        equipment.UpdatedAt = DateTime.UtcNow;
 
-            equipment.StatusHistories.Add(new EquipmentStatusHistory
-            {
-                EquipmentId = equipment.Id,
-                PreviousStatus = prevEquipStatus,
-                NewStatus = EquipmentStatus.Processing,
-                Reason = "开始工序加工",
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = request.OperatorId.ToString()
-            });
-        }
+        equipment.StatusHistories.Add(new EquipmentStatusHistory
+        {
+            EquipmentId = equipment.Id,
+            PreviousStatus = prevEquipStatus,
+            NewStatus = EquipmentStatus.Processing,
+            Reason = "开始工序加工",
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = request.OperatorId.ToString()
+        });
 
         await _unitOfWork.SaveChangesAsync();
 
         await _operationLogService.LogAsync(
             "ProcessStep",
             "扫码开始工序",
-            $"工序: {instance.ProcessStepTemplate?.Name}, 设备: {equipment?.Name}",
+            $"工序: {instance.ProcessStepTemplate?.Name}, 设备: {equipment.Name}",
             request.OperatorId,
             null);
 
@@ -148,7 +152,7 @@ public class ProcessStepService : IProcessStepService
                     NewStatus = EquipmentStatus.Running,
                     Reason = "工序加工完成",
                     CreatedAt = DateTime.UtcNow,
-                    CreatedBy = instance.OperatorId.ToString()
+                    CreatedBy = instance.OperatorId?.ToString() ?? string.Empty
                 });
             }
         }

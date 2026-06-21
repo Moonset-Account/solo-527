@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { processStepApi } from '../services/processStepApi';
+import { equipmentApi } from '../services/equipmentApi';
 import { useAuthStore } from '../stores/authStore';
-import type { ProcessStepInstance } from '../types';
+import type { ProcessStepInstance, Equipment } from '../types';
 
 const ProcessStep = () => {
   const [qrCode, setQrCode] = useState('');
@@ -12,7 +13,40 @@ const ProcessStep = () => {
   const [abnormalReason, setAbnormalReason] = useState('');
   const [showAbnormalModal, setShowAbnormalModal] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState('');
+  const [loadingEquipments, setLoadingEquipments] = useState(false);
   const { user } = useAuthStore();
+
+  useEffect(() => {
+    const fetchEquipments = async () => {
+      try {
+        setLoadingEquipments(true);
+        const list = await equipmentApi.getAll();
+        setEquipmentList(list);
+      } catch (err) {
+        console.error('Failed to load equipments:', err);
+      } finally {
+        setLoadingEquipments(false);
+      }
+    };
+    fetchEquipments();
+  }, []);
+
+  useEffect(() => {
+    if (currentStep && currentStep.status === 1) {
+      if (currentStep.equipmentId) {
+        setSelectedEquipmentId(currentStep.equipmentId);
+      } else if (equipmentList.length > 0) {
+        const runningEquip = equipmentList.find((e) => e.status === 1 || e.status === 2);
+        if (runningEquip) {
+          setSelectedEquipmentId(runningEquip.id);
+        } else if (equipmentList.length > 0) {
+          setSelectedEquipmentId(equipmentList[0].id);
+        }
+      }
+    }
+  }, [currentStep, equipmentList]);
 
   const handleQuery = async () => {
     if (!qrCode.trim()) return;
@@ -28,11 +62,15 @@ const ProcessStep = () => {
 
   const handleStart = async () => {
     if (!currentStep || !user) return;
+    if (!selectedEquipmentId) {
+      setMessage({ type: 'error', text: '请选择加工设备' });
+      return;
+    }
     try {
       const result = await processStepApi.scanStart({
         qrCode,
         operatorId: user.id,
-        equipmentId: currentStep.equipmentId || user.shiftId || '',
+        equipmentId: selectedEquipmentId,
       });
       setCurrentStep(result);
       setMessage({ type: 'success', text: '工序已开始' });
@@ -81,6 +119,17 @@ const ProcessStep = () => {
       case 4: return 'text-red-600 bg-red-100';
       case 5: return 'text-yellow-600 bg-yellow-100';
       default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getEquipmentStatusText = (status: number) => {
+    switch (status) {
+      case 1: return '运行中';
+      case 2: return '加工中';
+      case 3: return '异常';
+      case 4: return '停机';
+      case 5: return '维护中';
+      default: return '未知';
     }
   };
 
@@ -154,10 +203,35 @@ const ProcessStep = () => {
           </div>
 
           {currentStep.status === 1 && (
-            <div className="p-6">
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm text-gray-600 mb-2">选择加工设备</label>
+                {loadingEquipments ? (
+                  <div className="text-gray-400 text-sm">加载设备列表中...</div>
+                ) : (
+                  <select
+                    value={selectedEquipmentId}
+                    onChange={(e) => setSelectedEquipmentId(e.target.value)}
+                    className="w-full px-4 py-3 border rounded-lg outline-none focus:ring-2 focus:ring-primary bg-white"
+                  >
+                    <option value="">请选择设备</option>
+                    {equipmentList.map((equip) => (
+                      <option key={equip.id} value={equip.id}>
+                        {equip.code} - {equip.name} ({getEquipmentStatusText(equip.status)})
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {currentStep.equipmentId && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    提示：工单默认绑定设备：{currentStep.equipmentName || '无'}
+                  </p>
+                )}
+              </div>
               <button
                 onClick={handleStart}
-                className="w-full py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium"
+                disabled={!selectedEquipmentId || loadingEquipments}
+                className="w-full py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 开始加工
               </button>

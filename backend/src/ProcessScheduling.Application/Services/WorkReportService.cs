@@ -143,7 +143,7 @@ public class WorkReportService : IWorkReportService
         var workOrder = report.WorkOrder ?? await _unitOfWork.WorkOrders.GetByIdAsync(report.WorkOrderId);
         var operatorUser = report.Operator ?? await _unitOfWork.Users.GetByIdAsync(report.OperatorId);
         var equipment = report.Equipment ?? await _unitOfWork.Equipments.GetByIdAsync(report.EquipmentId);
-        var shift = report.Shift ?? (report.ShiftId.HasValue ? await _unitOfWork.Shifts.GetByIdAsync(report.ShiftId.Value) : null);
+        var shift = report.Shift ?? (report.ShiftId != Guid.Empty ? await _unitOfWork.Shifts.GetByIdAsync(report.ShiftId) : null);
         var reviewer = report.Reviewer ?? (report.ReviewerId.HasValue ? await _unitOfWork.Users.GetByIdAsync(report.ReviewerId.Value) : null);
 
         return new WorkReportDto
@@ -155,7 +155,7 @@ public class WorkReportService : IWorkReportService
             OperatorName = operatorUser?.RealName ?? string.Empty,
             EquipmentId = report.EquipmentId,
             EquipmentName = equipment?.Name ?? string.Empty,
-            ShiftId = report.ShiftId ?? Guid.Empty,
+            ShiftId = report.ShiftId,
             ShiftName = shift?.Name ?? string.Empty,
             CompletedQuantity = report.CompletedQuantity,
             DefectiveQuantity = report.DefectiveQuantity,
