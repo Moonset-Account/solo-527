@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import Article from '../models/Article.js';
 import Material from '../models/Material.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -6,6 +7,18 @@ import { createAuditLog, compareAndGetChanges } from '../utils/audit.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  },
+});
+
+const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.get('/', requireAuth, async (req, res, next) => {
   try {
@@ -276,13 +289,21 @@ router.post('/:id/review', requireAuth, async (req, res, next) => {
   }
 });
 
-router.post('/:id/cover', requireAuth, async (req, res, next) => {
+router.post('/:id/cover', requireAuth, upload.single('image'), async (req, res, next) => {
   try {
     const user = req.user;
-    const { version, title, imageUrl, description, isCurrent = false } = req.body;
+    const { title, description, isCurrent = false } = req.body;
     const article = await Article.findById(req.params.id);
     if (!article) {
       return res.status(404).json({ error: '稿件不存在' });
+    }
+
+    const existingVersions = article.coverVersions || [];
+    const version = existingVersions.length + 1;
+
+    let imageUrl = '';
+    if (req.file) {
+      imageUrl = `/uploads/${req.file.filename}`;
     }
 
     const coverVersion = {
@@ -293,10 +314,11 @@ router.post('/:id/cover', requireAuth, async (req, res, next) => {
       description,
       createdBy: user.id,
       createdByName: user.name,
-      isCurrent,
+      createdAt: new Date(),
+      isCurrent: isCurrent || existingVersions.length === 0,
     };
 
-    if (isCurrent) {
+    if (coverVersion.isCurrent) {
       article.coverVersions = (article.coverVersions || []).map(cv => ({
         ...cv,
         isCurrent: false,
@@ -308,6 +330,20 @@ router.post('/:id/cover', requireAuth, async (req, res, next) => {
     article.coverVersions.push(coverVersion);
     article.updatedBy = user.id;
     await article.save();
+
+    await createAuditLog({
+      entityType: 'article',
+      entityId: article._id,
+      action: 'add_cover',
+      changedBy: user.id,
+      changedByName: user.name,
+      changes: [{
+        field: 'coverVersion',
+        oldValue: null,
+        newValue: { version, title, imageUrl },
+      }],
+      metadata: { version },
+    });
 
     res.json(coverVersion);
   } catch (err) {

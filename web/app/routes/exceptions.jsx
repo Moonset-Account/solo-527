@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "@remix-run/react";
 import { api } from "~/utils/api";
+import { useDictionary } from "~/utils/useDictionary";
 import dayjs from "dayjs";
 
 export default function Exceptions() {
@@ -14,6 +15,10 @@ export default function Exceptions() {
   const [severity, setSeverity] = useState("");
   const [keyword, setKeyword] = useState("");
   const navigate = useNavigate();
+
+  const { options: typeOptions } = useDictionary("exception_type");
+  const { options: severityOptions } = useDictionary("exception_severity");
+  const { options: statusOptions } = useDictionary("exception_status");
 
   useEffect(() => {
     loadExceptions();
@@ -103,10 +108,9 @@ export default function Exceptions() {
               onChange={(e) => { setStatus(e.target.value); setPage(1); }}
             >
               <option value="">全部状态</option>
-              <option value="pending">待处理</option>
-              <option value="processing">处理中</option>
-              <option value="resolved">已办结</option>
-              <option value="closed">已关闭</option>
+              {statusOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>
@@ -117,11 +121,9 @@ export default function Exceptions() {
               onChange={(e) => { setType(e.target.value); setPage(1); }}
             >
               <option value="">全部类型</option>
-              <option value="authorization_risk">授权风险</option>
-              <option value="copyright_risk">版权风险</option>
-              <option value="content_risk">内容风险</option>
-              <option value="schedule_conflict">排期冲突</option>
-              <option value="other">其他</option>
+              {typeOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>
@@ -132,10 +134,9 @@ export default function Exceptions() {
               onChange={(e) => { setSeverity(e.target.value); setPage(1); }}
             >
               <option value="">全部</option>
-              <option value="low">低</option>
-              <option value="medium">中</option>
-              <option value="high">高</option>
-              <option value="critical">紧急</option>
+              {severityOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
           <button type="submit" className="btn btn-primary">搜索</button>

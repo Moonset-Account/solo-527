@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "@remix-run/react";
 import { api } from "~/utils/api";
+import { useDictionary } from "~/utils/useDictionary";
 import dayjs from "dayjs";
 
 export default function Schedule() {
@@ -10,17 +11,15 @@ export default function Schedule() {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [batchTargetDate, setBatchTargetDate] = useState("");
+  const [batchTargetPlatform, setBatchTargetPlatform] = useState("");
   const [articles, setArticles] = useState([]);
   const navigate = useNavigate();
+  const [batchMode, setBatchMode] = useState(false);
 
-  const platforms = [
-    { value: "wechat", label: "微信公众号" },
-    { value: "weibo", label: "微博" },
-    { value: "toutiao", label: "今日头条" },
-    { value: "douyin", label: "抖音" },
-    { value: "website", label: "官方网站" },
-    { value: "app", label: "APP客户端" },
-  ];
+  const { options: platformOptions } = useDictionary("platforms");
 
   useEffect(() => {
     loadSchedule();
@@ -98,6 +97,55 @@ export default function Schedule() {
     }
   };
 
+  const toggleSelectItem = (item) => {
+    setSelectedItems(prev => {
+      const exists = prev.find(i => i._id === item._id && i.date === item.date);
+      if (exists) {
+        return prev.filter(i => !(i._id === item._id && i.date === item.date));
+      }
+      return [...prev, item];
+    });
+  };
+
+  const openBatchModal = () => {
+    if (selectedItems.length === 0) {
+      alert("请先选择要调整的排期项");
+      return;
+    }
+    setBatchTargetDate(selectedItems[0].date);
+    setBatchTargetPlatform(selectedPlatform);
+    setShowBatchModal(true);
+  };
+
+  const handleBatchUpdate = async () => {
+    if (!batchTargetDate || !batchTargetPlatform) {
+      alert("请选择目标日期和平台");
+      return;
+    }
+
+    try {
+      await api.post("/schedules/batch-update", {
+        items: selectedItems.map(item => ({
+          id: item.id || item._id,
+          articleId: item.articleId,
+          articleTitle: item.articleTitle,
+          priority: item.priority,
+        })),
+        fromDate: selectedItems[0]?.date,
+        fromPlatform: selectedPlatform,
+        toDate: batchTargetDate,
+        toPlatform: batchTargetPlatform,
+      });
+      setShowBatchModal(false);
+      setSelectedItems([]);
+      setBatchMode(false);
+      loadSchedule();
+      alert("批量调整成功");
+    } catch (err) {
+      alert("批量调整失败：" + err.message);
+    }
+  };
+
   const getDaysInMonth = () => {
     const startOfMonth = currentDate.startOf("month");
     const endOfMonth = currentDate.endOf("month");
@@ -146,7 +194,7 @@ export default function Schedule() {
       <div className="flex justify-between items-center mb-4">
         <h1 className="page-title" style={{ margin: 0 }}>排期日历</h1>
         <div className="flex gap-2">
-          {platforms.map(p => (
+          {platformOptions.map(p => (
             <button
               key={p.value}
               className={`btn btn-sm ${selectedPlatform === p.value ? "btn-primary" : "btn-secondary"}`}
@@ -155,6 +203,28 @@ export default function Schedule() {
               {p.label}
             </button>
           ))}
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center mb-3">
+        <div className="text-sm text-muted">
+          {batchMode ? `已选择 ${selectedItems.length} 项` : "点击日期添加排期"}
+        </div>
+        <div className="flex gap-2">
+          <button
+            className={`btn btn-sm ${batchMode ? "btn-primary" : "btn-secondary"}`}
+            onClick={() => {
+              setBatchMode(!batchMode);
+              setSelectedItems([]);
+            }}
+          >
+            {batchMode ? "退出批量" : "批量调整"}
+          </button>
+          {batchMode && selectedItems.length > 0 && (
+            <button className="btn btn-sm btn-success" onClick={openBatchModal}>
+              调整排期
+            </button>
+          )}
         </div>
       </div>
 
@@ -183,25 +253,37 @@ export default function Schedule() {
             const items = getItemsForDate(dateStr);
             const isToday = date.format("YYYY-MM-DD") === dayjs().format("YYYY-MM-DD");
 
+            const isSelected = (item) => selectedItems.some(i => i._id === item._id && i.date === dateStr);
+
             return (
               <div
                 key={index}
                 className={`calendar-day ${!isCurrentMonth ? "other-month" : ""} ${isToday ? "today" : ""}`}
-                onClick={() => isCurrentMonth && handleDateClick(dateStr)}
+                onClick={() => !batchMode && isCurrentMonth && handleDateClick(dateStr)}
               >
                 <div className="calendar-day-number">{date.date()}</div>
                 {items.slice(0, 3).map(item => (
                   <div
-                    key={item.id}
-                    className="calendar-item"
-                    style={{ background: getPriorityBg(item.priority) }}
+                    key={item.id || item._id}
+                    className={`calendar-item ${isSelected(item) ? "selected" : ""}`}
+                    style={{ background: getPriorityBg(item.priority), opacity: isSelected(item) ? 0.6 : 1 }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (item.articleId) {
+                      if (batchMode) {
+                        toggleSelectItem({ ...item, date: dateStr });
+                      } else if (item.articleId) {
                         navigate(`/articles/${item.articleId}`);
                       }
                     }}
                   >
+                    {batchMode && (
+                      <input
+                        type="checkbox"
+                        checked={isSelected(item)}
+                        onChange={() => {}}
+                        style={{ marginRight: 4 }}
+                      />
+                    )}
                     {item.articleTitle?.slice(0, 10) || item.title?.slice(0, 10)}
                   </div>
                 ))}
@@ -247,7 +329,7 @@ export default function Schedule() {
           <div className="modal" style={{ maxWidth: 600 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">
-                {selectedDate} · {platforms.find(p => p.value === selectedPlatform)?.label}
+                {selectedDate} · {platformOptions.find(p => p.value === selectedPlatform)?.label}
               </h3>
               <button className="modal-close" onClick={() => setShowAddModal(false)}>×</button>
             </div>
@@ -275,6 +357,49 @@ export default function Schedule() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowAddModal(false)}>关闭</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBatchModal && (
+        <div className="modal-overlay" onClick={() => setShowBatchModal(false)}>
+          <div className="modal" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">批量调整排期</h3>
+              <button className="modal-close" onClick={() => setShowBatchModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="mb-3 text-sm text-muted">
+                已选择 {selectedItems.length} 条排期项，将统一调整到目标日期和平台
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">目标日期</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={batchTargetDate}
+                  onChange={e => setBatchTargetDate(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">目标平台</label>
+                <select
+                  className="form-select"
+                  value={batchTargetPlatform}
+                  onChange={e => setBatchTargetPlatform(e.target.value)}
+                >
+                  {platformOptions.map(p => (
+                    <option key={p.value} value={p.value}>{p.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowBatchModal(false)}>取消</button>
+              <button className="btn btn-primary" onClick={handleBatchUpdate}>确认调整</button>
             </div>
           </div>
         </div>

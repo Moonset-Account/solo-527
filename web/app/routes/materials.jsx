@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "@remix-run/react";
 import { api } from "~/utils/api";
+import { useDictionary } from "~/utils/useDictionary";
 import dayjs from "dayjs";
 
 export default function Materials() {
@@ -15,6 +16,9 @@ export default function Materials() {
   const [authStatus, setAuthStatus] = useState("");
   const [showUpload, setShowUpload] = useState(false);
   const navigate = useNavigate();
+
+  const { options: typeOptions } = useDictionary("material_type");
+  const { options: authStatusOptions } = useDictionary("material_auth_status");
 
   useEffect(() => {
     loadMaterials();
@@ -77,11 +81,9 @@ export default function Materials() {
               onChange={(e) => { setType(e.target.value); setPage(1); }}
             >
               <option value="">全部类型</option>
-              <option value="image">图片</option>
-              <option value="video">视频</option>
-              <option value="audio">音频</option>
-              <option value="document">文档</option>
-              <option value="other">其他</option>
+              {typeOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>
@@ -106,10 +108,9 @@ export default function Materials() {
               onChange={(e) => { setAuthStatus(e.target.value); setPage(1); }}
             >
               <option value="">全部</option>
-              <option value="authorized">已授权</option>
-              <option value="pending">待确认</option>
-              <option value="unauthorized">未授权</option>
-              <option value="unknown">未知</option>
+              {authStatusOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
           <button type="submit" className="btn btn-primary">搜索</button>

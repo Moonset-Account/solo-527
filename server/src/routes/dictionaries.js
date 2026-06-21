@@ -1,7 +1,7 @@
 import express from 'express';
 import Dictionary from '../models/Dictionary.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
-import { createAuditLog } from '../utils/audit.js';
+import { createAuditLog, compareAndGetChanges } from '../utils/audit.js';
 import { redisClient } from '../config/redis.js';
 
 const router = express.Router();
@@ -124,16 +124,37 @@ router.put('/:id', requireAuth, requireRole(['admin', 'chief_editor']), async (r
 
     const { name, description, type, items, enabled } = req.body;
 
-    if (name !== undefined) dictionary.name = name;
-    if (description !== undefined) dictionary.description = description;
-    if (type !== undefined) dictionary.type = type;
+    const oldData = dictionary.toObject();
+    const changes = [];
+
+    if (name !== undefined && name !== dictionary.name) {
+      changes.push({ field: 'name', oldValue: dictionary.name, newValue: name });
+      dictionary.name = name;
+    }
+    if (description !== undefined && description !== dictionary.description) {
+      changes.push({ field: 'description', oldValue: dictionary.description, newValue: description });
+      dictionary.description = description;
+    }
+    if (type !== undefined && type !== dictionary.type) {
+      changes.push({ field: 'type', oldValue: dictionary.type, newValue: type });
+      dictionary.type = type;
+    }
     if (items !== undefined) {
-      dictionary.items = items.map((item, index) => ({
+      const processedItems = items.map((item, index) => ({
         ...item,
         sort: item.sort ?? index,
       }));
+      const oldItems = JSON.stringify(dictionary.items);
+      const newItems = JSON.stringify(processedItems);
+      if (oldItems !== newItems) {
+        changes.push({ field: 'items', oldValue: dictionary.items, newValue: processedItems });
+        dictionary.items = processedItems;
+      }
     }
-    if (enabled !== undefined) dictionary.enabled = enabled;
+    if (enabled !== undefined && enabled !== dictionary.enabled) {
+      changes.push({ field: 'enabled', oldValue: dictionary.enabled, newValue: enabled });
+      dictionary.enabled = enabled;
+    }
     dictionary.updatedBy = user.id;
 
     await dictionary.save();
@@ -141,17 +162,20 @@ router.put('/:id', requireAuth, requireRole(['admin', 'chief_editor']), async (r
     await redisClient.del('dictionaries:*');
     await redisClient.del(`dictionary:${dictionary.code}`);
 
-    await createAuditLog({
-      entityType: 'dictionary',
-      entityId: dictionary._id,
-      entityTitle: dictionary.name,
-      action: 'update',
-      operatorId: user.id,
-      operatorName: user.name,
-      operatorRole: user.role,
-      ip: req.ip,
-      remark: '更新字段字典',
-    });
+    if (changes.length > 0) {
+      await createAuditLog({
+        entityType: 'dictionary',
+        entityId: dictionary._id,
+        entityTitle: dictionary.name,
+        action: 'update',
+        changes,
+        operatorId: user.id,
+        operatorName: user.name,
+        operatorRole: user.role,
+        ip: req.ip,
+        remark: '更新字段字典',
+      });
+    }
 
     res.json(dictionary);
   } catch (err) {

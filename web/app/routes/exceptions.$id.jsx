@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "@remix-run/react";
 import { api } from "~/utils/api";
+import { useDictionary } from "~/utils/useDictionary";
 import dayjs from "dayjs";
 
 export default function ExceptionDetail() {
@@ -18,6 +19,10 @@ export default function ExceptionDetail() {
   const [assignee, setAssignee] = useState("");
   const [assigneeName, setAssigneeName] = useState("");
   const [auditLogs, setAuditLogs] = useState([]);
+
+  const { options: typeOptions, getLabel: getTypeLabel, getColor: getTypeColor } = useDictionary("exception_type");
+  const { options: severityOptions, getLabel: getSeverityLabelDict, getColor: getSeverityColor } = useDictionary("exception_severity");
+  const { options: statusOptions, getLabel: getStatusLabelDict } = useDictionary("exception_status");
 
   useEffect(() => {
     if (id === "new") {
@@ -210,11 +215,9 @@ export default function ExceptionDetail() {
               value={newException.type}
               onChange={e => setNewException({ ...newException, type: e.target.value })}
             >
-              <option value="authorization_risk">授权风险</option>
-              <option value="copyright_risk">版权风险</option>
-              <option value="content_risk">内容风险</option>
-              <option value="schedule_conflict">排期冲突</option>
-              <option value="other">其他</option>
+              {typeOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
 
@@ -225,10 +228,9 @@ export default function ExceptionDetail() {
               value={newException.severity}
               onChange={e => setNewException({ ...newException, severity: e.target.value })}
             >
-              <option value="low">低</option>
-              <option value="medium">中</option>
-              <option value="high">高</option>
-              <option value="critical">紧急</option>
+              {severityOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
 

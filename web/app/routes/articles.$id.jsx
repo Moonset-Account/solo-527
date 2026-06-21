@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "@remix-run/react";
 import { api } from "~/utils/api";
+import { useDictionary } from "~/utils/useDictionary";
 import dayjs from "dayjs";
 
 export default function ArticleDetail() {
@@ -30,6 +31,16 @@ export default function ArticleDetail() {
   const [reviewInput, setReviewInput] = useState("");
   const [reviewStatus, setReviewStatus] = useState("pending");
   const [reviewLevel, setReviewLevel] = useState("first");
+  const [showCoverForm, setShowCoverForm] = useState(false);
+  const [newCoverTitle, setNewCoverTitle] = useState("");
+  const [newCoverDescription, setNewCoverDescription] = useState("");
+  const [newCoverImage, setNewCoverImage] = useState(null);
+
+  const { options: categoryOptions } = useDictionary("article_categories");
+  const { options: platformOptions } = useDictionary("platforms");
+  const { options: priorityOptions } = useDictionary("priority");
+  const { options: feedbackTypeOptions } = useDictionary("feedback_type");
+  const { options: reviewLevelOptions } = useDictionary("review_level");
 
   useEffect(() => {
     if (id === "new") {
@@ -401,8 +412,56 @@ export default function ArticleDetail() {
               {activeTab === "covers" && (
                 <div>
                   <div className="mb-4">
-                    <button className="btn btn-secondary btn-sm">+ 添加封面版本</button>
+                    {!showCoverForm ? (
+                      <button className="btn btn-secondary btn-sm" onClick={() => setShowCoverForm(true)}>
+                        + 添加封面版本
+                      </button>
+                    ) : (
+                      <button className="btn btn-secondary btn-sm" onClick={() => setShowCoverForm(false)}>
+                        取消
+                      </button>
+                    )}
                   </div>
+
+                  {showCoverForm && (
+                    <div className="card mb-4" style={{ padding: 16 }}>
+                      <h4 className="font-semibold mb-3">新增封面版本</h4>
+                      <div className="form-group">
+                        <label className="form-label">封面标题</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={newCoverTitle}
+                          onChange={e => setNewCoverTitle(e.target.value)}
+                          placeholder="请输入封面版本标题"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">封面说明</label>
+                        <textarea
+                          className="form-textarea"
+                          value={newCoverDescription}
+                          onChange={e => setNewCoverDescription(e.target.value)}
+                          placeholder="请输入封面说明（可选）"
+                          rows={3}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">封面图片</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="form-input"
+                          onChange={e => setNewCoverImage(e.target.files?.[0] || null)}
+                        />
+                      </div>
+                      <div className="flex justify-end">
+                        <button className="btn btn-primary" onClick={handleAddCover}>
+                          提交
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {article.coverVersions?.length > 0 ? (
                     <div className="grid grid-cols-3 gap-3">
@@ -540,12 +599,9 @@ export default function ArticleDetail() {
               onChange={e => setEditData({ ...editData, category: e.target.value })}
             >
               <option value="">请选择</option>
-              <option value="politics">时政新闻</option>
-              <option value="finance">财经新闻</option>
-              <option value="society">社会新闻</option>
-              <option value="tech">科技新闻</option>
-              <option value="entertainment">文化娱乐</option>
-              <option value="sports">体育新闻</option>
+              {categoryOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
 
@@ -556,9 +612,9 @@ export default function ArticleDetail() {
               value={editData.priority}
               onChange={e => setEditData({ ...editData, priority: e.target.value })}
             >
-              <option value="normal">普通</option>
-              <option value="important">重要</option>
-              <option value="urgent">紧急</option>
+              {priorityOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
 
@@ -579,21 +635,21 @@ export default function ArticleDetail() {
           <div className="form-group">
             <label className="form-label">发布平台</label>
             <div className="flex flex-wrap gap-2">
-              {["wechat", "weibo", "toutiao", "douyin", "website", "app"].map(p => (
-                <label key={p} className="flex items-center gap-1 text-sm">
+              {platformOptions.map(p => (
+                <label key={p.value} className="flex items-center gap-1 text-sm">
                   <input
                     type="checkbox"
-                    checked={editData.platforms?.includes(p)}
+                    checked={editData.platforms?.includes(p.value)}
                     onChange={e => {
                       const platforms = editData.platforms || [];
                       if (e.target.checked) {
-                        setEditData({ ...editData, platforms: [...platforms, p] });
+                        setEditData({ ...editData, platforms: [...platforms, p.value] });
                       } else {
-                        setEditData({ ...editData, platforms: platforms.filter(x => x !== p) });
+                        setEditData({ ...editData, platforms: platforms.filter(x => x !== p.value) });
                       }
                     }}
                   />
-                  {getPlatformLabel(p)}
+                  {p.label}
                 </label>
               ))}
             </div>
@@ -676,6 +732,33 @@ export default function ArticleDetail() {
       loadArticle();
     } catch (err) {
       alert("设置失败：" + err.message);
+    }
+  }
+
+  async function handleAddCover() {
+    if (!newCoverTitle.trim()) {
+      alert("请输入封面标题");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("title", newCoverTitle);
+      if (newCoverDescription) formData.append("description", newCoverDescription);
+      if (newCoverImage) formData.append("image", newCoverImage);
+
+      await api.post(`/articles/${id}/cover`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      setShowCoverForm(false);
+      setNewCoverTitle("");
+      setNewCoverDescription("");
+      setNewCoverImage(null);
+      loadArticle();
+      alert("封面版本添加成功");
+    } catch (err) {
+      alert("添加失败：" + err.message);
     }
   }
 
