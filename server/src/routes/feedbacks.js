@@ -138,7 +138,15 @@ router.put('/:id/review', auth, async (req, res, next) => {
     await feedback.save();
     await cacheDel('feedbacks:*');
 
-    res.json({ feedback });
+    const reviewedFeedback = await Feedback.findById(feedback._id)
+      .populate('volunteerId', 'name phone team')
+      .populate('activityId', 'title description')
+      .populate('scheduleId', 'shiftName date')
+      .populate('reviewer', 'name role')
+      .populate('handler', 'name role')
+      .populate('closedBy', 'name');
+
+    res.json({ feedback: reviewedFeedback });
   } catch (error) {
     next(error);
   }
@@ -165,7 +173,15 @@ router.put('/:id/handle', auth, async (req, res, next) => {
     await feedback.save();
     await cacheDel('feedbacks:*');
 
-    res.json({ feedback });
+    const updatedFeedback = await Feedback.findById(feedback._id)
+      .populate('volunteerId', 'name phone team')
+      .populate('activityId', 'title description')
+      .populate('scheduleId', 'shiftName date')
+      .populate('reviewer', 'name role')
+      .populate('handler', 'name role')
+      .populate('closedBy', 'name');
+
+    res.json({ feedback: updatedFeedback });
   } catch (error) {
     next(error);
   }
@@ -188,7 +204,15 @@ router.put('/:id/close', auth, async (req, res, next) => {
     await feedback.save();
     await cacheDel('feedbacks:*');
 
-    res.json({ feedback });
+    const closedFeedback = await Feedback.findById(feedback._id)
+      .populate('volunteerId', 'name phone team')
+      .populate('activityId', 'title description')
+      .populate('scheduleId', 'shiftName date')
+      .populate('reviewer', 'name role')
+      .populate('handler', 'name role')
+      .populate('closedBy', 'name');
+
+    res.json({ feedback: closedFeedback });
   } catch (error) {
     next(error);
   }

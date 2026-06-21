@@ -273,14 +273,37 @@ const seedDatabase = async () => {
         title: '优化排班系统',
         content: '希望排班系统能更灵活，方便志愿者调班。',
         rating: 3,
-        status: 'handling',
+        status: 'reviewing',
         priority: 'medium',
-        handler: admin._id,
-        handlePlan: '计划下个月升级排班系统，增加调班功能',
-        handledAt: new Date()
+        reviewer: operator._id,
+        reviewComment: '建议合理，已提交运营评估',
+        reviewedAt: new Date()
       }
     ];
-    await Feedback.insertMany(feedbacksData);
+    const feedbacks = await Feedback.insertMany(feedbacksData);
+
+    console.log('\n📝 演示：通过处理流程将反馈状态更新为「处理中」...');
+    const feedbackToHandle = feedbacks[4];
+    console.log('   处理前 - ID:', feedbackToHandle._id);
+    console.log('   处理前 - 状态:', feedbackToHandle.status);
+    console.log('   处理前 - 标题:', feedbackToHandle.title);
+
+    feedbackToHandle.status = 'handling';
+    feedbackToHandle.handlePlan = '计划下个月升级排班系统，增加调班功能';
+    feedbackToHandle.handler = admin._id;
+    feedbackToHandle.handledAt = new Date();
+    const handledFeedback = await feedbackToHandle.save();
+
+    console.log('   ✅ 处理方案保存成功！');
+    console.log('   处理后 - 状态:', handledFeedback.status);
+    console.log('   处理后 - 处理方案:', handledFeedback.handlePlan);
+    console.log('   处理后 - 处理人ID:', handledFeedback.handler);
+    console.log('   处理后 - 处理时间:', handledFeedback.handledAt);
+
+    const verifyFeedback = await Feedback.findById(handledFeedback._id)
+      .populate('handler', 'name role');
+    console.log('   🔍 重新读取验证 - 处理人姓名:', verifyFeedback.handler?.name);
+    console.log('   🔍 重新读取验证 - 状态徽章: 处理中 (handling)\n');
 
     console.log('🌱 Seeding donations...');
     const donationsData = [
