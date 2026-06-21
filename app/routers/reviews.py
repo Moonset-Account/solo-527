@@ -12,6 +12,10 @@ from app.utils import log_action
 router = APIRouter(prefix="/api/reviews", tags=["reviews"])
 
 
+def _ev(e):
+    return e.value if hasattr(e, "value") else e
+
+
 @router.get("", response_model=list[ReviewOut])
 def list_reviews(
     revisited: Optional[bool] = None,
@@ -105,7 +109,7 @@ def refund_report(start_date: Optional[date] = None, end_date: Optional[date] = 
         func.count(RepairOrder.id),
         func.sum(RepairOrder.refund_amount)
     ).filter(
-        RepairOrder.status == OrderStatus.REFUNDED,
+        RepairOrder.status == _ev(OrderStatus.REFUNDED),
         RepairOrder.refunded_at >= start_date,
         RepairOrder.refunded_at <= end_date
     ).group_by(RepairOrder.refund_reason).all()
@@ -118,7 +122,7 @@ def refund_report(start_date: Optional[date] = None, end_date: Optional[date] = 
         "total_amount": round(total_amount, 2),
         "by_reason": [
             {
-                "reason": r.value if isinstance(r, RefundReason) and r else r,
+                "reason": _ev(r) if r else None,
                 "count": c,
                 "amount": round(float(a or 0), 2),
                 "percent": round(c / total_refunds * 100, 1) if total_refunds else 0

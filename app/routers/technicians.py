@@ -66,24 +66,26 @@ def list_technician_load(
             WorkRecord.work_date >= start_date,
             WorkRecord.work_date <= end_date
         ).all()
+        _status_values = lambda *enums: [e.value for e in enums]
         assigned = db.query(RepairOrder).filter(
             RepairOrder.technician_id == t.id,
             RepairOrder.schedule_date >= start_date,
             RepairOrder.schedule_date <= end_date,
-            RepairOrder.status.in_([OrderStatus.PENDING, OrderStatus.ASSIGNED, OrderStatus.IN_PROGRESS])
+            RepairOrder.status.in_(_status_values(OrderStatus.PENDING, OrderStatus.ASSIGNED, OrderStatus.IN_PROGRESS))
         ).count()
         total_hours = sum(r.hours_spent for r in recs)
         refunds = db.query(RepairOrder).filter(
             RepairOrder.technician_id == t.id,
-            RepairOrder.status == OrderStatus.REFUNDED,
+            RepairOrder.status == OrderStatus.REFUNDED.value,
             RepairOrder.schedule_date >= start_date,
             RepairOrder.schedule_date <= end_date
         ).count()
+        _t_status = t.status.value if isinstance(t.status, TechnicianStatus) else (t.status or TechnicianStatus.IDLE.value)
         result.append({
             "technician_id": t.id,
             "technician_name": t.name,
             "phone": t.phone,
-            "status": t.status.value if isinstance(t.status, TechnicianStatus) else t.status,
+            "status": _t_status,
             "community_name": t.community.name if t.community else None,
             "rating_avg": t.rating_avg,
             "completed_count": len(recs),
@@ -130,21 +132,32 @@ def get_technician_load_detail(
         by_date_map[d]["hours"] += r.hours_spent
         total_hours += r.hours_spent
 
+        order = r.order
         cid = r.community_id
-        cname = r.order.community.name if (r.order and r.order.community) else "未分配"
-        if cid not in by_community_map:
-            by_community_map[cid] = {"community_id": cid, "community_name": cname, "order_count": 0, "hours": 0.0}
-        by_community_map[cid]["order_count"] += 1
-        by_community_map[cid]["hours"] += r.hours_spent
+        if cid is None and order:
+            cid = order.community_id
+        cname = "未分配"
+        if order and order.community:
+            cname = order.community.name
+        elif r.community_id:
+            _c = db.query(Community).filter(Community.id == r.community_id).first()
+            if _c:
+                cname = _c.name
+        map_key = cid or ("_none_" + (cname or ""))
+        if map_key not in by_community_map:
+            by_community_map[map_key] = {"community_id": cid, "community_name": cname, "order_count": 0, "hours": 0.0}
+        by_community_map[map_key]["order_count"] += 1
+        by_community_map[map_key]["hours"] += r.hours_spent
 
-        if r.order and r.order.status == OrderStatus.REFUNDED and r.order.refund_reason:
-            reason = r.order.refund_reason.value
-            by_date_map[d]["refund_issues"] += 1
-            if reason not in by_date_map[d]["refund_reasons"]:
-                by_date_map[d]["refund_reasons"].append(reason)
-            if reason not in refund_map:
-                refund_map[reason] = 0
-            refund_map[reason] += 1
+        if order and order.status == OrderStatus.REFUNDED.value and order.refund_reason:
+            reason = order.refund_reason.value if hasattr(order.refund_reason, "value") else order.refund_reason
+            if reason:
+                by_date_map[d]["refund_issues"] += 1
+                if reason not in by_date_map[d]["refund_reasons"]:
+                    by_date_map[d]["refund_reasons"].append(reason)
+                if reason not in refund_map:
+                    refund_map[reason] = 0
+                refund_map[reason] += 1
 
     by_date = []
     for d, info in sorted(by_date_map.items()):
