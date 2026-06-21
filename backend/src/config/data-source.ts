@@ -11,7 +11,8 @@ export const dataSourceOptions: DataSourceOptions = {
   entities: [__dirname + '/../entities/**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/../migrations/*{.ts,.js}'],
   synchronize: false,
-  logging: true,
+  migrationsRun: false,
+  logging: process.env.NODE_ENV !== 'production',
   ssl: false,
   connectTimeoutMS: 30000,
   maxQueryExecutionTime: 30000,
@@ -25,5 +26,7 @@ export const dataSourceOptions: DataSourceOptions = {
     keepAliveInitialDelayMillis: 10000,
   },
 };
+
+export const AppDataSource = new DataSource(dataSourceOptions);
 
 export default new DataSource(dataSourceOptions);
