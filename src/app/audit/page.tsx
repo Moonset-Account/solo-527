@@ -372,13 +372,12 @@ export default function AuditPage() {
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-2">
                             <div
-                              className={`h-8 w-8 rounded-lg flex items-center justify-center ${entityColors[record.entityType] || "bg-slate-100 text-slate-600"
-                            }
+                              className={`h-8 w-8 rounded-lg flex items-center justify-center ${entityColors[record.entityType] || "bg-slate-100 text-slate-600"}`}
                             >
                               <Icon className="h-4 w-4" />
                             </div>
                             <Badge
-                              className={entityColors[record.entityType] || "bg-slate-100 text-slate-600"
+                              className={entityColors[record.entityType] || "bg-slate-100 text-slate-600"}
                             >
                               {getStatusLabel(record.entityType)}
                             </Badge>
