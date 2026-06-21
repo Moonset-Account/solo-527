@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Download, FileSpreadsheet, Filter, CheckCircle2, Star } from "lucide-react";
 import * as XLSX from "xlsx";
 import Button from "@/components/ui/Button";

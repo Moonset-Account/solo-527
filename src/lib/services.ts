@@ -209,7 +209,49 @@ export async function handlePermissionException(
   item.status = status as PermissionException["status"];
   item.handling_conclusion = conclusion;
   item.handled_by = handlerId;
-  item.handled_at = new Date().toISOString();
+  const handledAt = new Date().toISOString();
+  item.handled_at = handledAt;
+
+  // 模拟 PostgreSQL 触发器：异常处理完成后同步号源利用报表的 exception_impact
+  if (status === "resolved" || status === "closed") {
+    const record = mockMedicalRecords.find((r) => r.id === item.record_id);
+    const reportDate = handledAt.split("T")[0];
+    const dept = record?.department || "内科";
+
+    const impact = {
+      exception_id: item.id,
+      record_id: item.record_id,
+      conclusion: conclusion,
+      severity: item.severity,
+      synced_at: handledAt,
+      patient_name: record?.patient_id
+        ? mockPatients.find((p) => p.id === record.patient_id)?.name
+        : undefined,
+    };
+
+    const existingReport = mockAppointmentReports.find(
+      (r) => r.report_date === reportDate && r.department === dept
+    );
+    if (existingReport) {
+      existingReport.exception_impact = {
+        ...(existingReport.exception_impact || {}),
+        ...impact,
+      };
+    } else {
+      mockAppointmentReports.unshift({
+        id: `ar-auto-${Date.now()}`,
+        report_date: reportDate,
+        department: dept,
+        total_slots: 0,
+        booked_slots: 0,
+        attended_slots: 0,
+        utilization_rate: "0",
+        exception_impact: impact,
+        generated_at: handledAt,
+      });
+    }
+  }
+
   return mockFetch(item);
 }
 
