@@ -18,43 +18,47 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
         var sqlConnection = configuration.GetConnectionString("DefaultConnection");
+        var redisConnectionString = configuration.GetConnectionString("Redis");
         var forceSqlite = string.Equals(configuration["UseSqlite"], "true", StringComparison.OrdinalIgnoreCase);
+        var forceMemoryCache = string.Equals(configuration["UseInMemoryCache"], "true", StringComparison.OrdinalIgnoreCase);
         var enableAutoFallback = string.Equals(configuration["EnableAutoFallback"], "true", StringComparison.OrdinalIgnoreCase);
 
-        bool useSqlite = forceSqlite;
-
-        if (!forceSqlite && enableAutoFallback && !string.IsNullOrEmpty(sqlConnection))
+        if (forceSqlite)
         {
+            var sqlitePath = configuration["SqlitePath"] ?? "ProcessScheduling.db";
+            services.AddDbContext<AppDbContext>(options =>
+                options.UseSqlite($"Data Source={sqlitePath}"));
+        }
+        else
+        {
+            if (string.IsNullOrEmpty(sqlConnection))
+                throw new InvalidOperationException("数据库连接字符串 DefaultConnection 未配置。请在 appsettings.json 的 ConnectionStrings 中配置 SQL Server 连接，或设置 UseSqlite=true 使用 SQLite。");
+
             try
             {
-                var builder = new DbContextOptionsBuilder<AppDbContext>();
-                builder.UseSqlServer(sqlConnection, opts => opts.CommandTimeout(3));
-                using var testCtx = new AppDbContext(builder.Options);
+                var testBuilder = new DbContextOptionsBuilder<AppDbContext>();
+                testBuilder.UseSqlServer(sqlConnection, opts => opts.CommandTimeout(5));
+                using var testCtx = new AppDbContext(testBuilder.Options);
                 testCtx.Database.OpenConnection();
                 testCtx.Database.CloseConnection();
-            }
-            catch (Exception)
-            {
-                useSqlite = true;
-            }
-        }
-        else if (forceSqlite || string.IsNullOrEmpty(sqlConnection))
-        {
-            useSqlite = true;
-        }
 
-        services.AddDbContext<AppDbContext>(options =>
-        {
-            if (useSqlite)
-            {
-                var sqlitePath = configuration["SqlitePath"] ?? "ProcessScheduling.db";
-                options.UseSqlite($"Data Source={sqlitePath}");
+                services.AddDbContext<AppDbContext>(options =>
+                    options.UseSqlServer(sqlConnection));
             }
-            else
+            catch (Exception ex)
             {
-                options.UseSqlServer(sqlConnection);
+                if (enableAutoFallback)
+                {
+                    var sqlitePath = configuration["SqlitePath"] ?? "ProcessScheduling.db";
+                    services.AddDbContext<AppDbContext>(options =>
+                        options.UseSqlite($"Data Source={sqlitePath}"));
+                }
+                else
+                {
+                    throw new InvalidOperationException($"SQL Server 连接失败: {ex.Message}。请检查 SQL Server 服务是否运行、连接字符串是否正确，或设置 UseSqlite=true 使用 SQLite。", ex);
+                }
             }
-        });
+        }
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
@@ -75,45 +79,39 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
 
-        var redisConnectionString = configuration.GetConnectionString("Redis");
-        var forceMemoryCache = string.Equals(configuration["UseInMemoryCache"], "true", StringComparison.OrdinalIgnoreCase);
-
-        bool useRedis = !forceMemoryCache && !string.IsNullOrEmpty(redisConnectionString);
-
-        services.AddMemoryCache();
-
-        if (useRedis)
+        if (forceMemoryCache)
         {
+            services.AddMemoryCache();
+            services.AddScoped<IRedisCacheService, MemoryCacheService>();
+        }
+        else
+        {
+            if (string.IsNullOrEmpty(redisConnectionString))
+                throw new InvalidOperationException("Redis 连接字符串未配置。请在 appsettings.json 的 ConnectionStrings 中配置 Redis 连接，或设置 UseInMemoryCache=true 使用内存缓存。");
+
             try
             {
-                var redisConfig = ConfigurationOptions.Parse(redisConnectionString!);
-                redisConfig.AbortOnConnectFail = !enableAutoFallback;
-                redisConfig.ConnectTimeout = 3000;
-                redisConfig.SyncTimeout = 3000;
+                var redisConfig = ConfigurationOptions.Parse(redisConnectionString);
+                redisConfig.AbortOnConnectFail = true;
+                redisConfig.ConnectTimeout = 5000;
+                redisConfig.SyncTimeout = 5000;
 
                 var multiplexer = ConnectionMultiplexer.Connect(redisConfig);
-                if (enableAutoFallback && !multiplexer.IsConnected)
-                {
-                    useRedis = false;
-                }
-                else
-                {
-                    services.AddSingleton<IConnectionMultiplexer>(multiplexer);
-                    services.AddScoped<IRedisCacheService, RedisCacheService>();
-                }
-            }
-            catch (Exception)
-            {
-                if (enableAutoFallback)
-                    useRedis = false;
-                else
-                    throw;
-            }
-        }
+                if (!multiplexer.IsConnected)
+                    throw new InvalidOperationException($"无法连接到 Redis 服务器 {redisConnectionString}。请检查 Redis 服务是否运行，或设置 UseInMemoryCache=true 使用内存缓存。");
 
-        if (!useRedis)
-        {
-            services.AddScoped<IRedisCacheService, MemoryCacheService>();
+                services.AddSingleton<IConnectionMultiplexer>(multiplexer);
+                services.AddScoped<IRedisCacheService, RedisCacheService>();
+            }
+            catch (RedisConnectionException ex)
+            {
+                throw new InvalidOperationException($"Redis 连接失败: {ex.Message}。请检查 Redis 服务是否运行，或设置 UseInMemoryCache=true 使用内存缓存。", ex);
+            }
+            catch (Exception) when (enableAutoFallback)
+            {
+                services.AddMemoryCache();
+                services.AddScoped<IRedisCacheService, MemoryCacheService>();
+            }
         }
 
         return services;

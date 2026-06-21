@@ -86,6 +86,9 @@ var app = builder.Build();
 var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
 var config = app.Services.GetRequiredService<IConfiguration>();
 
+var forceSqlite = string.Equals(config["UseSqlite"], "true", StringComparison.OrdinalIgnoreCase);
+var forceMemoryCache = string.Equals(config["UseInMemoryCache"], "true", StringComparison.OrdinalIgnoreCase);
+
 string dbProvider;
 string cacheProvider;
 
@@ -94,8 +97,10 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var cacheService = scope.ServiceProvider.GetRequiredService<IRedisCacheService>();
 
-    dbProvider = dbContext.Database.ProviderName?.Contains("Sqlite") == true ? "SQLite (Fallback)" : "SQL Server";
-    cacheProvider = cacheService is MemoryCacheService ? "MemoryCache (Fallback)" : "Redis";
+    dbProvider = forceSqlite ? "SQLite (调试模式)" :
+                 dbContext.Database.ProviderName?.Contains("Sqlite") == true ? "SQLite" : "SQL Server";
+    cacheProvider = forceMemoryCache ? "MemoryCache (调试模式)" :
+                    cacheService is MemoryCacheService ? "MemoryCache" : "Redis";
 }
 
 startupLogger.LogInformation("========================================");
@@ -104,9 +109,24 @@ startupLogger.LogInformation("========================================");
 startupLogger.LogInformation("  数据库:    {DbProvider}", dbProvider);
 startupLogger.LogInformation("  缓存:      {CacheProvider}", cacheProvider);
 startupLogger.LogInformation("  环境:      {Environment}", app.Environment.EnvironmentName);
-if (dbProvider == "SQLite (Fallback)" || cacheProvider == "MemoryCache (Fallback)")
+if (dbProvider.Contains("SQLite") || cacheProvider.Contains("MemoryCache"))
 {
-    startupLogger.LogWarning("  ⚠ 注意: 当前使用了 fallback 方案，生产环境请配置 SQL Server + Redis");
+    if (forceSqlite || forceMemoryCache)
+    {
+        startupLogger.LogInformation("  ℹ 调试模式: 已显式启用 {Mode}",
+            forceSqlite && forceMemoryCache ? "SQLite + MemoryCache" :
+            forceSqlite ? "SQLite" : "MemoryCache");
+    }
+    else
+    {
+        startupLogger.LogWarning("  ⚠ 非生产配置: 当前使用 {Mode}，生产环境请配置 SQL Server + Redis",
+            dbProvider.Contains("SQLite") && cacheProvider.Contains("MemoryCache") ? "SQLite + MemoryCache" :
+            dbProvider.Contains("SQLite") ? "SQLite" : "MemoryCache");
+    }
+}
+else
+{
+    startupLogger.LogInformation("  ✓ 生产配置: SQL Server + Redis");
 }
 startupLogger.LogInformation("========================================");
 
