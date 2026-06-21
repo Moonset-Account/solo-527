@@ -18,8 +18,30 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
         var sqlConnection = configuration.GetConnectionString("DefaultConnection");
-        var useSqlite = string.Equals(configuration["UseSqlite"], "true", StringComparison.OrdinalIgnoreCase)
-                        || string.IsNullOrEmpty(sqlConnection);
+        var forceSqlite = string.Equals(configuration["UseSqlite"], "true", StringComparison.OrdinalIgnoreCase);
+        var enableAutoFallback = string.Equals(configuration["EnableAutoFallback"], "true", StringComparison.OrdinalIgnoreCase);
+
+        bool useSqlite = forceSqlite;
+
+        if (!forceSqlite && enableAutoFallback && !string.IsNullOrEmpty(sqlConnection))
+        {
+            try
+            {
+                var builder = new DbContextOptionsBuilder<AppDbContext>();
+                builder.UseSqlServer(sqlConnection, opts => opts.CommandTimeout(3));
+                using var testCtx = new AppDbContext(builder.Options);
+                testCtx.Database.OpenConnection();
+                testCtx.Database.CloseConnection();
+            }
+            catch (Exception)
+            {
+                useSqlite = true;
+            }
+        }
+        else if (forceSqlite || string.IsNullOrEmpty(sqlConnection))
+        {
+            useSqlite = true;
+        }
 
         services.AddDbContext<AppDbContext>(options =>
         {
@@ -54,8 +76,9 @@ public static class DependencyInjection
         services.AddScoped<IJwtTokenService, JwtTokenService>();
 
         var redisConnectionString = configuration.GetConnectionString("Redis");
-        var useRedis = !string.Equals(configuration["UseInMemoryCache"], "true", StringComparison.OrdinalIgnoreCase)
-                       && !string.IsNullOrEmpty(redisConnectionString);
+        var forceMemoryCache = string.Equals(configuration["UseInMemoryCache"], "true", StringComparison.OrdinalIgnoreCase);
+
+        bool useRedis = !forceMemoryCache && !string.IsNullOrEmpty(redisConnectionString);
 
         services.AddMemoryCache();
 
@@ -64,20 +87,31 @@ public static class DependencyInjection
             try
             {
                 var redisConfig = ConfigurationOptions.Parse(redisConnectionString!);
-                redisConfig.AbortOnConnectFail = false;
+                redisConfig.AbortOnConnectFail = !enableAutoFallback;
                 redisConfig.ConnectTimeout = 3000;
                 redisConfig.SyncTimeout = 3000;
 
-                services.AddSingleton<IConnectionMultiplexer>(sp =>
-                    ConnectionMultiplexer.Connect(redisConfig));
-                services.AddScoped<IRedisCacheService, RedisCacheService>();
+                var multiplexer = ConnectionMultiplexer.Connect(redisConfig);
+                if (enableAutoFallback && !multiplexer.IsConnected)
+                {
+                    useRedis = false;
+                }
+                else
+                {
+                    services.AddSingleton<IConnectionMultiplexer>(multiplexer);
+                    services.AddScoped<IRedisCacheService, RedisCacheService>();
+                }
             }
             catch (Exception)
             {
-                services.AddScoped<IRedisCacheService, MemoryCacheService>();
+                if (enableAutoFallback)
+                    useRedis = false;
+                else
+                    throw;
             }
         }
-        else
+
+        if (!useRedis)
         {
             services.AddScoped<IRedisCacheService, MemoryCacheService>();
         }

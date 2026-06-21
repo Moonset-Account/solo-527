@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using ProcessScheduling.Application;
 using ProcessScheduling.Infrastructure;
+using ProcessScheduling.Infrastructure.Cache;
 using ProcessScheduling.Infrastructure.Data;
 using ProcessScheduling.Infrastructure.Data.Seeders;
 
@@ -81,6 +82,33 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
+var config = app.Services.GetRequiredService<IConfiguration>();
+
+string dbProvider;
+string cacheProvider;
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var cacheService = scope.ServiceProvider.GetRequiredService<IRedisCacheService>();
+
+    dbProvider = dbContext.Database.ProviderName?.Contains("Sqlite") == true ? "SQLite (Fallback)" : "SQL Server";
+    cacheProvider = cacheService is MemoryCacheService ? "MemoryCache (Fallback)" : "Redis";
+}
+
+startupLogger.LogInformation("========================================");
+startupLogger.LogInformation("  工序排程台 API 启动配置");
+startupLogger.LogInformation("========================================");
+startupLogger.LogInformation("  数据库:    {DbProvider}", dbProvider);
+startupLogger.LogInformation("  缓存:      {CacheProvider}", cacheProvider);
+startupLogger.LogInformation("  环境:      {Environment}", app.Environment.EnvironmentName);
+if (dbProvider == "SQLite (Fallback)" || cacheProvider == "MemoryCache (Fallback)")
+{
+    startupLogger.LogWarning("  ⚠ 注意: 当前使用了 fallback 方案，生产环境请配置 SQL Server + Redis");
+}
+startupLogger.LogInformation("========================================");
 
 if (app.Environment.IsDevelopment())
 {
