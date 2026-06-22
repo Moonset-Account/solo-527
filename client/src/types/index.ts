@@ -10,6 +10,10 @@ export type TrialHandleResult = 'CONVERT' | 'CLOSE' | 'EXTEND';
 
 export type BillingCycle = 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
 
+export type NotificationType = 'RENEWAL_REMINDER' | 'TRIAL_EXPIRING' | 'APPROVAL_RESULT';
+
+export type NotificationStatus = 'PENDING' | 'SENT' | 'READ';
+
 export interface User {
   id: number;
   username: string;
@@ -201,4 +205,21 @@ export interface DepartmentSummaryData {
       seatUtilization: number;
     }>;
   }>;
+}
+
+export interface Notification {
+  id: number;
+  licenseId: number;
+  notifierId: number;
+  receiverId: number;
+  type: NotificationType;
+  title: string;
+  content: string;
+  handleResult?: string;
+  status: NotificationStatus;
+  createdAt: string;
+  readAt?: string;
+  license?: { id: number; plugin: { id: number; name: string }; user: { id: number; name: string; department: string } };
+  notifier?: { id: number; name: string };
+  receiver?: { id: number; name: string };
 }

@@ -73,6 +73,7 @@ const ApprovalsPage: React.FC = () => {
       switch (actionType) {
         case 'approve':
           status = 'COMPLETED';
+          data.processingNote = values.processingNote;
           data.trialDays = values.trialDays || 0;
           break;
         case 'reject':
@@ -366,13 +367,22 @@ const ApprovalsPage: React.FC = () => {
       >
         <Form form={form} layout="vertical">
           {actionType === 'approve' && (
-            <Form.Item
-              label="试用天数（0为直接开通付费，0-30天）"
-              name="trialDays"
-              initialValue={currentApp?.trialDays || 0}
-            >
-              <InputNumber min={0} max={30} style={{ width: '100%' }} />
-            </Form.Item>
+            <>
+              <Form.Item
+                label="处理说明"
+                name="processingNote"
+                rules={[{ required: true, message: '审批通过时必须填写处理说明' }]}
+              >
+                <TextArea rows={3} placeholder="请说明审批通过的理由和注意事项..." />
+              </Form.Item>
+              <Form.Item
+                label="试用天数（0为直接开通付费，0-30天）"
+                name="trialDays"
+                initialValue={currentApp?.trialDays || 0}
+              >
+                <InputNumber min={0} max={30} style={{ width: '100%' }} />
+              </Form.Item>
+            </>
           )}
 
           {(actionType === 'reject' || actionType === 'close') && (

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Tabs, Table, Tag, Button, Space, Select, Modal, Descriptions, message, Spin, Timeline } from 'antd';
-import { FileSearchOutlined, BellOutlined, DownloadOutlined, EyeOutlined, HistoryOutlined } from '@ant-design/icons';
+import { Card, Tabs, Table, Tag, Button, Space, Select, Modal, Descriptions, message, Spin, Timeline, Input, Form } from 'antd';
+import { FileSearchOutlined, BellOutlined, DownloadOutlined, EyeOutlined, HistoryOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import type { License, DepartmentSummaryData } from '@/types';
 import { getRenewalList, getDepartmentSummary } from '@/api/settlement';
 import { getApplicationDetail } from '@/api/application';
-import { formatDate, formatMoney, licenseTypeMap, licenseStatusMap, billingCycleMap } from '@/utils';
+import { sendRenewalReminder, getNotificationsByLicense } from '@/api/notification';
+import { formatDate, formatMoney, formatDateTime, licenseTypeMap, licenseStatusMap, billingCycleMap } from '@/utils';
 
 const { TabPane } = Tabs;
 const { Option } = Select;
@@ -22,6 +23,11 @@ const SettlementPage: React.FC = () => {
   const [currentLicense, setCurrentLicense] = useState<License | null>(null);
   const [applicationDetail, setApplicationDetail] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [notificationRecords, setNotificationRecords] = useState<any[]>([]);
+  const [remindModalVisible, setRemindModalVisible] = useState(false);
+  const [remindLicense, setRemindLicense] = useState<License | null>(null);
+  const [remindForm] = Form.useForm();
+  const [remindLoading, setRemindLoading] = useState(false);
 
   const fetchRenewalList = async () => {
     setLoading(true);
@@ -60,9 +66,17 @@ const SettlementPage: React.FC = () => {
     setDetailLoading(true);
     try {
       setCurrentLicense(license);
+      const promises: Promise<any>[] = [];
       if (license.applicationId) {
-        const appDetail = await getApplicationDetail(license.applicationId);
-        setApplicationDetail(appDetail);
+        promises.push(getApplicationDetail(license.applicationId));
+      }
+      promises.push(getNotificationsByLicense(license.id));
+      const results = await Promise.all(promises);
+      if (license.applicationId) {
+        setApplicationDetail(results[0]);
+        setNotificationRecords(results[1]?.list || []);
+      } else {
+        setNotificationRecords(results[0]?.list || []);
       }
       setDetailVisible(true);
     } catch (err) {
@@ -72,8 +86,26 @@ const SettlementPage: React.FC = () => {
     }
   };
 
-  const handleNotify = (license: License) => {
-    message.success(`已向 ${license.user?.name} 发送续费提醒通知`);
+  const openRemindModal = (license: License) => {
+    setRemindLicense(license);
+    remindForm.resetFields();
+    setRemindModalVisible(true);
+  };
+
+  const handleRemindSubmit = async () => {
+    try {
+      const values = await remindForm.validateFields();
+      if (!remindLicense) return;
+      setRemindLoading(true);
+      await sendRenewalReminder(remindLicense.id, { handleResult: values.handleResult });
+      message.success(`已向 ${remindLicense.user?.name} 发送续费提醒通知`);
+      setRemindModalVisible(false);
+      fetchRenewalList();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRemindLoading(false);
+    }
   };
 
   const handleExport = () => {
@@ -153,7 +185,7 @@ const SettlementPage: React.FC = () => {
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
             详情
           </Button>
-          <Button type="link" size="small" icon={<BellOutlined />} onClick={() => handleNotify(record)}>
+          <Button type="link" size="small" icon={<BellOutlined />} onClick={() => openRemindModal(record)}>
             提醒
           </Button>
         </Space>
@@ -370,10 +402,19 @@ const SettlementPage: React.FC = () => {
                     <div className="text-sm text-gray-500 mb-2">
                       申请时间：{formatDate(applicationDetail.createdAt)}
                     </div>
-                    <div className="text-sm text-gray-700 p-2 bg-white rounded border">
+                    <div className="text-sm text-gray-700 p-2 bg-white rounded border mb-2">
                       <span className="text-gray-500">申请理由：</span>
                       {applicationDetail.reason}
                     </div>
+                    {applicationDetail.processingNote && (
+                      <div className="text-sm text-blue-700 p-2 bg-blue-50 rounded border border-blue-100">
+                        <span className="text-blue-500"><CheckCircleOutlined className="mr-1" />处理说明：</span>
+                        {applicationDetail.processingNote}
+                        {applicationDetail.approver && (
+                          <span className="text-gray-400 ml-2">—— {applicationDetail.approver.name}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <Timeline
@@ -402,9 +443,66 @@ const SettlementPage: React.FC = () => {
                   />
                 </div>
               )}
+
+              {notificationRecords.length > 0 && (
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <BellOutlined className="text-orange-500" />
+                    通知记录（{notificationRecords.length}）
+                  </h4>
+                  <Timeline
+                    items={notificationRecords.map((n: any) => ({
+                      color: n.status === 'READ' ? 'green' : n.status === 'SENT' ? 'blue' : 'gray',
+                      children: (
+                        <div>
+                          <div className="font-medium">{n.title}</div>
+                          <div className="text-xs text-gray-400">{formatDateTime(n.createdAt)}</div>
+                          <div className="text-sm text-gray-600 mt-1">{n.content}</div>
+                          {n.handleResult && (
+                            <div className="text-xs text-orange-600 mt-1">
+                              处理结果：{n.handleResult}
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-400 mt-1">
+                            通知人：{n.notifier?.name} → {n.receiver?.name}
+                          </div>
+                        </div>
+                      ),
+                    }))}
+                  />
+                </div>
+              )}
             </>
           )}
         </Spin>
+      </Modal>
+
+      <Modal
+        title="发送续费提醒"
+        open={remindModalVisible}
+        onCancel={() => setRemindModalVisible(false)}
+        onOk={handleRemindSubmit}
+        confirmLoading={remindLoading}
+        okText="发送提醒"
+        width={480}
+      >
+        <Form form={remindForm} layout="vertical">
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="text-sm text-gray-600">
+              将向 <span className="font-medium">{remindLicense?.user?.name}</span>（{remindLicense?.user?.department}）发送续费提醒
+            </div>
+            <div className="text-sm text-gray-500 mt-1">
+              插件：{remindLicense?.plugin?.name} | 到期：{formatDate(remindLicense?.endDate)}
+            </div>
+          </div>
+          <Form.Item
+            label="处理结果"
+            name="handleResult"
+            rules={[{ required: true, message: '请填写处理结果说明' }]}
+          >
+            <Input.TextArea rows={3} placeholder="请说明续费处理方式，如：已沟通确认续费、待部门审批等" />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

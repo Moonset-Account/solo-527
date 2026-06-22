@@ -46,6 +46,18 @@ enum BillingCycle {
   YEARLY
 }
 
+enum NotificationType {
+  RENEWAL_REMINDER
+  TRIAL_EXPIRING
+  APPROVAL_RESULT
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  READ
+}
+
 model User {
   id           Int           @id @default(autoincrement())
   username     String        @unique
@@ -61,6 +73,8 @@ model User {
   licenses     License[]
   approvals    Application[] @relation("approver")
   trialHandles TrialHandleRecord[]
+  notifications Notification[] @relation("notifier")
+  receivedNotifications Notification[] @relation("notifyReceiver")
 }
 
 model Plugin {
@@ -147,6 +161,7 @@ model License {
   plan          PricingPlan         @relation(fields: [planId], references: [id])
   usageRecords  UsageRecord[]
   trialHandles  TrialHandleRecord[]
+  notifications Notification[]
 }
 
 model UsageRecord {
@@ -175,4 +190,25 @@ model TrialHandleRecord {
 
   license    License           @relation(fields: [licenseId], references: [id])
   handler    User              @relation(fields: [handlerId], references: [id])
+}
+
+model Notification {
+  id          Int               @id @default(autoincrement())
+  licenseId   Int
+  notifierId  Int
+  receiverId  Int
+  type        NotificationType
+  title       String
+  content     String            @db.Text
+  handleResult String?
+  status      NotificationStatus @default(PENDING)
+  createdAt   DateTime          @default(now())
+  readAt      DateTime?
+
+  license     License           @relation(fields: [licenseId], references: [id])
+  notifier    User              @relation("notifier", fields: [notifierId], references: [id])
+  receiver    User              @relation("notifyReceiver", fields: [receiverId], references: [id])
+
+  @@index([receiverId, status])
+  @@index([licenseId])
 }

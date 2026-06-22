@@ -87,6 +87,14 @@ export async function handleTrial(licenseId, handlerId, data) {
     throw new Error('试用授权不存在');
   }
 
+  if (result === 'CONVERT' && !remark) {
+    throw new Error('试用转正必须填写备注');
+  }
+
+  if (result === 'EXTEND' && !remark) {
+    throw new Error('试用延期必须填写备注');
+  }
+
   await prisma.trialHandleRecord.create({
     data: {
       licenseId: Number(licenseId),

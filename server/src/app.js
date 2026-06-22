@@ -10,6 +10,7 @@ import reportRoutes from './routes/report.routes.js';
 import settlementRoutes from './routes/settlement.routes.js';
 import trialRoutes from './routes/trial.routes.js';
 import userRoutes from './routes/user.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
 import { error } from './utils/response.js';
 
 dotenv.config();
@@ -34,6 +35,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/settlement', settlementRoutes);
 app.use('/api/trials', trialRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.use((req, res) => {
   res.status(404).json(error('接口不存在', 404));

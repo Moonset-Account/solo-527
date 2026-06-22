@@ -160,6 +160,31 @@ const TrialsPage: React.FC = () => {
       render: (_: any, record: License) => getTrialStatusTag(record),
     },
     {
+      title: '上次处理',
+      key: 'lastHandle',
+      width: 160,
+      render: (_: any, record: License) => {
+        if (!record.lastHandle) return <span className="text-gray-300">--</span>;
+        const resultMap: Record<string, { text: string; color: string }> = {
+          CONVERT: { text: '转正', color: 'green' },
+          EXTEND: { text: '延期', color: 'orange' },
+          CLOSE: { text: '关闭', color: 'red' },
+        };
+        const info = resultMap[record.lastHandle.result];
+        return (
+          <div>
+            <Tag color={info?.color}>{info?.text}</Tag>
+            <span className="text-xs text-gray-400">{formatDateTime(record.lastHandle.createdAt)}</span>
+            {record.lastHandle.remark && (
+              <div className="text-xs text-gray-500 mt-1 truncate max-w-[140px]" title={record.lastHandle.remark}>
+                {record.lastHandle.remark}
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       title: '操作',
       key: 'actions',
       width: 220,
@@ -319,8 +344,9 @@ const TrialsPage: React.FC = () => {
               <Form.Item
                 label="备注"
                 name="remark"
+                rules={[{ required: true, message: '试用转正必须填写备注' }]}
               >
-                <TextArea rows={3} placeholder="请填写转正说明..." />
+                <TextArea rows={3} placeholder="请填写转正说明，如：用户确认采购、业务需求稳定等" />
               </Form.Item>
             </>
           )}

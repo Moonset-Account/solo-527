@@ -142,6 +142,10 @@ export async function updateApplicationStatus(id, handlerId, data) {
     throw new Error('该申请已结束，无法修改');
   }
 
+  if (status === ApplicationStatus.COMPLETED && !processingNote) {
+    throw new Error('审批通过时必须填写处理说明');
+  }
+
   const updateData = {
     status,
     processingNote: processingNote || application.processingNote,
