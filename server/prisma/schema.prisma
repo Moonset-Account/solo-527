@@ -1,0 +1,178 @@
+// Prisma Schema for Plugin License Billing Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  OP_ADMIN
+  FIN_ADMIN
+  SYS_ADMIN
+}
+
+enum ApplicationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CLOSED_ABNORMAL
+}
+
+enum LicenseType {
+  TRIAL
+  PAID
+}
+
+enum LicenseStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum TrialHandleResult {
+  CONVERT
+  CLOSE
+  EXTEND
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  username     String        @unique
+  passwordHash String
+  name         String
+  email        String
+  department   String
+  role         UserRole      @default(USER)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  applications Application[]
+  licenses     License[]
+  approvals    Application[] @relation("approver")
+  trialHandles TrialHandleRecord[]
+}
+
+model Plugin {
+  id          Int           @id @default(autoincrement())
+  name        String
+  code        String        @unique
+  description String
+  icon        String
+  category    String
+  status      String        @default("ACTIVE")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  plans       PricingPlan[]
+  applications Application[]
+  licenses    License[]
+  usageRecords UsageRecord[]
+}
+
+model PricingPlan {
+  id          Int           @id @default(autoincrement())
+  pluginId    Int
+  name        String
+  code        String
+  description String
+  seatCount   Int
+  features    String        @db.Text
+  billingCycle BillingCycle @default(MONTHLY)
+  price       Decimal       @db.Decimal(10, 2)
+  status      String        @default("ACTIVE")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  plugin      Plugin        @relation(fields: [pluginId], references: [id])
+  applications Application[]
+  licenses    License[]
+}
+
+model Application {
+  id              Int               @id @default(autoincrement())
+  pluginId        Int
+  planId          Int
+  userId          Int
+  applicantName   String
+  department      String
+  reason          String            @db.Text
+  status          ApplicationStatus @default(PENDING)
+  seatCount       Int
+  trialDays       Int               @default(0)
+  processingNote  String?           @db.Text
+  closeReason     String?           @db.Text
+  approvedBy      Int?
+  approvedAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  plugin          Plugin            @relation(fields: [pluginId], references: [id])
+  plan            PricingPlan       @relation(fields: [planId], references: [id])
+  user            User              @relation(fields: [userId], references: [id])
+  approver        User?             @relation("approver", fields: [approvedBy], references: [id])
+  license         License?
+}
+
+model License {
+  id            Int                 @id @default(autoincrement())
+  pluginId      Int
+  userId        Int
+  applicationId Int                 @unique
+  planId        Int
+  type          LicenseType
+  status        LicenseStatus       @default(ACTIVE)
+  seatCount     Int
+  usedSeats     Int                 @default(0)
+  startDate     DateTime
+  endDate       DateTime
+  trialEndDate  DateTime?
+  remarks       String?             @db.Text
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  plugin        Plugin              @relation(fields: [pluginId], references: [id])
+  user          User                @relation(fields: [userId], references: [id])
+  application   Application         @relation(fields: [applicationId], references: [id])
+  plan          PricingPlan         @relation(fields: [planId], references: [id])
+  usageRecords  UsageRecord[]
+  trialHandles  TrialHandleRecord[]
+}
+
+model UsageRecord {
+  id          Int      @id @default(autoincrement())
+  licenseId   Int
+  pluginId    Int
+  date        DateTime
+  usageCount  Int      @default(0)
+  activeUsers Int      @default(0)
+
+  license     License  @relation(fields: [licenseId], references: [id])
+  plugin      Plugin   @relation(fields: [pluginId], references: [id])
+
+  @@unique([licenseId, date])
+  @@index([pluginId, date])
+}
+
+model TrialHandleRecord {
+  id         Int               @id @default(autoincrement())
+  licenseId  Int
+  handlerId  Int
+  result     TrialHandleResult
+  remark     String            @db.Text
+  extendDays Int               @default(0)
+  createdAt  DateTime          @default(now())
+
+  license    License           @relation(fields: [licenseId], references: [id])
+  handler    User              @relation(fields: [handlerId], references: [id])
+}
