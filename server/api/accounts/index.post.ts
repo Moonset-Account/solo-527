@@ -19,6 +19,7 @@ export default defineEventHandler(async (event) => {
   await createLog({
     actionType: 'ACCOUNT_APPLY',
     userId: user.id,
+    accountId: application.id,
     afterData: { applicantName, accountType, targetSystem, applicantDept },
     note: `账号申请: ${accountType} - ${targetSystem}`
   })

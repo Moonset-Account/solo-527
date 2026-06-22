@@ -153,21 +153,25 @@ model ChangeRequest {
 }
 
 model OperationLog {
-  id             Int            @id @default(autoincrement())
-  actionType     LogActionType
-  userId         Int?
-  user           User?          @relation(fields: [userId], references: [id])
-  alertId        Int?
-  alert          Alert?         @relation(fields: [alertId], references: [id])
-  changeId       Int?
-  changeRequest  ChangeRequest? @relation(fields: [changeId], references: [id])
+  id                  Int                @id @default(autoincrement())
+  actionType          LogActionType
+  userId              Int?
+  user                User?              @relation(fields: [userId], references: [id])
+  alertId             Int?
+  alert               Alert?             @relation(fields: [alertId], references: [id])
+  changeId            Int?
+  changeRequest       ChangeRequest?     @relation(fields: [changeId], references: [id])
+  accountId           Int?
+  accountApplication  AccountApplication? @relation(fields: [accountId], references: [id])
+  deviceId            Int?
+  deviceInspection    DeviceInspection?  @relation(fields: [deviceId], references: [id])
 
-  beforeData     Json?
-  afterData      Json?
-  note           String?
-  ip             String?
+  beforeData          Json?
+  afterData           Json?
+  note                String?
+  ip                  String?
 
-  createdAt      DateTime       @default(now())
+  createdAt           DateTime           @default(now())
 }
 
 model Notification {

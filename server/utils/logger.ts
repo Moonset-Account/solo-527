@@ -6,6 +6,8 @@ interface LogOptions {
   userId?: number | null
   alertId?: number | null
   changeId?: number | null
+  accountId?: number | null
+  deviceId?: number | null
   beforeData?: Record<string, unknown> | null
   afterData?: Record<string, unknown> | null
   note?: string
@@ -26,6 +28,12 @@ export async function createLog(options: LogOptions) {
     }
     if (options.changeId) {
       data.changeRequest = { connect: { id: options.changeId } }
+    }
+    if (options.accountId) {
+      data.accountApplication = { connect: { id: options.accountId } }
+    }
+    if (options.deviceId) {
+      data.deviceInspection = { connect: { id: options.deviceId } }
     }
     if (options.beforeData) {
       data.beforeData = options.beforeData as Prisma.InputJsonValue

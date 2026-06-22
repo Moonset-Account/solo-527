@@ -28,6 +28,7 @@ export default defineEventHandler(async (event) => {
   await createLog({
     actionType: 'DEVICE_INSPECT',
     userId: user.id,
+    deviceId: inspection.id,
     afterData: { deviceCode, deviceName, location, result },
     note: issues || `设备巡检: ${deviceName} - ${result}`
   })
