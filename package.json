@@ -1,0 +1,36 @@
+{
+  "name": "alert-approval-system",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "seed": "node prisma/seed.mjs"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "@sidebase/nuxt-auth": "^0.9.4",
+    "bcryptjs": "^2.4.3",
+    "ioredis": "^5.4.1",
+    "jsonwebtoken": "^9.0.2",
+    "nuxt": "^3.14.0",
+    "vue": "^3.5.12",
+    "vue-router": "^4.4.5",
+    "zod": "^3.23.8",
+    "date-fns": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.9.0",
+    "prisma": "^5.22.0",
+    "typescript": "^5.6.3",
+    "vue-tsc": "^2.1.10"
+  }
+}

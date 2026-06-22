@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STORE_OPERATOR
+  ADMIN
+}
+
+enum AlertLevel {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+enum AlertStatus {
+  PENDING
+  ACKNOWLEDGED
+  IN_PROGRESS
+  CHANGING
+  ROLLING_BACK
+  COMPLETED
+  ABNORMAL_ENDED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  IMPLEMENTING
+  COMPLETED
+  ROLLED_BACK
+  ABNORMAL_ENDED
+}
+
+enum LogActionType {
+  ALERT_ACKNOWLEDGE
+  ALERT_STATUS_CHANGE
+  CHANGE_REQUEST_SUBMIT
+  CHANGE_REQUEST_APPROVE
+  CHANGE_REQUEST_REJECT
+  CHANGE_WINDOW_OPEN
+  CHANGE_WINDOW_CLOSE
+  ROLLBACK_EXECUTE
+  ACCOUNT_APPLY
+  DEVICE_INSPECT
+  ABNORMAL_END
+  USER_LOGIN
+  USER_LOGOUT
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  username     String     @unique
+  passwordHash String
+  realName     String
+  role         Role
+  storeCode    String?
+  phone        String?
+  email        String?
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  alerts           Alert[]             @relation("AlertReporter")
+  acknowledgedAlerts Alert[]           @relation("AlertAcknowledger")
+  submittedChanges ChangeRequest[]     @relation("ChangeSubmitter")
+  approvedChanges  ChangeRequest[]     @relation("ChangeApprover")
+  operationLogs    OperationLog[]
+  notifications    Notification[]
+}
+
+model Alert {
+  id              Int          @id @default(autoincrement())
+  alertNo         String       @unique
+  title           String
+  level           AlertLevel
+  serverHost      String
+  serverIp        String
+  metric          String
+  threshold       String
+  currentValue    String
+  description     String?
+  status          AlertStatus  @default(PENDING)
+  abnormalReason  String?
+
+  reporterId      Int?
+  reporter        User?        @relation("AlertReporter", fields: [reporterId], references: [id])
+
+  acknowledgerId  Int?
+  acknowledger    User?        @relation("AlertAcknowledger", fields: [acknowledgerId], references: [id])
+  acknowledgedAt  DateTime?
+  acknowledgeNote String?
+
+  resolvedAt      DateTime?
+  resolveNote     String?
+
+  storeCode       String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  changeRequests  ChangeRequest[]
+  operationLogs   OperationLog[]
+  notifications   Notification[]
+}
+
+model ChangeRequest {
+  id              Int              @id @default(autoincrement())
+  changeNo        String           @unique
+  title           String
+  alertId         Int
+  alert           Alert            @relation(fields: [alertId], references: [id])
+
+  type            String
+  description     String
+  impactScope     String
+  changePlan      String
+  rollbackPlan    String
+
+  windowStart     DateTime?
+  windowEnd       DateTime?
+  windowOpenedAt  DateTime?
+  windowClosedAt  DateTime?
+
+  status          ApprovalStatus   @default(PENDING)
+  abnormalReason  String?
+
+  submitterId     Int
+  submitter       User             @relation("ChangeSubmitter", fields: [submitterId], references: [id])
+  submittedAt     DateTime         @default(now())
+
+  approverId      Int?
+  approver        User?            @relation("ChangeApprover", fields: [approverId], references: [id])
+  approvedAt      DateTime?
+  approvalNote    String?
+
+  implementedAt   DateTime?
+  completedAt     DateTime?
+  rolledBackAt    DateTime?
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  operationLogs   OperationLog[]
+  notifications   Notification[]
+}
+
+model OperationLog {
+  id             Int            @id @default(autoincrement())
+  actionType     LogActionType
+  userId         Int?
+  user           User?          @relation(fields: [userId], references: [id])
+  alertId        Int?
+  alert          Alert?         @relation(fields: [alertId], references: [id])
+  changeId       Int?
+  changeRequest  ChangeRequest? @relation(fields: [changeId], references: [id])
+
+  beforeData     Json?
+  afterData      Json?
+  note           String?
+  ip             String?
+
+  createdAt      DateTime       @default(now())
+}
+
+model Notification {
+  id          Int          @id @default(autoincrement())
+  userId      Int
+  user        User         @relation(fields: [userId], references: [id])
+  type        String
+  title       String
+  content     String
+  alertId     Int?
+  alert       Alert?       @relation(fields: [alertId], references: [id])
+  changeId    Int?
+  change      ChangeRequest? @relation(fields: [changeId], references: [id])
+  isRead      Boolean      @default(false)
+  readAt      DateTime?
+  createdAt   DateTime     @default(now())
+}
+
+model AccountApplication {
+  id              Int        @id @default(autoincrement())
+  applicantName   String
+  accountType     String
+  targetSystem    String
+  reason          String
+  applicantDept   String
+  approverName    String?
+  approvedAt      DateTime?
+  status          String     @default("PENDING")
+  operationLogs   OperationLog[]
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+model DeviceInspection {
+  id              Int        @id @default(autoincrement())
+  deviceCode      String
+  deviceName      String
+  location        String
+  inspector       String
+  inspectionItems Json
+  result          String
+  issues          String?
+  operationLogs   OperationLog[]
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
