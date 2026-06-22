@@ -29,13 +29,15 @@
     "types": ["node", "express"]
   },
   "include": [
-    "api/main.ts",
-    "api/app.module.ts",
     "api/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "src"
+    "src",
+    "api/app.ts",
+    "api/index.ts",
+    "api/server.ts",
+    "api/routes"
   ]
 }
