@@ -6,12 +6,14 @@
   "scripts": {
     "client:dev": "vite",
     "server:dev": "nodemon",
-    "server:build": "nest build",
+    "server:build": "tsc -p tsconfig.api.json",
     "server:start": "node dist/main.js",
     "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
-    "build": "vue-tsc -b && vite build",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "vue-tsc -b --pretty false && vite build",
+    "build:server": "tsc -p tsconfig.api.json",
     "preview": "vite preview",
-    "check": "vue-tsc -b",
+    "check": "vue-tsc -b --pretty false && tsc -p tsconfig.api.json --noEmit",
     "lint": "eslint . --ext .ts,.vue",
     "lint:fix": "eslint . --ext .ts,.vue --fix"
   },

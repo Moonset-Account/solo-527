@@ -216,11 +216,12 @@ export class AnomaliesService {
     const affectedBatches: string[] = [];
 
     for (const batch of recentBatches) {
-      if (batchScrapMap[batch._id]) {
-        const scrapRate = batchScrapMap[batch._id] / (batch.plannedQty || 1);
+      const batchId = batch._id.toString();
+      if (batchScrapMap[batchId]) {
+        const scrapRate = batchScrapMap[batchId] / (batch.plannedQty || 1);
         if (scrapRate > 0.1) {
           highScrapCount++;
-          affectedBatches.push(batch._id);
+          affectedBatches.push(batchId);
         }
       }
     }

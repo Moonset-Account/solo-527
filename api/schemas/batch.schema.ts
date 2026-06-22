@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, Schema as MongooseSchema } from 'mongoose';
 
 @Schema({ timestamps: true, collection: 'batches' })
 export class Batch extends Document {
@@ -42,7 +42,7 @@ export class Batch extends Document {
   @Prop({ type: [{ content: String, author: String, createdAt: Date }] })
   notes: { content: string; author: string; createdAt: Date }[];
 
-  @Prop({ type: [{ field: String, oldValue: Schema.Types.Mixed, newValue: Schema.Types.Mixed, changedBy: String, changedAt: Date }] })
+  @Prop({ type: [{ field: String, oldValue: MongooseSchema.Types.Mixed, newValue: MongooseSchema.Types.Mixed, changedBy: String, changedAt: Date }] })
   history: { field: string; oldValue: any; newValue: any; changedBy: string; changedAt: Date }[];
 
   @Prop({ type: Number, default: 0 })

@@ -14,13 +14,11 @@
       ]
     },
     "types": [
-      "node",
-      "express"
+      "node"
     ]
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.vue",
-    "api"
+    "src/**/*.vue"
   ]
 }

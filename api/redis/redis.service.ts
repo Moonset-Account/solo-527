@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { OnModuleDestroy } from '@nestjs/common';
-import Redis from 'ioredis';
+import { Redis as RedisClient } from 'ioredis';
+import type { Redis } from 'ioredis';
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {
@@ -10,7 +11,7 @@ export class RedisService implements OnModuleDestroy {
 
   async onModuleInit() {
     try {
-      this.client = new Redis({
+      this.client = new RedisClient({
         host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT || '6379'),
         retryStrategy: () => null,

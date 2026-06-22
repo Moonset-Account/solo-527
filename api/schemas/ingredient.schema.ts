@@ -26,6 +26,9 @@ export class Ingredient extends Document {
 
   @Prop({ default: false })
   isSandbox: boolean;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const IngredientSchema = SchemaFactory.createForClass(Ingredient);

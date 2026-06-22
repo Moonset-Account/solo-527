@@ -33,7 +33,10 @@ async function bootstrap() {
     .setTitle('Order Fulfillment API')
     .setDescription('订单履约系统 API 文档')
     .setVersion('1.0')
-    .addHeader('x-sandbox-mode', '沙箱模式开关', { required: false })
+    .addApiKey(
+      { type: 'apiKey', name: 'x-sandbox-mode', in: 'header', description: '沙箱模式开关' },
+      'sandbox-mode',
+    )
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);

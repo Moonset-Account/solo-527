@@ -1,15 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Batch } from '../schemas/batch.schema.js';
-import { Recipe } from '../schemas/recipe.schema.js';
-import { Ingredient } from '../schemas/ingredient.schema.js';
-import { Schedule } from '../schemas/schedule.schema.js';
-import { InventoryLog } from '../schemas/inventory-log.schema.js';
-import { ScrapRecord } from '../schemas/scrap-record.schema.js';
-import { ProfitRecord } from '../schemas/profit-record.schema.js';
-import { CostAnomaly } from '../schemas/cost-anomaly.schema.js';
-import { Team } from '../schemas/team.schema.js';
+import { Batch } from '../../schemas/batch.schema.js';
+import { Recipe } from '../../schemas/recipe.schema.js';
+import { Ingredient } from '../../schemas/ingredient.schema.js';
+import { Schedule } from '../../schemas/schedule.schema.js';
+import { InventoryLog } from '../../schemas/inventory-log.schema.js';
+import { ScrapRecord } from '../../schemas/scrap-record.schema.js';
+import { ProfitRecord } from '../../schemas/profit-record.schema.js';
+import { CostAnomaly } from '../../schemas/cost-anomaly.schema.js';
+import { Team } from '../../schemas/team.schema.js';
 import {
   mockBatches,
   mockRecipes,
@@ -20,7 +20,7 @@ import {
   mockProfitRecords,
   mockAnomalies,
   mockTeams,
-} from '../mock/data.js';
+} from '../../mock/data.js';
 
 @Injectable()
 export class SeedService {
