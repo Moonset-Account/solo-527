@@ -69,6 +69,9 @@ interface ProjectDetailProps {
 
 export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const [activeTab, setActiveTab] = useState("overview");
+  const [historyEntityType, setHistoryEntityType] = useState<"Project" | "Quote" | "Addon" | "Material" | "SitePhoto" | "Contract">("Project");
+  const [selectedEntityId, setSelectedEntityId] = useState<string>(projectId);
+  const [selectedEntityName, setSelectedEntityName] = useState<string>("");
 
   const { data: project, loading, error } = useApi<any>(`/api/projects/${projectId}`);
 
@@ -783,28 +786,143 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <Button variant="outline" className="h-auto py-4 flex flex-col gap-2">
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-4 mb-6">
+            <Button
+              variant={historyEntityType === "Project" ? "default" : "outline"}
+              className="h-auto py-4 flex flex-col gap-2"
+              onClick={() => {
+                setHistoryEntityType("Project");
+                setSelectedEntityId(projectId);
+                setSelectedEntityName(project.name);
+              }}
+            >
+              <BarChart3 className="h-6 w-6" />
+              <span>项目</span>
+            </Button>
+            <Button
+              variant={historyEntityType === "Quote" ? "default" : "outline"}
+              className="h-auto py-4 flex flex-col gap-2"
+              onClick={() => {
+                if (project.quotes.length > 0) {
+                  setHistoryEntityType("Quote");
+                  setSelectedEntityId(project.quotes[0].id);
+                  setSelectedEntityName(`报价 v${project.quotes[0].version}`);
+                }
+              }}
+            >
               <FileText className="h-6 w-6" />
-              <span>报价版本</span>
+              <span>报价</span>
             </Button>
-            <Button variant="outline" className="h-auto py-4 flex flex-col gap-2">
+            <Button
+              variant={historyEntityType === "Addon" ? "default" : "outline"}
+              className="h-auto py-4 flex flex-col gap-2"
+              onClick={() => {
+                if (project.addons.length > 0) {
+                  setHistoryEntityType("Addon");
+                  setSelectedEntityId(project.addons[0].id);
+                  setSelectedEntityName(project.addons[0].name);
+                }
+              }}
+            >
               <PlusCircle className="h-6 w-6" />
-              <span>增项版本</span>
+              <span>增项</span>
             </Button>
-            <Button variant="outline" className="h-auto py-4 flex flex-col gap-2">
+            <Button
+              variant={historyEntityType === "Material" ? "default" : "outline"}
+              className="h-auto py-4 flex flex-col gap-2"
+              onClick={() => {
+                if (project.materials.length > 0) {
+                  setHistoryEntityType("Material");
+                  setSelectedEntityId(project.materials[0].id);
+                  setSelectedEntityName(project.materials[0].name);
+                }
+              }}
+            >
               <Package className="h-6 w-6" />
-              <span>材料版本</span>
+              <span>材料</span>
             </Button>
-            <Button variant="outline" className="h-auto py-4 flex flex-col gap-2">
+            <Button
+              variant={historyEntityType === "SitePhoto" ? "default" : "outline"}
+              className="h-auto py-4 flex flex-col gap-2"
+              onClick={() => {
+                if (project.photos.length > 0) {
+                  setHistoryEntityType("SitePhoto");
+                  setSelectedEntityId(project.photos[0].id);
+                  setSelectedEntityName(project.photos[0].name);
+                }
+              }}
+            >
+              <Image className="h-6 w-6" />
+              <span>照片</span>
+            </Button>
+            <Button
+              variant={historyEntityType === "Contract" ? "default" : "outline"}
+              className="h-auto py-4 flex flex-col gap-2"
+              onClick={() => {
+                if (project.contracts.length > 0) {
+                  setHistoryEntityType("Contract");
+                  setSelectedEntityId(project.contracts[0].id);
+                  setSelectedEntityName(project.contracts[0].name);
+                }
+              }}
+            >
               <FileCheck className="h-6 w-6" />
-              <span>合同版本</span>
+              <span>合同</span>
             </Button>
           </div>
+
+          {historyEntityType !== "Project" && (
+            <div className="mb-6 p-4 bg-muted rounded-lg">
+              <label className="text-sm font-medium mb-2 block">选择{historyEntityType === "Quote" ? "报价" : historyEntityType === "Addon" ? "增项" : historyEntityType === "Material" ? "材料" : historyEntityType === "SitePhoto" ? "照片" : "合同"}：</label>
+              <select
+                className="w-full p-2 border rounded"
+                value={selectedEntityId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setSelectedEntityId(id);
+                  let name = "";
+                  if (historyEntityType === "Quote") {
+                    const q = project.quotes.find((q: any) => q.id === id);
+                    name = `报价 v${q?.version}`;
+                  } else if (historyEntityType === "Addon") {
+                    const a = project.addons.find((a: any) => a.id === id);
+                    name = a?.name || "";
+                  } else if (historyEntityType === "Material") {
+                    const m = project.materials.find((m: any) => m.id === id);
+                    name = m?.name || "";
+                  } else if (historyEntityType === "SitePhoto") {
+                    const p = project.photos.find((p: any) => p.id === id);
+                    name = p?.name || "";
+                  } else if (historyEntityType === "Contract") {
+                    const c = project.contracts.find((c: any) => c.id === id);
+                    name = c?.name || "";
+                  }
+                  setSelectedEntityName(name);
+                }}
+              >
+                {historyEntityType === "Quote" && project.quotes.map((q: any) => (
+                  <option key={q.id} value={q.id}>报价 v{q.version}</option>
+                ))}
+                {historyEntityType === "Addon" && project.addons.map((a: any) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+                {historyEntityType === "Material" && project.materials.map((m: any) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+                {historyEntityType === "SitePhoto" && project.photos.map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+                {historyEntityType === "Contract" && project.contracts.map((c: any) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <VersionHistoryViewer
-            entityType="Project"
-            entityId={projectId}
-            entityName={project.name}
+            entityType={historyEntityType}
+            entityId={selectedEntityId}
+            entityName={selectedEntityName || (historyEntityType === "Project" ? project.name : "")}
           />
         </CardContent>
       </Card>

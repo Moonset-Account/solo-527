@@ -48,12 +48,25 @@ export async function GET(
           orderBy: { createdAt: "desc" },
         },
         materials: {
+          include: {
+            createdBy: { select: { id: true, name: true } },
+            _count: { select: { versionHistory: true } },
+          },
           orderBy: { createdAt: "desc" },
         },
         photos: {
-          orderBy: { takenAt: "desc" },
+          include: {
+            uploadedBy: { select: { id: true, name: true } },
+            _count: { select: { versionHistory: true } },
+          },
+          orderBy: { createdAt: "desc" },
         },
         contracts: {
+          include: {
+            uploadedBy: { select: { id: true, name: true } },
+            signedBy: { select: { id: true, name: true } },
+            _count: { select: { versionHistory: true } },
+          },
           orderBy: { createdAt: "desc" },
         },
         repairs: {

@@ -63,7 +63,7 @@ export function AddonList({ designerId, showConfirmButton = false }: AddonListPr
   const confirmMutation = useMutation<
     { confirmedById: string; note?: string },
     Addon
-  >("/api/addons", "POST", {
+  >("", "POST", {
     onSuccess: () => {
       refetch();
     },
@@ -71,7 +71,7 @@ export function AddonList({ designerId, showConfirmButton = false }: AddonListPr
 
   const handleConfirm = (addonId: string) => {
     const confirmedById = "current-user-id";
-    confirmMutation.mutate({ confirmedById });
+    confirmMutation.mutate({ confirmedById }, `/api/addons/${addonId}?action=confirm`);
   };
 
   const pendingAmount =

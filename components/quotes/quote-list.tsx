@@ -62,7 +62,7 @@ export function QuoteList({ designerId, showConfirmButton = false }: QuoteListPr
   const confirmMutation = useMutation<
     { confirmedById: string; note?: string },
     Quote
-  >("/api/quotes", "POST", {
+  >("", "POST", {
     onSuccess: () => {
       refetch();
     },
@@ -70,7 +70,7 @@ export function QuoteList({ designerId, showConfirmButton = false }: QuoteListPr
 
   const handleConfirm = (quoteId: string) => {
     const confirmedById = "current-user-id";
-    confirmMutation.mutate({ confirmedById });
+    confirmMutation.mutate({ confirmedById }, `/api/quotes/${quoteId}?action=confirm`);
   };
 
   return (

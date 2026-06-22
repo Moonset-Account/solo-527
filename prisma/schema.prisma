@@ -54,18 +54,31 @@ enum NotificationType {
 }
 
 model User {
-  id              String           @id @default(uuid())
-  name            String
-  email           String           @unique
-  role            UserRole
-  phone           String?
-  avatarUrl       String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  projectsAsDesigner Project[]     @relation("DesignerProjects")
-  projectsAsClient   Project[]     @relation("ClientProjects")
-  feedbacks       Feedback[]
-  notifications   Notification[]
+  id                         String           @id @default(uuid())
+  name                       String
+  email                      String           @unique
+  role                       UserRole
+  phone                      String?
+  avatarUrl                  String?
+  createdAt                  DateTime         @default(now())
+  updatedAt                  DateTime         @updatedAt
+  projectsAsDesigner         Project[]        @relation("DesignerProjects")
+  projectsAsClient             Project[]        @relation("ClientProjects")
+  confirmedQuotes            Quote[]          @relation("QuoteConfirmedBy", fields: [id], references: [confirmedById])
+  proposedAddons            Addon[]          @relation("AddonProposedBy", fields: [id], references: [proposedById])
+  confirmedAddons           Addon[]          @relation("AddonConfirmedBy", fields: [id], references: [confirmedById])
+  createdBudgetChanges      BudgetChange[]   @relation("BudgetChangeCreatedBy", fields: [id], references: [createdById])
+  createdMaterials        Material[]       @relation("MaterialCreatedBy", fields: [id], references: [createdById])
+  uploadedPhotos        SitePhoto[]      @relation("SitePhotoUploadedBy", fields: [id], references: [uploadedById])
+  uploadedContracts     Contract[]       @relation("ContractUploadedBy", fields: [id], references: [uploadedById])
+  signedContracts       Contract[]       @relation("ContractSignedBy", fields: [id], references: [signedById])
+  reportedRepairs       Repair[]         @relation("RepairReportedBy", fields: [id], references: [reportedById])
+  assignedRepairs       Repair[]         @relation("RepairAssignedTo", fields: [id], references: [assignedToId])
+  uploadedRepairPhotos  RepairPhoto[]    @relation("RepairPhotoUploadedBy", fields: [id], references: [uploadedById])
+  clientFeedbacks     Feedback[]       @relation("FeedbackClient", fields: [id], references: [clientId])
+  resolvedFeedbacks     Feedback[]       @relation("FeedbackResolvedBy", fields: [id], references: [resolvedById])
+  changedVersionHistories VersionHistory[] @relation("VersionHistoryChangedBy", fields: [id], references: [changedById])
+  notifications        Notification[]
 
   @@index([role])
   @@index([email])
@@ -115,7 +128,7 @@ model Quote {
   note            String?
   confirmedAt     DateTime?
   confirmedById   String?
-  confirmedBy     User?            @relation(fields: [confirmedById], references: [id])
+  confirmedBy     User?            @relation("QuoteConfirmedBy", fields: [confirmedById], references: [id])
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   items           QuoteItem[]
@@ -150,7 +163,7 @@ model Addon {
   status          AddonStatus      @default(DRAFT)
   version         Int              @default(1)
   proposedById    String
-  proposedBy      User             @relation(fields: [proposedById], references: [id])
+  proposedBy      User             @relation("AddonProposedBy", fields: [proposedById], references: [id])
   confirmedAt     DateTime?
   confirmedById   String?
   confirmedBy     User?            @relation("AddonConfirmedBy", fields: [confirmedById], references: [id])
@@ -174,7 +187,7 @@ model BudgetChange {
   referenceType   String
   referenceId     String
   createdById     String
-  createdBy       User             @relation(fields: [createdById], references: [id])
+  createdBy       User             @relation("BudgetChangeCreatedBy", fields: [createdById], references: [id])
   note            String?
   createdAt       DateTime         @default(now())
 
@@ -199,7 +212,7 @@ model Material {
   note            String?
   version         Int              @default(1)
   createdById     String
-  createdBy       User             @relation(fields: [createdById], references: [id])
+  createdBy       User             @relation("MaterialCreatedBy", fields: [createdById], references: [id])
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   versionHistory  VersionHistory[]
@@ -221,7 +234,7 @@ model SitePhoto {
   note            String?
   version         Int              @default(1)
   uploadedById    String
-  uploadedBy      User             @relation(fields: [uploadedById], references: [id])
+  uploadedBy      User             @relation("SitePhotoUploadedBy", fields: [uploadedById], references: [id])
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   versionHistory  VersionHistory[]
@@ -242,7 +255,7 @@ model Contract {
   version         Int              @default(1)
   signedAt        DateTime?
   signedById      String?
-  signedBy        User?            @relation(fields: [signedById], references: [id])
+  signedBy        User?            @relation("ContractSignedBy", fields: [signedById], references: [id])
   note            String?
   uploadedById    String
   uploadedBy      User             @relation("ContractUploadedBy", fields: [uploadedById], references: [id])
@@ -285,7 +298,7 @@ model RepairPhoto {
   photoUrl        String
   description     String?
   uploadedById    String
-  uploadedBy      User             @relation(fields: [uploadedById], references: [id])
+  uploadedBy      User             @relation("RepairPhotoUploadedBy", fields: [uploadedById], references: [id])
   createdAt       DateTime         @default(now())
 }
 
@@ -294,14 +307,14 @@ model Feedback {
   projectId       String
   project         Project          @relation(fields: [projectId], references: [id])
   clientId        String
-  client          User             @relation(fields: [clientId], references: [id])
+  client          User             @relation("FeedbackClient", fields: [clientId], references: [id])
   category        String
   rating          Int?
   content         String
   resolution      String?
   resolvedAt      DateTime?
   resolvedById    String?
-  resolvedBy      User?            @relation(fields: [resolvedById], references: [id])
+  resolvedBy      User?            @relation("FeedbackResolvedBy", fields: [resolvedById], references: [id])
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -317,7 +330,7 @@ model VersionHistory {
   snapshot        Json
   changeNote      String?
   changedById     String
-  changedBy       User             @relation(fields: [changedById], references: [id])
+  changedBy       User             @relation("VersionHistoryChangedBy", fields: [changedById], references: [id])
   createdAt       DateTime         @default(now())
 
   @@index([entityType, entityId, version])

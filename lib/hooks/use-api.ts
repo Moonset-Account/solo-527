@@ -77,7 +77,7 @@ interface MutationResult<T, R> {
   loading: boolean;
   error: Error | null;
   data: R | null;
-  mutate: (variables: T) => Promise<R | null>;
+  mutate: (variables: T, overrideUrl?: string) => Promise<R | null>;
 }
 
 export function useMutation<T, R>(
@@ -90,12 +90,13 @@ export function useMutation<T, R>(
   const [data, setData] = useState<R | null>(null);
 
   const mutate = useCallback(
-    async (variables: T): Promise<R | null> => {
+    async (variables: T, overrideUrl?: string): Promise<R | null> => {
       setLoading(true);
       setError(null);
 
       try {
-        const response = await fetch(url, {
+        const targetUrl = overrideUrl || url;
+        const response = await fetch(targetUrl, {
           method,
           headers: {
             "Content-Type": "application/json",

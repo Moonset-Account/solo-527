@@ -21,9 +21,11 @@ export async function createVersionHistory(
   version: number,
   snapshot: VersionSnapshot,
   changedById: string,
-  changeNote?: string
+  changeNote?: string,
+  tx?: Prisma.TransactionClient
 ) {
-  return prisma.versionHistory.create({
+  const client = tx || prisma;
+  return client.versionHistory.create({
     data: {
       entityType,
       entityId,

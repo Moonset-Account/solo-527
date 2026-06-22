@@ -2,7 +2,8 @@ import { prisma } from "./prisma";
 import { createVersionHistory, takeSnapshot } from "./version-history";
 import type { Prisma, ProjectStatus, AddonStatus, QuoteStatus } from "@prisma/client";
 
-export async function createBudgetChange(
+async function createBudgetChangeInternal(
+  tx: Prisma.TransactionClient,
   projectId: string,
   changeType: string,
   description: string,
@@ -12,7 +13,7 @@ export async function createBudgetChange(
   createdById: string,
   note?: string
 ) {
-  const project = await prisma.project.findUnique({
+  const project = await tx.project.findUnique({
     where: { id: projectId },
     select: { currentBudget: true, initialBudget: true },
   });
@@ -25,31 +26,54 @@ export async function createBudgetChange(
   const newBudget = oldBudget + amount;
   const budgetVariance = ((newBudget - project.initialBudget.toNumber()) / project.initialBudget.toNumber()) * 100;
 
+  const budgetChange = await tx.budgetChange.create({
+    data: {
+      projectId,
+      changeType,
+      description,
+      oldBudget,
+      newBudget,
+      amount,
+      referenceType,
+      referenceId,
+      createdById,
+      note,
+    },
+  });
+
+  await tx.project.update({
+    where: { id: projectId },
+    data: {
+      currentBudget: newBudget,
+      budgetVariance,
+    },
+  });
+
+  return budgetChange;
+}
+
+export async function createBudgetChange(
+  projectId: string,
+  changeType: string,
+  description: string,
+  amount: number,
+  referenceType: string,
+  referenceId: string,
+  createdById: string,
+  note?: string
+) {
   return prisma.$transaction(async (tx) => {
-    const budgetChange = await tx.budgetChange.create({
-      data: {
-        projectId,
-        changeType,
-        description,
-        oldBudget,
-        newBudget,
-        amount,
-        referenceType,
-        referenceId,
-        createdById,
-        note,
-      },
-    });
-
-    await tx.project.update({
-      where: { id: projectId },
-      data: {
-        currentBudget: newBudget,
-        budgetVariance,
-      },
-    });
-
-    return budgetChange;
+    return createBudgetChangeInternal(
+      tx,
+      projectId,
+      changeType,
+      description,
+      amount,
+      referenceType,
+      referenceId,
+      createdById,
+      note
+    );
   });
 }
 
@@ -92,22 +116,22 @@ export async function confirmQuote(
       newVersion,
       snapshot,
       confirmedById,
-      note || "Quote confirmed"
+      note || "Quote confirmed",
+      tx
     );
 
     if (updatedQuote.status === "CONFIRMED") {
       const amount = quote.totalAmount.toNumber();
-      const currentBudget = quote.project.currentBudget.toNumber();
 
       await tx.project.update({
         where: { id: quote.projectId },
         data: {
           status: "QUOTE_CONFIRMED" as ProjectStatus,
-          currentBudget: currentBudget + amount,
         },
       });
 
-      await createBudgetChange(
+      await createBudgetChangeInternal(
+        tx,
         quote.projectId,
         "QUOTE_CONFIRMED",
         `报价确认 - ${quote.version}版`,
@@ -130,10 +154,15 @@ export async function confirmAddon(
 ) {
   const addon = await prisma.addon.findUnique({
     where: { id: addonId },
+    include: { project: true },
   });
 
   if (!addon) {
     throw new Error("Addon not found");
+  }
+
+  if (!addon.project) {
+    throw new Error("Addon has no associated project");
   }
 
   if (addon.status !== "PENDING_CONFIRMATION") {
@@ -151,6 +180,7 @@ export async function confirmAddon(
         version: newVersion,
         confirmedAt: new Date(),
         confirmedById,
+        note,
       },
     });
 
@@ -160,12 +190,14 @@ export async function confirmAddon(
       newVersion,
       snapshot,
       confirmedById,
-      note || "Addon confirmed"
+      note || "Addon confirmed",
+      tx
     );
 
     if (updatedAddon.status === "CONFIRMED") {
       const amount = addon.amount.toNumber();
-      await createBudgetChange(
+      await createBudgetChangeInternal(
+        tx,
         addon.projectId,
         "ADDON_CONFIRMED",
         `增项确认 - ${addon.name}`,
