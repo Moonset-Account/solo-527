@@ -1,0 +1,344 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  DESIGNER
+  CLIENT
+  ADMIN
+  BOSS
+}
+
+enum ProjectStatus {
+  PENDING_QUOTE
+  QUOTE_CONFIRMED
+  IN_PROGRESS
+  ADDON_PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum QuoteStatus {
+  DRAFT
+  PENDING_CONFIRMATION
+  CONFIRMED
+  REJECTED
+}
+
+enum AddonStatus {
+  DRAFT
+  PENDING_CONFIRMATION
+  CONFIRMED
+  REJECTED
+}
+
+enum RepairStatus {
+  REPORTED
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+}
+
+enum NotificationType {
+  REPAIR_OVERDUE
+  BUDGET_CHANGE
+  QUOTE_CONFIRMED
+  ADDON_CONFIRMED
+  FEEDBACK_RECEIVED
+  MONTHLY_REPORT_READY
+}
+
+model User {
+  id              String           @id @default(uuid())
+  name            String
+  email           String           @unique
+  role            UserRole
+  phone           String?
+  avatarUrl       String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  projectsAsDesigner Project[]     @relation("DesignerProjects")
+  projectsAsClient   Project[]     @relation("ClientProjects")
+  feedbacks       Feedback[]
+  notifications   Notification[]
+
+  @@index([role])
+  @@index([email])
+}
+
+model Project {
+  id              String           @id @default(uuid())
+  name            String
+  description     String?
+  address         String
+  status          ProjectStatus    @default(PENDING_QUOTE)
+  designerId      String
+  clientId        String
+  designer        User             @relation("DesignerProjects", fields: [designerId], references: [id])
+  client          User             @relation("ClientProjects", fields: [clientId], references: [id])
+  initialBudget   Decimal          @db.Decimal(12, 2)
+  currentBudget   Decimal          @db.Decimal(12, 2)
+  totalSpent      Decimal          @default(0) @db.Decimal(12, 2)
+  budgetVariance  Decimal          @default(0) @db.Decimal(12, 2)
+  startDate       DateTime?
+  endDate         DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  quotes          Quote[]
+  addons          Addon[]
+  budgetChanges   BudgetChange[]
+  materials       Material[]
+  photos          SitePhoto[]
+  contracts       Contract[]
+  repairs         Repair[]
+  feedbacks       Feedback[]
+  versionHistory  VersionHistory[]
+
+  @@index([status])
+  @@index([designerId])
+  @@index([clientId])
+  @@index([createdAt])
+}
+
+model Quote {
+  id              String           @id @default(uuid())
+  projectId       String
+  project         Project          @relation(fields: [projectId], references: [id])
+  version         Int              @default(1)
+  totalAmount     Decimal          @db.Decimal(12, 2)
+  status          QuoteStatus      @default(DRAFT)
+  note            String?
+  confirmedAt     DateTime?
+  confirmedById   String?
+  confirmedBy     User?            @relation(fields: [confirmedById], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  items           QuoteItem[]
+  versionHistory  VersionHistory[]
+
+  @@index([projectId, status])
+  @@index([createdAt])
+}
+
+model QuoteItem {
+  id              String           @id @default(uuid())
+  quoteId         String
+  quote           Quote            @relation(fields: [quoteId], references: [id])
+  name            String
+  description     String?
+  quantity        Decimal          @db.Decimal(10, 2)
+  unit            String
+  unitPrice       Decimal          @db.Decimal(12, 2)
+  totalPrice      Decimal          @db.Decimal(12, 2)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model Addon {
+  id              String           @id @default(uuid())
+  projectId       String
+  project         Project          @relation(fields: [projectId], references: [id])
+  name            String
+  description     String?
+  reason          String
+  amount          Decimal          @db.Decimal(12, 2)
+  status          AddonStatus      @default(DRAFT)
+  version         Int              @default(1)
+  proposedById    String
+  proposedBy      User             @relation(fields: [proposedById], references: [id])
+  confirmedAt     DateTime?
+  confirmedById   String?
+  confirmedBy     User?            @relation("AddonConfirmedBy", fields: [confirmedById], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  versionHistory  VersionHistory[]
+
+  @@index([projectId, status])
+  @@index([createdAt])
+}
+
+model BudgetChange {
+  id              String           @id @default(uuid())
+  projectId       String
+  project         Project          @relation(fields: [projectId], references: [id])
+  changeType      String
+  description     String
+  oldBudget       Decimal          @db.Decimal(12, 2)
+  newBudget       Decimal          @db.Decimal(12, 2)
+  amount          Decimal          @db.Decimal(12, 2)
+  referenceType   String
+  referenceId     String
+  createdById     String
+  createdBy       User             @relation(fields: [createdById], references: [id])
+  note            String?
+  createdAt       DateTime         @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([referenceType, referenceId])
+}
+
+model Material {
+  id              String           @id @default(uuid())
+  projectId       String
+  project         Project          @relation(fields: [projectId], references: [id])
+  name            String
+  specification   String?
+  brand           String?
+  quantity        Decimal          @db.Decimal(10, 2)
+  unit            String
+  unitPrice       Decimal          @db.Decimal(12, 2)
+  totalPrice      Decimal          @db.Decimal(12, 2)
+  supplier        String?
+  purchaseDate    DateTime?
+  receiptUrl      String?
+  note            String?
+  version         Int              @default(1)
+  createdById     String
+  createdBy       User             @relation(fields: [createdById], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  versionHistory  VersionHistory[]
+
+  @@index([projectId])
+}
+
+model SitePhoto {
+  id              String           @id @default(uuid())
+  projectId       String
+  project         Project          @relation(fields: [projectId], references: [id])
+  title           String
+  description     String?
+  photoUrl        String
+  thumbnailUrl    String?
+  category        String
+  takenAt         DateTime
+  location        String?
+  note            String?
+  version         Int              @default(1)
+  uploadedById    String
+  uploadedBy      User             @relation(fields: [uploadedById], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  versionHistory  VersionHistory[]
+
+  @@index([projectId, category])
+  @@index([takenAt])
+}
+
+model Contract {
+  id              String           @id @default(uuid())
+  projectId       String
+  project         Project          @relation(fields: [projectId], references: [id])
+  name            String
+  description     String?
+  fileUrl         String
+  fileType        String
+  fileSize        Int
+  version         Int              @default(1)
+  signedAt        DateTime?
+  signedById      String?
+  signedBy        User?            @relation(fields: [signedById], references: [id])
+  note            String?
+  uploadedById    String
+  uploadedBy      User             @relation("ContractUploadedBy", fields: [uploadedById], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  versionHistory  VersionHistory[]
+
+  @@index([projectId])
+}
+
+model Repair {
+  id              String           @id @default(uuid())
+  projectId       String
+  project         Project          @relation(fields: [projectId], references: [id])
+  title           String
+  description     String
+  severity        String
+  status          RepairStatus     @default(REPORTED)
+  reportedById    String
+  reportedBy      User             @relation("RepairReportedBy", fields: [reportedById], references: [id])
+  assignedToId    String?
+  assignedTo      User?            @relation("RepairAssignedTo", fields: [assignedToId], references: [id])
+  deadline        DateTime
+  completedAt     DateTime?
+  completedNote   String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  photos          RepairPhoto[]
+  notifications   Notification[]
+
+  @@index([projectId, status])
+  @@index([deadline])
+  @@index([status, deadline])
+}
+
+model RepairPhoto {
+  id              String           @id @default(uuid())
+  repairId        String
+  repair          Repair           @relation(fields: [repairId], references: [id])
+  photoUrl        String
+  description     String?
+  uploadedById    String
+  uploadedBy      User             @relation(fields: [uploadedById], references: [id])
+  createdAt       DateTime         @default(now())
+}
+
+model Feedback {
+  id              String           @id @default(uuid())
+  projectId       String
+  project         Project          @relation(fields: [projectId], references: [id])
+  clientId        String
+  client          User             @relation(fields: [clientId], references: [id])
+  category        String
+  rating          Int?
+  content         String
+  resolution      String?
+  resolvedAt      DateTime?
+  resolvedById    String?
+  resolvedBy      User?            @relation(fields: [resolvedById], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([projectId, category])
+  @@index([createdAt])
+}
+
+model VersionHistory {
+  id              String           @id @default(uuid())
+  entityType      String
+  entityId        String
+  version         Int
+  snapshot        Json
+  changeNote      String?
+  changedById     String
+  changedBy       User             @relation(fields: [changedById], references: [id])
+  createdAt       DateTime         @default(now())
+
+  @@index([entityType, entityId, version])
+  @@index([createdAt])
+}
+
+model Notification {
+  id              String           @id @default(uuid())
+  type            NotificationType
+  title           String
+  message         String
+  read            Boolean          @default(false)
+  userId          String
+  user            User             @relation(fields: [userId], references: [id])
+  referenceType   String?
+  referenceId     String?
+  repairId        String?
+  repair          Repair?          @relation(fields: [repairId], references: [id])
+  createdAt       DateTime         @default(now())
+  readAt          DateTime?
+
+  @@index([userId, read])
+  @@index([type, createdAt])
+}
