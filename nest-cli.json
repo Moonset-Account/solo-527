@@ -4,7 +4,16 @@
   "sourceRoot": "api",
   "compilerOptions": {
     "deleteOutDir": true,
-    "tsConfigPath": "tsconfig.api.json"
+    "tsConfigPath": "tsconfig.api.json",
+    "webpack": false,
+    "assets": [
+      {
+        "include": "../package.json",
+        "outDir": "dist/server",
+        "watchAssets": false,
+        "flat": true
+      }
+    ]
   },
   "entryFile": "main"
 }
