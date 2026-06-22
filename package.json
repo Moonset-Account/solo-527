@@ -7,7 +7,7 @@
     "client:dev": "vite",
     "server:dev": "nodemon",
     "server:build": "tsc -p tsconfig.api.json",
-    "server:start": "node dist/main.js",
+    "server:start": "node dist/server/main.js",
     "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
     "build": "npm run build:client && npm run build:server",
     "build:client": "vue-tsc -b --pretty false && vite build",

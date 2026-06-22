@@ -4,8 +4,7 @@
   "sourceRoot": "api",
   "compilerOptions": {
     "deleteOutDir": true,
-    "tsConfigPath": "tsconfig.api.json",
-    "typeCheck": true
+    "tsConfigPath": "tsconfig.api.json"
   },
   "entryFile": "main"
 }
